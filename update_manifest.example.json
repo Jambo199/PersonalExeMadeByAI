@@ -1,0 +1,8 @@
+{
+  "latest_version": "1.2.0",
+  "download_url": "https://example.com/PersonalExeMadeByAI.exe",
+  "sha256": "optional_sha256_here",
+  "release_notes": "Cleaner log polish, music fixes, more chaos.",
+  "homepage_url": "https://example.com/releases/PersonalExeMadeByAI-1.2.0",
+  "mandatory": false
+}
