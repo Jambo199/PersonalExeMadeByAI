@@ -24,7 +24,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -92,8 +91,9 @@ fun SelectionBar(
     modifier: Modifier = Modifier,
 ) {
     // Keep showing the last count while the bar animates away.
-    var shownCount by remember { mutableIntStateOf(selection.count) }
-    if (selection.count > 0) shownCount = selection.count
+    val lastCount = remember { IntArray(1) }
+    if (selection.count > 0) lastCount[0] = selection.count
+    val shownCount = lastCount[0]
     Surface(
         modifier = modifier
             .fillMaxWidth()
