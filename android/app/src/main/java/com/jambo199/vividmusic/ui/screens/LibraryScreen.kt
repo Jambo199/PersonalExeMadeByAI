@@ -199,6 +199,8 @@ fun LibraryScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
             state = pagerState,
             beyondViewportPageCount = 1,
             modifier = Modifier.fillMaxSize(),
+            // Short pages (few folders/playlists) start at the top instead of floating mid-screen.
+            verticalAlignment = Alignment.Top,
             key = { TABS[it] },
         ) { page ->
             when (page) {

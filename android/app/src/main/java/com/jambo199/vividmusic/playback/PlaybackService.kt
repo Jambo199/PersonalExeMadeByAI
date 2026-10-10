@@ -206,13 +206,18 @@ class PlaybackService : MediaLibraryService() {
         return AppGraph.library.findByKey(item.mediaId) ?: item.toSong()
     }
 
-    private fun updateWidget() = WidgetUpdater.update(this, currentSong(), exo.playWhenReady)
+    private fun updateWidget() = WidgetUpdater.update(
+        this,
+        currentSong(),
+        exo.playWhenReady && exo.playbackState != Player.STATE_ENDED && exo.playbackState != Player.STATE_IDLE,
+    )
 
     private val playerListener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
             if (events.containsAny(
                     Player.EVENT_MEDIA_ITEM_TRANSITION,
                     Player.EVENT_PLAY_WHEN_READY_CHANGED,
+                    Player.EVENT_PLAYBACK_STATE_CHANGED,
                     Player.EVENT_TIMELINE_CHANGED,
                 )
             ) {

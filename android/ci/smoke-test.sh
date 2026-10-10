@@ -62,8 +62,9 @@ adb push "$MEDIA/Music/." /sdcard/Music/ > /dev/null
 adb push "$MEDIA/Download/." /sdcard/Download/ > /dev/null
 expected=$(find "$MEDIA" -type f | wc -l)
 for i in $(seq 1 30); do
-  found=$(adb shell content query --uri content://media/external/audio/media --projection _display_name 2>/dev/null | grep -c "Row:" || true)
-  echo "media index has $found/$expected files"
+  # Wait until the scanner has finished reading tags (files first appear with is_music=0).
+  found=$(adb shell "content query --uri content://media/external/audio/media --projection _display_name --where 'is_music=1'" 2>/dev/null | grep -c "Row:" || true)
+  echo "media index has $found/$expected music files"
   [ "$found" -ge "$expected" ] && break
   if [ "$i" -eq 5 ]; then
     # Nudge the media scanner if adb push wasn't picked up automatically.

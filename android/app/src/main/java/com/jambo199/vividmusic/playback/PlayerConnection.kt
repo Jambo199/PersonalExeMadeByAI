@@ -121,7 +121,8 @@ class PlayerConnection(private val context: Context) {
             song = song,
             index = p.currentMediaItemIndex,
             isPlaying = p.isPlaying,
-            playWhenReady = p.playWhenReady,
+            // At the end of the queue the player keeps playWhenReady set; show "play" then.
+            playWhenReady = p.playWhenReady && p.playbackState != Player.STATE_ENDED && p.playbackState != Player.STATE_IDLE,
             isBuffering = p.playbackState == Player.STATE_BUFFERING,
             durationMs = duration,
             shuffle = p.shuffleModeEnabled,
@@ -201,11 +202,13 @@ class PlayerConnection(private val context: Context) {
     }
 
     fun togglePlayPause() = withController { c ->
-        if (c.isPlaying) {
+        val ended = c.playbackState == Player.STATE_ENDED
+        if (c.playWhenReady && !ended && c.playbackState != Player.STATE_IDLE) {
             c.pause()
         } else {
             if (c.playbackState == Player.STATE_IDLE) c.prepare()
-            if (c.playbackState == Player.STATE_ENDED) c.seekToDefaultPosition()
+            // Finished the whole queue: start it again from the top.
+            if (ended) c.seekToDefaultPosition(c.currentTimeline.getFirstWindowIndex(c.shuffleModeEnabled).coerceAtLeast(0))
             c.play()
         }
     }
