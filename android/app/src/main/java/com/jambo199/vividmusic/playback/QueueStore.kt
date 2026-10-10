@@ -3,6 +3,7 @@ package com.jambo199.vividmusic.playback
 import android.content.Context
 import android.util.Log
 import com.jambo199.vividmusic.data.Song
+import com.jambo199.vividmusic.data.writeTextAtomically
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,7 +39,7 @@ class QueueStore(context: Context) {
     fun saveQueue(songs: List<Song>) {
         val arr = JSONArray()
         songs.forEach { arr.put(SongItems.toJson(it)) }
-        writeAtomically(queueFile, arr.toString())
+        queueFile.writeTextAtomically(arr.toString())
     }
 
     @Synchronized
@@ -48,7 +49,7 @@ class QueueStore(context: Context) {
             .put("position", positionMs)
             .put("shuffle", shuffle)
             .put("repeat", repeatMode)
-        writeAtomically(stateFile, o.toString())
+        stateFile.writeTextAtomically(o.toString())
     }
 
     @Synchronized
@@ -74,18 +75,5 @@ class QueueStore(context: Context) {
     } catch (e: Exception) {
         Log.w("QueueStore", "Could not restore queue", e)
         null
-    }
-
-    private fun writeAtomically(file: File, text: String) {
-        try {
-            val tmp = File(file.parentFile, file.name + ".tmp")
-            tmp.writeText(text)
-            if (!tmp.renameTo(file)) {
-                file.writeText(text)
-                tmp.delete()
-            }
-        } catch (e: Exception) {
-            Log.w("QueueStore", "Could not write ${file.name}", e)
-        }
     }
 }

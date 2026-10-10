@@ -466,48 +466,57 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     // region delete
 
+    /** Songs waiting for the system delete confirmation; kept here so rotation doesn't lose them. */
+    private var pendingDelete: List<Song> = emptyList()
+
+    /** Songs still to delete after the current Android 10 confirmation (one prompt per file). */
+    private var deleteQueue: List<Song> = emptyList()
+
     /**
-     * Deletes files. On Android 11+ the system asks the user to confirm; the UI launches the
-     * returned intent and then calls [onDeleteConfirmed].
+     * Deletes files. When the system has to confirm (Android 10+), [onResult] gets an intent to
+     * launch; the UI then calls [onDeleteConfirmed] with the dialog's outcome.
      */
     fun deleteSongs(songs: List<Song>, onResult: (DeleteRequest) -> Unit) {
         val context = getApplication<Application>()
         viewModelScope.launch {
             val mediaStoreSongs = songs.filter { it.source == SongSource.MEDIA_STORE }
             val folderSongs = songs.filter { it.source == SongSource.FOLDER }
-            var deleted = 0
+            val removedKeys = HashSet<String>()
             var failed = 0
             withContext(Dispatchers.IO) {
                 for (s in folderSongs) {
-                    try {
-                        if (DocumentsContract.deleteDocument(context.contentResolver, s.uri)) deleted++ else failed++
+                    val ok = try {
+                        DocumentsContract.deleteDocument(context.contentResolver, s.uri)
                     } catch (e: Exception) {
-                        failed++
+                        false
                     }
+                    if (ok) removedKeys += s.key else failed++
                 }
             }
             if (mediaStoreSongs.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                onDeleted(removedKeys)
                 val request = MediaStore.createDeleteRequest(context.contentResolver, mediaStoreSongs.map { it.uri })
-                if (deleted > 0) onDeleted(folderSongs.map { it.key }.toSet())
+                pendingDelete = mediaStoreSongs
+                deleteQueue = emptyList()
                 onResult(DeleteRequest.NeedsConfirmation(request.intentSender, mediaStoreSongs))
                 return@launch
             }
-            val removedKeys = HashSet<String>()
-            folderSongs.forEach { removedKeys += it.key }
-            for (s in mediaStoreSongs) {
+            for ((i, s) in mediaStoreSongs.withIndex()) {
                 try {
                     val rows = withContext(Dispatchers.IO) { context.contentResolver.delete(s.uri, null, null) }
                     if (rows > 0) {
-                        deleted++
                         removedKeys += s.key
-                        // Pre-Android 10 the row delete doesn't always remove the file itself.
+                        // Before Android 10 the row delete doesn't always remove the file itself.
                         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) runCatching { java.io.File(s.path).delete() }
                     } else {
                         failed++
                     }
                 } catch (e: SecurityException) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && e is RecoverableSecurityException) {
+                        // Android 10 asks about one file at a time; carry on with the rest afterwards.
                         onDeleted(removedKeys)
+                        pendingDelete = listOf(s)
+                        deleteQueue = mediaStoreSongs.drop(i + 1)
                         onResult(DeleteRequest.NeedsConfirmation(e.userAction.actionIntent.intentSender, listOf(s)))
                         return@launch
                     }
@@ -517,24 +526,34 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
             onDeleted(removedKeys)
-            onResult(DeleteRequest.Done(deleted, failed))
+            onResult(DeleteRequest.Done(removedKeys.size, failed))
         }
     }
 
-    /** Called after the system delete dialog returns OK. */
-    fun onDeleteConfirmed(songs: List<Song>) {
-        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
-            // On Android 10 the dialog only grants permission; delete now.
-            viewModelScope.launch {
-                withContext(Dispatchers.IO) {
-                    songs.forEach { runCatching { getApplication<Application>().contentResolver.delete(it.uri, null, null) } }
+    /** Called with the result of the system delete dialog. */
+    fun onDeleteConfirmed(confirmed: Boolean, onResult: (DeleteRequest) -> Unit) {
+        val songs = pendingDelete
+        val rest = deleteQueue
+        pendingDelete = emptyList()
+        deleteQueue = emptyList()
+        if (!confirmed || songs.isEmpty()) return
+        val context = getApplication<Application>()
+        viewModelScope.launch {
+            if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+                // On Android 10 the dialog only grants access; delete now, then continue.
+                val deleted = withContext(Dispatchers.IO) {
+                    songs.filter { s -> runCatching { context.contentResolver.delete(s.uri, null, null) > 0 }.getOrDefault(false) }
                 }
+                onDeleted(deleted.map { it.key }.toSet())
+                if (rest.isNotEmpty()) {
+                    deleteSongs(rest, onResult)
+                    return@launch
+                }
+            } else {
                 onDeleted(songs.map { it.key }.toSet())
             }
-        } else {
-            onDeleted(songs.map { it.key }.toSet())
+            toast(if (songs.size == 1) "Deleted" else "${songs.size} songs deleted")
         }
-        toast(if (songs.size == 1) "Deleted" else "${songs.size} songs deleted")
     }
 
     private fun onDeleted(keys: Set<String>) {

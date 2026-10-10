@@ -92,11 +92,23 @@ fun SongMenuHost(state: SongMenuState, viewModel: MainViewModel) {
 
     var details by remember { mutableStateOf<Song?>(null) }
     var confirmDelete by remember { mutableStateOf<List<Song>?>(null) }
-    var pendingDelete by remember { mutableStateOf<List<Song>>(emptyList()) }
-
+    // Declared before the launcher so the launcher's callback can report follow-up prompts.
+    var launchDelete: (DeleteRequest) -> Unit = {}
     val deleteLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) viewModel.onDeleteConfirmed(pendingDelete)
-        pendingDelete = emptyList()
+        viewModel.onDeleteConfirmed(result.resultCode == Activity.RESULT_OK) { launchDelete(it) }
+    }
+    launchDelete = { result ->
+        when (result) {
+            is DeleteRequest.NeedsConfirmation ->
+                deleteLauncher.launch(IntentSenderRequest.Builder(result.intentSender).build())
+            is DeleteRequest.Done -> viewModel.toast(
+                when {
+                    result.failed == 0 -> if (result.deleted == 1) "Deleted" else "${result.deleted} songs deleted"
+                    result.deleted == 0 -> "Couldn't delete"
+                    else -> "Deleted ${result.deleted}, ${result.failed} failed"
+                },
+            )
+        }
     }
 
     val request = state.request
@@ -182,21 +194,7 @@ fun SongMenuHost(state: SongMenuState, viewModel: MainViewModel) {
             confirmButton = {
                 TextButton(onClick = {
                     confirmDelete = null
-                    viewModel.deleteSongs(songs) { result ->
-                        when (result) {
-                            is DeleteRequest.NeedsConfirmation -> {
-                                pendingDelete = result.songs
-                                deleteLauncher.launch(IntentSenderRequest.Builder(result.intentSender).build())
-                            }
-                            is DeleteRequest.Done -> viewModel.toast(
-                                when {
-                                    result.failed == 0 -> if (result.deleted == 1) "Deleted" else "${result.deleted} songs deleted"
-                                    result.deleted == 0 -> "Couldn't delete"
-                                    else -> "Deleted ${result.deleted}, ${result.failed} failed"
-                                },
-                            )
-                        }
-                    }
+                    viewModel.deleteSongs(songs) { launchDelete(it) }
                 }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text("Cancel") } },

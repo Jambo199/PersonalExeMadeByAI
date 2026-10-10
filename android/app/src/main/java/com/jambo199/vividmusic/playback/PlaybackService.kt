@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.os.Bundle
 import android.os.SystemClock
+import android.view.KeyEvent
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -66,6 +67,7 @@ class PlaybackService : MediaLibraryService() {
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         val settings = AppGraph.settings.current
 
         exo = ExoPlayer.Builder(this)
@@ -117,6 +119,24 @@ class PlaybackService : MediaLibraryService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session
 
+    /** Widget buttons, applied directly while the service is alive. */
+    private fun handleKey(keyCode: Int) {
+        when (keyCode) {
+            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                val ended = exo.playbackState == Player.STATE_ENDED
+                if (exo.playWhenReady && !ended && exo.playbackState != Player.STATE_IDLE) {
+                    exo.pause()
+                } else {
+                    if (exo.playbackState == Player.STATE_IDLE) exo.prepare()
+                    if (ended) exo.seekToDefaultPosition(exo.currentTimeline.getFirstWindowIndex(exo.shuffleModeEnabled).coerceAtLeast(0))
+                    exo.play()
+                }
+            }
+            KeyEvent.KEYCODE_MEDIA_NEXT -> exo.seekToNext()
+            KeyEvent.KEYCODE_MEDIA_PREVIOUS -> exo.seekToPrevious()
+        }
+    }
+
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = session?.player
         if (player == null || !player.playWhenReady || player.mediaItemCount == 0 ||
@@ -139,6 +159,7 @@ class PlaybackService : MediaLibraryService() {
             release()
         }
         session = null
+        instance = null
         scope.cancel()
         super.onDestroy()
     }
@@ -431,6 +452,9 @@ class PlaybackService : MediaLibraryService() {
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
             val saved = AppGraph.queueStore.load()
                 ?: return Futures.immediateFailedFuture(UnsupportedOperationException("Nothing to resume"))
+            // Same modes as when the queue was saved (restoreQueue does this for app launches).
+            exo.repeatMode = saved.repeatMode
+            exo.shuffleModeEnabled = saved.shuffle
             return Futures.immediateFuture(
                 MediaSession.MediaItemsWithStartPosition(
                     saved.songs.map { it.toMediaItem() },
@@ -513,6 +537,16 @@ class PlaybackService : MediaLibraryService() {
         .build()
 
     companion object {
+        private var instance: PlaybackService? = null
+
+        /** Sends a widget button to the running player. Returns false if the service isn't running. */
+        fun handleWidgetKey(keyCode: Int): Boolean {
+            val service = instance ?: return false
+            if (service.exo.mediaItemCount == 0) return false
+            service.handleKey(keyCode)
+            return true
+        }
+
         private const val BROWSE_ROOT = "vivid:root"
         private const val RECENT_ROOT = "vivid:recent"
         private const val FADE_MS = 8_000L

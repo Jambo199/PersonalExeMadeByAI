@@ -158,12 +158,7 @@ class UserDataStore(context: Context, private val scope: CoroutineScope) {
             root.put("recent", JSONArray(data.recent))
             root.put("playCounts", JSONObject().apply { data.playCounts.forEach { (k, v) -> put(k, v) } })
             root.put("nextId", data.nextPlaylistId)
-            val tmp = File(file.parentFile, file.name + ".tmp")
-            tmp.writeText(root.toString())
-            if (!tmp.renameTo(file)) {
-                file.writeText(root.toString())
-                tmp.delete()
-            }
+            file.writeTextAtomically(root.toString())
         } catch (e: Exception) {
             Log.e(TAG, "Could not save user data", e)
         }

@@ -98,7 +98,8 @@ class FolderScanner(private val context: Context) {
             for (f in audio) {
                 val uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, f.id)
                 val key = uri.toString()
-                val cached = metaCache.get(key, f.size, f.modified)
+                // Same whole-second precision as readMetadata/needsMetadata use.
+                val cached = metaCache.get(key, f.size, f.modified / 1000 * 1000)
                 val baseName = f.name.substringBeforeLast('.')
                 songs += Song(
                     key = key,
@@ -312,10 +313,7 @@ internal class MetadataCache(private val file: File) {
                         .put("d", m.durationMs).put("n", m.track).put("y", m.year),
                 )
             }
-            val tmp = File(file.parentFile, file.name + ".tmp")
-            tmp.writeText(root.toString())
-            tmp.renameTo(file)
-            dirty = false
+            if (file.writeTextAtomically(root.toString())) dirty = false
         } catch (e: Exception) {
             Log.w("MetadataCache", "Could not save cache", e)
         }

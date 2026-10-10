@@ -43,6 +43,7 @@ class LibraryRepository(
 
     private val folderScanner = FolderScanner(context)
     private val scanMutex = Mutex()
+    private val enrichMutex = Mutex()
     private var mediaStoreSongs: List<Song> = emptyList()
     private val pickedScans = LinkedHashMap<String, FolderScanner.TreeScan>()
     private var observerJob: Job? = null
@@ -59,12 +60,21 @@ class LibraryRepository(
     }
 
     init {
+        // Only "include all audio" changes what we ask MediaStore for; the other filters are
+        // applied to the songs we already have.
         scope.launch {
             settings.state
-                .map { Triple(it.includeAllAudio, it.minDurationSec, it.excludedFolders) }
+                .map { it.includeAllAudio }
                 .distinctUntilChanged()
                 .drop(1)
                 .collect { refreshMediaStore() }
+        }
+        scope.launch {
+            settings.state
+                .map { it.minDurationSec to it.excludedFolders }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect { scanMutex.withLock { publish(scanning = false) } }
         }
         scope.launch {
             settings.state
@@ -127,30 +137,40 @@ class LibraryRepository(
         enrichPickedMetadata()
     }
 
-    /** Reads tags for picked-folder songs that only have file names so far, publishing as it goes. */
-    private suspend fun enrichPickedMetadata() {
+    /**
+     * Reads tags for picked-folder songs that only have file names so far. The library is
+     * republished every couple of seconds so big folders fill in without rebuilding constantly.
+     */
+    private suspend fun enrichPickedMetadata() = enrichMutex.withLock {
         val pending = pickedScans.values.flatMap { scan -> scan.songs.filter { folderScanner.needsMetadata(it) } }
-        if (pending.isEmpty()) return
+        if (pending.isEmpty()) return@withLock
         val total = pending.size
         val done = AtomicInteger(0)
-        val updated = java.util.concurrent.ConcurrentHashMap<String, Song>()
+        val batch = java.util.concurrent.ConcurrentHashMap<String, Song>()
+        var lastPublish = 0L
         withContext(Dispatchers.IO) {
-            pending.chunked(48).forEach { chunk ->
+            pending.chunked(32).forEach { chunk ->
                 chunk.map { song ->
                     async {
-                        updated[song.key] = folderScanner.readMetadata(song)
+                        batch[song.key] = folderScanner.readMetadata(song)
                         done.incrementAndGet()
                     }
                 }.awaitAll()
-                scanMutex.withLock {
-                    applyUpdates(updated)
-                    _state.update { it.copy(scanMessage = "Reading tags ${done.get()}/$total") }
-                    publish(scanning = true)
+                val now = android.os.SystemClock.elapsedRealtime()
+                if (now - lastPublish > 2000 || done.get() == total) {
+                    lastPublish = now
+                    scanMutex.withLock {
+                        applyUpdates(HashMap(batch))
+                        batch.clear()
+                        _state.update { it.copy(scanMessage = "Reading tags ${done.get()}/$total") }
+                        publish(scanning = true)
+                    }
                 }
             }
             folderScanner.saveCache()
         }
         scanMutex.withLock {
+            if (batch.isNotEmpty()) applyUpdates(HashMap(batch))
             _state.update { it.copy(scanMessage = null) }
             publish(scanning = false)
         }

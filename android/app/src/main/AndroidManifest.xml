@@ -90,6 +90,10 @@
         </receiver>
 
         <receiver
+            android:name=".widget.WidgetActionReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name="androidx.media3.session.MediaButtonReceiver"
             android:exported="true">
             <intent-filter>
