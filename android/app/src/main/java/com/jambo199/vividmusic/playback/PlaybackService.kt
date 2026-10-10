@@ -274,13 +274,13 @@ class PlaybackService : MediaSessionService() {
                         }
                         is TextInformationFrame -> {
                             val desc = entry.description?.uppercase()
-                            if (entry.id == "USLT" || desc == "LYRICS" || desc == "UNSYNCEDLYRICS") {
+                            if (entry.id == "USLT" || desc in LYRICS_KEYS) {
                                 entry.values.firstOrNull()?.takeIf { it.isNotBlank() }?.let { return it }
                             }
                         }
                         is VorbisComment -> {
                             val k = entry.key.uppercase()
-                            if (k == "LYRICS" || k == "UNSYNCEDLYRICS") return entry.value
+                            if (k in LYRICS_KEYS) return entry.value
                         }
                     }
                 }
@@ -427,6 +427,7 @@ class PlaybackService : MediaSessionService() {
     companion object {
         private const val FADE_MS = 8_000L
         private const val MAX_SKIPS = 6
+        private val LYRICS_KEYS = setOf("LYRICS", "UNSYNCEDLYRICS", "SYNCEDLYRICS", "USLT")
         const val ACTION_FAVORITE = "vivid.favorite"
         val FAVORITE_COMMAND = SessionCommand(ACTION_FAVORITE, Bundle.EMPTY)
     }

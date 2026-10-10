@@ -56,9 +56,11 @@ class MainActivity : ComponentActivity() {
         } else if (intent.getBooleanExtra(EXTRA_OPEN_PLAYER, false)) {
             viewModel.requestOpenPlayer()
         }
+        intent.getStringExtra(EXTRA_SHORTCUT)?.let { viewModel.handleShortcut(it) }
     }
 
     companion object {
         const val EXTRA_OPEN_PLAYER = "vivid.open_player"
+        const val EXTRA_SHORTCUT = "vivid.shortcut"
     }
 }

@@ -3,4 +3,5 @@
     <color name="launcher_background">#FF1B1035</color>
     <color name="window_light">#FFFDF8FF</color>
     <color name="window_dark">#FF121016</color>
+    <color name="shortcut_background">#FFEDE7FF</color>
 </resources>

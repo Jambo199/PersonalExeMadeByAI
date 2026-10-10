@@ -6,9 +6,6 @@ on:
     paths: ['android/**', '.github/workflows/android.yml']
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 concurrency:
   group: android-${{ github.ref }}
   cancel-in-progress: true
@@ -16,6 +13,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: android
@@ -37,14 +36,101 @@ jobs:
           ./gradlew --no-daemon assembleRelease --stacktrace
 
       - name: Collect APK
-        id: apk
         run: |
           mkdir -p ../dist
           cp app/build/outputs/apk/release/app-release.apk ../dist/VividMusic-1.0.${{ github.run_number }}.apk
-          echo "name=VividMusic-1.0.${{ github.run_number }}.apk" >> "$GITHUB_OUTPUT"
           ls -la ../dist
 
       - uses: actions/upload-artifact@v4
         with:
           name: vivid-music-apk
           path: dist/*.apk
+
+  emulator-test:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: vivid-music-apk
+          path: dist
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Make test music
+        run: bash android/ci/make-test-audio.sh testmedia
+
+      - name: Run app on an Android 14 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -camera-back none
+          script: bash android/ci/smoke-test.sh "$(ls dist/*.apk | head -1)" testmedia screenshots
+
+      - name: Pack screenshots
+        if: always()
+        run: |
+          mkdir -p screenshots
+          cd screenshots && zip -q -r ../screenshots.zip . && cd .. && ls -la screenshots
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: screenshots.zip
+
+  publish:
+    needs: [build, emulator-test]
+    if: always() && needs.build.result == 'success' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: vivid-music-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: vivid-music-apk
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: screenshots
+          path: shots
+
+      - name: Publish pre-release with the APK
+        run: |
+          cp dist/*.apk VividMusic.apk
+          files="VividMusic.apk"
+          if [ -f shots/screenshots.zip ]; then cp shots/screenshots.zip screenshots.zip; files="$files screenshots.zip"; fi
+          cat > notes.md <<NOTES
+          **Vivid Music for Android – build ${{ github.run_number }}** (\`${GITHUB_SHA::7}\`, emulator test: ${{ needs.emulator-test.result }})
+
+          ### Install on your phone
+          1. On your phone, open this page and tap **VividMusic.apk** to download it.
+          2. Open the downloaded file. If asked, allow your browser or file manager to *install unknown apps*.
+          3. Tap **Install**, then open **Vivid Music** and allow access to music.
+
+          On vivo phones: Settings → Battery → Background power consumption management → Vivid Music → **Allow**, so music keeps playing with the screen off.
+
+          \`screenshots.zip\` has previews from the automated emulator test.
+          NOTES
+          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
+          sleep 3
+          gh release create "$TAG" $files --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --prerelease --title "Vivid Music for Android (build ${{ github.run_number }})" --notes-file notes.md

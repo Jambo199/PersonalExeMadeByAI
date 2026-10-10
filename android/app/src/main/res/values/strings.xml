@@ -3,4 +3,8 @@
     <string name="app_name">Vivid Music</string>
     <string name="favorite">Favourite</string>
     <string name="unfavorite">Remove favourite</string>
+    <string name="shortcut_shuffle">Shuffle all</string>
+    <string name="shortcut_search">Search</string>
+    <string name="shortcut_folders">Folders</string>
+    <string name="shortcut_favorites">Favourites</string>
 </resources>

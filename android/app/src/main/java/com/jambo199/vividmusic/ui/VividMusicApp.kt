@@ -89,6 +89,25 @@ fun VividMusicApp(viewModel: MainViewModel) {
             viewModel.consumeOpenPlayer()
         }
     }
+    val navRequest by viewModel.navRequest.collectAsState()
+    LaunchedEffect(navRequest) {
+        when (navRequest) {
+            null -> return@LaunchedEffect
+            "search" -> nav.search()
+            "settings" -> nav.settings()
+            "equalizer" -> nav.equalizer()
+            "favorites" -> nav.playlist(com.jambo199.vividmusic.data.SmartPlaylists.FAVORITES)
+            "queue" -> nav.nowPlaying()
+        }
+        viewModel.consumeNavRequest()
+    }
+    val tabRequest by viewModel.tabRequest.collectAsState()
+    LaunchedEffect(tabRequest) {
+        // Make sure the library is showing so it can switch tabs.
+        if (tabRequest != null && route != null && route != Routes.LIBRARY) {
+            navController.popBackStack(Routes.LIBRARY, inclusive = false)
+        }
+    }
 
     val navBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val miniHeight = if (showMini) 84.dp else 0.dp

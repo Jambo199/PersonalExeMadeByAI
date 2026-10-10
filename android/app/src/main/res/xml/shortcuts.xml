@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_shuffle"
+        android:shortcutId="shuffle"
+        android:shortcutShortLabel="@string/shortcut_shuffle">
+        <intent
+            android:action="com.jambo199.vividmusic.SHORTCUT"
+            android:targetClass="com.jambo199.vividmusic.MainActivity"
+            android:targetPackage="com.jambo199.vividmusic">
+            <extra android:name="vivid.shortcut" android:value="shuffle" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_favorites"
+        android:shortcutId="favorites"
+        android:shortcutShortLabel="@string/shortcut_favorites">
+        <intent
+            android:action="com.jambo199.vividmusic.SHORTCUT"
+            android:targetClass="com.jambo199.vividmusic.MainActivity"
+            android:targetPackage="com.jambo199.vividmusic">
+            <extra android:name="vivid.shortcut" android:value="favorites" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_folders"
+        android:shortcutId="folders"
+        android:shortcutShortLabel="@string/shortcut_folders">
+        <intent
+            android:action="com.jambo199.vividmusic.SHORTCUT"
+            android:targetClass="com.jambo199.vividmusic.MainActivity"
+            android:targetPackage="com.jambo199.vividmusic">
+            <extra android:name="vivid.shortcut" android:value="folders" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_search"
+        android:shortcutId="search"
+        android:shortcutShortLabel="@string/shortcut_search">
+        <intent
+            android:action="com.jambo199.vividmusic.SHORTCUT"
+            android:targetClass="com.jambo199.vividmusic.MainActivity"
+            android:targetPackage="com.jambo199.vividmusic">
+            <extra android:name="vivid.shortcut" android:value="search" />
+        </intent>
+    </shortcut>
+</shortcuts>

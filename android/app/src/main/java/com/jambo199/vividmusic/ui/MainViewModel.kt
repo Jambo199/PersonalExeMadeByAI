@@ -46,6 +46,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -175,6 +176,53 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun consumeOpenPlayer() {
         _openPlayer.value = false
+    }
+
+    private val _navRequest = MutableStateFlow<String?>(null)
+
+    /** A screen to open, from a launcher shortcut (search, settings, equalizer, favorites). */
+    val navRequest: StateFlow<String?> = _navRequest.asStateFlow()
+
+    private val _tabRequest = MutableStateFlow<Int?>(null)
+
+    /** A library tab to switch to, from a launcher shortcut. */
+    val tabRequest: StateFlow<Int?> = _tabRequest.asStateFlow()
+
+    fun consumeNavRequest() {
+        _navRequest.value = null
+    }
+
+    fun consumeTabRequest() {
+        _tabRequest.value = null
+    }
+
+    fun requestTab(tab: Int) {
+        _tabRequest.value = tab
+    }
+
+    /** Handles launcher shortcuts and other "open at" requests. */
+    fun handleShortcut(action: String) {
+        when (action) {
+            "shuffle" -> viewModelScope.launch {
+                // On a cold start the library may still be loading.
+                val songs = kotlinx.coroutines.withTimeoutOrNull(15_000) {
+                    library.first { it.songs.isNotEmpty() }.songs
+                }
+                if (songs != null) {
+                    shuffle(songs, "All songs")
+                    requestOpenPlayer()
+                } else {
+                    toast("No songs to shuffle yet")
+                }
+            }
+            "player" -> requestOpenPlayer()
+            "folders" -> requestTab(3)
+            "playlists" -> requestTab(4)
+            "songs" -> requestTab(0)
+            "albums" -> requestTab(1)
+            "artists" -> requestTab(2)
+            else -> _navRequest.value = action
+        }
     }
 
     // region playback

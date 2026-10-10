@@ -102,6 +102,14 @@ fun LibraryScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
     val scope = rememberCoroutineScope()
     var menuOpen by remember { mutableStateOf(false) }
 
+    val tabRequest by viewModel.tabRequest.collectAsState()
+    LaunchedEffect(tabRequest) {
+        tabRequest?.let {
+            pagerState.scrollToPage(it.coerceIn(0, TABS.lastIndex))
+            viewModel.consumeTabRequest()
+        }
+    }
+
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage }.collect { page ->
             if (page != viewModel.settings.value.lastTab) viewModel.updateSettings { it.copy(lastTab = page) }
