@@ -90,7 +90,6 @@ fun SongMenuHost(state: SongMenuState, viewModel: MainViewModel) {
     val userData by viewModel.userData.collectAsState()
     val library by viewModel.library.collectAsState()
 
-    var addToPlaylist by remember { mutableStateOf<List<Song>?>(null) }
     var details by remember { mutableStateOf<Song?>(null) }
     var confirmDelete by remember { mutableStateOf<List<Song>?>(null) }
     var pendingDelete by remember { mutableStateOf<List<Song>>(emptyList()) }
@@ -116,7 +115,7 @@ fun SongMenuHost(state: SongMenuState, viewModel: MainViewModel) {
                     }
                     MenuRow(Icons.Rounded.SkipNext, "Play next") { act { viewModel.playNext(songs) } }
                     MenuRow(Icons.AutoMirrored.Rounded.QueueMusic, "Add to queue") { act { viewModel.addToQueue(songs) } }
-                    MenuRow(Icons.AutoMirrored.Rounded.PlaylistAdd, "Add to playlist…") { act { addToPlaylist = songs } }
+                    MenuRow(Icons.AutoMirrored.Rounded.PlaylistAdd, "Add to playlist…") { act { state.addToPlaylist(songs) } }
                     if (single != null) {
                         val fav = single.key in userData.favoriteSet
                         MenuRow(
@@ -153,17 +152,17 @@ fun SongMenuHost(state: SongMenuState, viewModel: MainViewModel) {
         }
     }
 
-    addToPlaylist?.let { songs ->
+    state.playlistRequest?.let { songs ->
         AddToPlaylistDialog(
             playlists = userData.playlists,
-            onDismiss = { addToPlaylist = null },
+            onDismiss = { state.playlistRequest = null },
             onPick = { p ->
                 viewModel.addToPlaylist(p, songs)
-                addToPlaylist = null
+                state.playlistRequest = null
             },
             onCreate = { name ->
                 viewModel.createPlaylist(name, songs)
-                addToPlaylist = null
+                state.playlistRequest = null
             },
         )
     }

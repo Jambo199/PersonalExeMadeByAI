@@ -32,6 +32,8 @@ import com.jambo199.vividmusic.AppGraph
 import com.jambo199.vividmusic.MainActivity
 import com.jambo199.vividmusic.R
 import com.jambo199.vividmusic.data.EmbeddedLyrics
+import com.jambo199.vividmusic.data.Song
+import com.jambo199.vividmusic.widget.WidgetUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -109,6 +111,7 @@ class PlaybackService : MediaSessionService() {
         AppGraph.lyrics.onSongChanged(exo.currentMediaItem?.mediaId)
         updateCustomLayout()
         observeState()
+        updateWidget()
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
@@ -127,6 +130,7 @@ class PlaybackService : MediaSessionService() {
     override fun onDestroy() {
         saveQueueNow(sync = true)
         saveStateNow(sync = true)
+        WidgetUpdater.update(this, currentSong(), false)
         AppGraph.userData.flush()
         AudioEffects.release(this)
         session?.run {
@@ -195,7 +199,26 @@ class PlaybackService : MediaSessionService() {
         }
     }
 
+    private fun currentSong(): Song? {
+        if (!::exo.isInitialized) return null
+        val item = exo.currentMediaItem ?: return null
+        return AppGraph.library.findByKey(item.mediaId) ?: item.toSong()
+    }
+
+    private fun updateWidget() = WidgetUpdater.update(this, currentSong(), exo.playWhenReady)
+
     private val playerListener = object : Player.Listener {
+        override fun onEvents(player: Player, events: Player.Events) {
+            if (events.containsAny(
+                    Player.EVENT_MEDIA_ITEM_TRANSITION,
+                    Player.EVENT_PLAY_WHEN_READY_CHANGED,
+                    Player.EVENT_TIMELINE_CHANGED,
+                )
+            ) {
+                updateWidget()
+            }
+        }
+
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             countedCurrent = false
             AppGraph.lyrics.onSongChanged(mediaItem?.mediaId)

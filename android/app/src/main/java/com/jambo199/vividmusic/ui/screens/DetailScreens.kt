@@ -1,5 +1,7 @@
 package com.jambo199.vividmusic.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -33,6 +35,7 @@ import androidx.compose.material.icons.rounded.FolderOff
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
@@ -71,6 +74,7 @@ import com.jambo199.vividmusic.ui.components.Artwork
 import com.jambo199.vividmusic.ui.components.DragHandle
 import com.jambo199.vividmusic.ui.components.EmptyState
 import com.jambo199.vividmusic.ui.components.LocalBottomPadding
+import com.jambo199.vividmusic.ui.components.LocalSelection
 import com.jambo199.vividmusic.ui.components.PlayShuffleRow
 import com.jambo199.vividmusic.ui.components.SectionHeader
 import com.jambo199.vividmusic.ui.components.SongRow
@@ -140,6 +144,7 @@ fun AlbumScreen(viewModel: MainViewModel, albumId: Long) {
     val playback by viewModel.playback.collectAsState()
     val nav = LocalNav.current
     val menu = LocalSongMenu.current
+    val selection = LocalSelection.current
     val album = library.albumsById[albumId] ?: return NotFound("Album")
     val songs = album.songs
     val multiDisc = songs.map { it.disc }.distinct().size > 1
@@ -181,7 +186,9 @@ fun AlbumScreen(viewModel: MainViewModel, albumId: Long) {
                         subtitle = song.displayArtist,
                         isCurrent = playback.song?.key == song.key,
                         isPlaying = playback.isPlaying,
-                        onClick = { viewModel.play(songs, index, source) },
+                        selected = selection.isSelected(song),
+                        onClick = { if (selection.active) selection.toggle(song) else viewModel.play(songs, index, source) },
+                        onLongClick = { selection.start(song, songs) },
                         onMore = { menu.open(song) },
                     )
                 }
@@ -200,6 +207,7 @@ fun ArtistScreen(viewModel: MainViewModel, name: String) {
     val playback by viewModel.playback.collectAsState()
     val nav = LocalNav.current
     val menu = LocalSongMenu.current
+    val selection = LocalSelection.current
     val artist = library.artistsByName[name] ?: return NotFound("Artist")
     val songs = artist.songs
     val source = "Artist · ${artist.name}"
@@ -243,7 +251,9 @@ fun ArtistScreen(viewModel: MainViewModel, name: String) {
                     subtitle = song.displayAlbum,
                     isCurrent = playback.song?.key == song.key,
                     isPlaying = playback.isPlaying,
-                    onClick = { viewModel.play(songs, index, source) },
+                    selected = selection.isSelected(song),
+                    onClick = { if (selection.active) selection.toggle(song) else viewModel.play(songs, index, source) },
+                    onLongClick = { selection.start(song, songs) },
                     onMore = { menu.open(song) },
                 )
             }
@@ -262,6 +272,7 @@ fun FolderScreen(viewModel: MainViewModel, key: String) {
     val playback by viewModel.playback.collectAsState()
     val nav = LocalNav.current
     val menu = LocalSongMenu.current
+    val selection = LocalSelection.current
     val node = library.folders[key] ?: return NotFound("Folder")
     val songs = remember(node, settings.folderSongOrder) { viewModel.folderSongs(node) }
     val subfolders = remember(node, library) {
@@ -397,7 +408,9 @@ fun FolderScreen(viewModel: MainViewModel, key: String) {
                         isCurrent = playback.song?.key == song.key,
                         isPlaying = playback.isPlaying,
                         subtitle = "${song.displayArtist} • ${song.fileName}",
-                        onClick = { viewModel.play(songs, index, source) },
+                        selected = selection.isSelected(song),
+                        onClick = { if (selection.active) selection.toggle(song) else viewModel.play(songs, index, source) },
+                        onLongClick = { selection.start(song, songs) },
                         onMore = { menu.open(song) },
                     )
                 }
@@ -436,6 +449,7 @@ fun PlaylistScreen(viewModel: MainViewModel, id: Long) {
     val playback by viewModel.playback.collectAsState()
     val nav = LocalNav.current
     val menu = LocalSongMenu.current
+    val selection = LocalSelection.current
     val playlist = userData.playlists.firstOrNull { it.id == id }
     if (id > 0 && playlist == null) return NotFound("Playlist")
     val title = playlist?.name ?: SmartPlaylists.name(id)
@@ -446,6 +460,9 @@ fun PlaylistScreen(viewModel: MainViewModel, id: Long) {
     var renaming by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
+    val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("audio/x-mpegurl")) { uri ->
+        if (uri != null) viewModel.exportPlaylist(title, songs, uri)
+    }
 
     // Playlist entries keep their own index so duplicates and missing files are handled.
     data class Entry(val slot: Int, val song: Song)
@@ -481,6 +498,16 @@ fun PlaylistScreen(viewModel: MainViewModel, id: Long) {
                             viewModel.addToQueue(songs)
                         },
                     )
+                    if (songs.isNotEmpty()) {
+                        DropdownMenuItem(
+                            text = { Text("Export as M3U file…") },
+                            leadingIcon = { Icon(Icons.Rounded.Save, null) },
+                            onClick = {
+                                menuOpen = false
+                                exporter.launch("$title.m3u8")
+                            },
+                        )
+                    }
                     if (editable) {
                         DropdownMenuItem(
                             text = { Text("Rename") },
@@ -544,7 +571,12 @@ fun PlaylistScreen(viewModel: MainViewModel, id: Long) {
                         .then(if (reorder.draggingKey == key) Modifier else Modifier.animateItem()),
                     isCurrent = playback.song?.key == entry.song.key,
                     isPlaying = playback.isPlaying,
-                    onClick = { viewModel.play(reorder.items.map { it.song }, index, source) },
+                    selected = selection.isSelected(entry.song),
+                    onClick = {
+                        if (selection.active) selection.toggle(entry.song)
+                        else viewModel.play(reorder.items.map { it.song }, index, source)
+                    },
+                    onLongClick = { selection.start(entry.song, songs) },
                     onMore = { menu.open(entry.song, if (editable) id else null, entry.slot) },
                     trailing = if (editable) ({ DragHandle(reorder, key) }) else null,
                 )

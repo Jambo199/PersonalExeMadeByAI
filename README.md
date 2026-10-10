@@ -1,5 +1,9 @@
 # PersonalExeMadeByAI
 
+> **New: Vivid Music for Android** – a full-featured music player with album art, folder browsing,
+> lyrics, equalizer and more. See [`android/README.md`](android/README.md) or grab the APK from the
+> [vivid-music-latest release](https://github.com/Jambo199/PersonalExeMadeByAI/releases/tag/vivid-music-latest).
+
 A Windows desktop app with four sections:
 
 1. **Cache Cleaner** - choose what to clean, scan first, then delete selected cache folders.

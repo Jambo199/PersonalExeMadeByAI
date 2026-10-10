@@ -156,6 +156,7 @@ fun SongRow(
     modifier: Modifier = Modifier,
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
+    selected: Boolean = false,
     subtitle: String? = null,
     leadingNumber: Int? = null,
     onMore: (() -> Unit)? = null,
@@ -165,11 +166,22 @@ fun SongRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .background(if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (leadingNumber != null) {
+        if (selected) {
+            Box(
+                Modifier
+                    .size(if (leadingNumber != null) 32.dp else 52.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Rounded.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.onPrimary)
+            }
+        } else if (leadingNumber != null) {
             Box(Modifier.width(32.dp), contentAlignment = Alignment.Center) {
                 if (isCurrent) {
                     PlayingIndicator(isPlaying)

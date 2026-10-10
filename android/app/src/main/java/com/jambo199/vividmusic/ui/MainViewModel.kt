@@ -383,6 +383,73 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (songs.isNotEmpty()) createPlaylist(name, songs)
     }
 
+    /** Writes a playlist as an M3U8 file the user picked. */
+    fun exportPlaylist(name: String, songs: List<Song>, target: Uri) {
+        val context = getApplication<Application>()
+        viewModelScope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                try {
+                    context.contentResolver.openOutputStream(target, "wt")?.bufferedWriter(Charsets.UTF_8)?.use { w ->
+                        w.write("#EXTM3U\n#PLAYLIST:$name\n")
+                        for (song in songs) {
+                            w.write("#EXTINF:${song.durationMs / 1000},${song.displayArtist} - ${song.title}\n")
+                            w.write(song.path.ifBlank { song.uri.toString() } + "\n")
+                        }
+                    } != null
+                } catch (e: Exception) {
+                    false
+                }
+            }
+            toast(if (ok) "Exported ${songs.size} songs" else "Couldn't save the playlist file")
+        }
+    }
+
+    /** Reads an M3U/M3U8 file and creates a playlist from the songs found in the library. */
+    fun importPlaylist(source: Uri) {
+        val context = getApplication<Application>()
+        viewModelScope.launch {
+            val lib = library.value
+            val result = withContext(Dispatchers.IO) {
+                try {
+                    val text = context.contentResolver.openInputStream(source)?.use { String(it.readBytes(), Charsets.UTF_8) }
+                        ?: return@withContext null
+                    val entries = text.lineSequence().map { it.trim().removePrefix("\uFEFF") }
+                        .filter { it.isNotEmpty() && !it.startsWith("#") }.toList()
+                    val byPath = lib.songs.associateBy { it.path.lowercase() }
+                    val byName = lib.songs.groupBy { it.fileName.lowercase() }
+                    val matched = entries.mapNotNull { entry ->
+                        val norm = Uri.decode(entry).replace('\\', '/')
+                        byPath[norm.lowercase()]
+                            ?: lib.byKey[entry]
+                            ?: byName[norm.substringAfterLast('/').lowercase()]?.let { candidates ->
+                                // Same file name in several folders: prefer the one whose folder matches too.
+                                candidates.firstOrNull { c ->
+                                    norm.lowercase().endsWith(c.path.lowercase().split('/').takeLast(2).joinToString("/"))
+                                } ?: candidates.first()
+                            }
+                    }
+                    val name = context.contentResolver.query(source, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                        ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+                        ?.substringBeforeLast('.') ?: "Imported playlist"
+                    Triple(name, matched, entries.size)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            if (result == null) {
+                toast("Couldn't read that playlist file")
+                return@launch
+            }
+            val (name, songs, total) = result
+            if (songs.isEmpty()) {
+                toast("None of the $total songs in that file are on this phone")
+            } else {
+                AppGraph.userData.createPlaylist(name, songs.map { it.key })
+                toast("Imported \"$name\" – ${songs.size} of $total songs found")
+            }
+        }
+    }
+
     // endregion
 
     // region lyrics

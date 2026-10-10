@@ -44,6 +44,7 @@ import com.jambo199.vividmusic.ui.LocalSongMenu
 import com.jambo199.vividmusic.ui.MainViewModel
 import com.jambo199.vividmusic.ui.components.EmptyState
 import com.jambo199.vividmusic.ui.components.LocalBottomPadding
+import com.jambo199.vividmusic.ui.components.LocalSelection
 import com.jambo199.vividmusic.ui.components.SectionHeader
 import com.jambo199.vividmusic.ui.components.SongRow
 
@@ -54,6 +55,7 @@ fun SearchScreen(viewModel: MainViewModel) {
     val playback by viewModel.playback.collectAsState()
     val nav = LocalNav.current
     val menu = LocalSongMenu.current
+    val selection = LocalSelection.current
     val keyboard = LocalSoftwareKeyboardController.current
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
@@ -139,10 +141,13 @@ fun SearchScreen(viewModel: MainViewModel) {
                         song = song,
                         isCurrent = playback.song?.key == song.key,
                         isPlaying = playback.isPlaying,
+                        selected = selection.isSelected(song),
                         onClick = {
                             keyboard?.hide()
-                            viewModel.play(results.songs, index, "Search · $query")
+                            if (selection.active) selection.toggle(song)
+                            else viewModel.play(results.songs, index, "Search · $query")
                         },
+                        onLongClick = { selection.start(song, results.songs) },
                         onMore = { menu.open(song) },
                     )
                 }

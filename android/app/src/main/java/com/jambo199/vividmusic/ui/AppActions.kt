@@ -67,6 +67,13 @@ class SongMenuState {
     fun close() {
         request = null
     }
+
+    /** Songs waiting for the "Add to playlist" dialog. */
+    var playlistRequest by mutableStateOf<List<Song>?>(null)
+
+    fun addToPlaylist(songs: List<Song>) {
+        if (songs.isNotEmpty()) playlistRequest = songs
+    }
 }
 
 val LocalSongMenu = staticCompositionLocalOf<SongMenuState> { error("SongMenuState not provided") }

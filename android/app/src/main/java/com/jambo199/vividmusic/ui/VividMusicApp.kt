@@ -1,5 +1,6 @@
 package com.jambo199.vividmusic.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -39,6 +40,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.jambo199.vividmusic.ui.components.LocalBottomPadding
+import com.jambo199.vividmusic.ui.components.LocalSelection
+import com.jambo199.vividmusic.ui.components.SelectionBar
+import com.jambo199.vividmusic.ui.components.SelectionState
 import com.jambo199.vividmusic.ui.components.MiniPlayer
 import com.jambo199.vividmusic.ui.components.SongMenuHost
 import com.jambo199.vividmusic.ui.screens.AlbumScreen
@@ -60,6 +64,10 @@ fun VividMusicApp(viewModel: MainViewModel) {
     val settings by viewModel.settings.collectAsState()
     val openPlayer by viewModel.openPlayer.collectAsState()
     var skippedPermission by rememberSaveable { mutableStateOf(false) }
+    // Playing a file from another app doesn't need library access, so don't block it.
+    LaunchedEffect(openPlayer) {
+        if (openPlayer) skippedPermission = true
+    }
 
     val showLibrary = hasPermission || skippedPermission || settings.pickedFolders.isNotEmpty() || openPlayer
     if (!showLibrary) {
@@ -70,12 +78,17 @@ fun VividMusicApp(viewModel: MainViewModel) {
     val navController = rememberNavController()
     val nav = remember(navController) { NavActions(navController) }
     val songMenu = remember { SongMenuState() }
+    val selection = remember { SelectionState() }
     val snackbar = remember { SnackbarHostState() }
     val playback by viewModel.playback.collectAsState()
     var sleepDialog by remember { mutableStateOf(false) }
     val backStack by navController.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
-    val showMini = playback.song != null && route != Routes.NOW_PLAYING
+    val showSelection = selection.active
+    val showMini = playback.song != null && route != Routes.NOW_PLAYING && !showSelection
+
+    // Leaving a screen or pressing back ends multi-select.
+    LaunchedEffect(route) { selection.clear() }
 
     LaunchedEffect(Unit) {
         viewModel.messages.collect { message ->
@@ -110,11 +123,12 @@ fun VividMusicApp(viewModel: MainViewModel) {
     }
 
     val navBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val miniHeight = if (showMini) 84.dp else 0.dp
+    val miniHeight = if (showMini || showSelection) 84.dp else 0.dp
 
     CompositionLocalProvider(
         LocalNav provides nav,
         LocalSongMenu provides songMenu,
+        LocalSelection provides selection,
         LocalBottomPadding provides navBar + miniHeight,
     ) {
         Box(
@@ -173,6 +187,37 @@ fun VividMusicApp(viewModel: MainViewModel) {
                     onPlayPause = { viewModel.player.togglePlayPause() },
                     onNext = { viewModel.player.next() },
                     onPrevious = { viewModel.player.previous() },
+                    modifier = Modifier.navigationBarsPadding(),
+                )
+            }
+
+            // Registered after NavHost so it takes priority over navigating back.
+            BackHandler(enabled = showSelection) { selection.clear() }
+
+            AnimatedVisibility(
+                visible = showSelection,
+                modifier = Modifier.align(Alignment.BottomCenter),
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut(),
+            ) {
+                SelectionBar(
+                    selection = selection,
+                    onPlay = {
+                        viewModel.play(selection.selectedSongs, 0, "Selected songs")
+                        selection.clear()
+                    },
+                    onQueue = {
+                        viewModel.addToQueue(selection.selectedSongs)
+                        selection.clear()
+                    },
+                    onPlaylist = {
+                        songMenu.addToPlaylist(selection.selectedSongs)
+                        selection.clear()
+                    },
+                    onMore = {
+                        songMenu.openMany(selection.selectedSongs)
+                        selection.clear()
+                    },
                     modifier = Modifier.navigationBarsPadding(),
                 )
             }

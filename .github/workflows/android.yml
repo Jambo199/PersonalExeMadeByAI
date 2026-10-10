@@ -33,7 +33,7 @@ jobs:
           VERSION_CODE: ${{ github.run_number }}
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleRelease --stacktrace
+          ./gradlew --no-daemon testReleaseUnitTest assembleRelease --stacktrace
 
       - name: Collect APK
         run: |

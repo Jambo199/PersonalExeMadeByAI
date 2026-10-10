@@ -86,6 +86,7 @@ import com.jambo199.vividmusic.ui.components.Artwork
 import com.jambo199.vividmusic.ui.components.EmptyState
 import com.jambo199.vividmusic.ui.components.FastScroller
 import com.jambo199.vividmusic.ui.components.LocalBottomPadding
+import com.jambo199.vividmusic.ui.components.LocalSelection
 import com.jambo199.vividmusic.ui.components.SongRow
 import com.jambo199.vividmusic.ui.components.SortMenu
 import kotlinx.coroutines.launch
@@ -214,6 +215,7 @@ fun LibraryScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
 @Composable
 private fun SongsTab(viewModel: MainViewModel) {
     val songs by viewModel.sortedSongs.collectAsState()
+    val selection = LocalSelection.current
     val settings by viewModel.settings.collectAsState()
     val playback by viewModel.playback.collectAsState()
     val libraryState by viewModel.libraryState.collectAsState()
@@ -271,7 +273,9 @@ private fun SongsTab(viewModel: MainViewModel) {
                     song = song,
                     isCurrent = playback.song?.key == song.key,
                     isPlaying = playback.isPlaying,
-                    onClick = { viewModel.play(songs, index, "All songs") },
+                    selected = selection.isSelected(song),
+                    onClick = { if (selection.active) selection.toggle(song) else viewModel.play(songs, index, "All songs") },
+                    onLongClick = { selection.start(song, songs) },
                     onMore = { menu.open(song) },
                 )
             }

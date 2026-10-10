@@ -24,6 +24,7 @@ import androidx.compose.material.icons.rounded.AccountTree
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CreateNewFolder
 import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.GetApp
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.History
@@ -216,6 +217,9 @@ fun PlaylistsTab(viewModel: MainViewModel) {
     val nav = LocalNav.current
     val bottom = LocalBottomPadding.current
     var creating by remember { mutableStateOf(false) }
+    val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) viewModel.importPlaylist(uri)
+    }
 
     LazyColumn(contentPadding = PaddingValues(bottom = bottom + 8.dp)) {
         item(key = "smart") { SectionHeader("For you") }
@@ -230,6 +234,13 @@ fun PlaylistsTab(viewModel: MainViewModel) {
         }
         item(key = "mine") {
             SectionHeader("Your playlists") {
+                TextButton(onClick = {
+                    importer.launch(arrayOf("audio/x-mpegurl", "audio/mpegurl", "application/x-mpegurl", "application/vnd.apple.mpegurl", "*/*"))
+                }) {
+                    Icon(Icons.Rounded.GetApp, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Import")
+                }
                 TextButton(onClick = { creating = true }) {
                     Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))

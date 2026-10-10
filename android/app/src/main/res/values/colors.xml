@@ -4,4 +4,8 @@
     <color name="window_light">#FFFDF8FF</color>
     <color name="window_dark">#FF121016</color>
     <color name="shortcut_background">#FFEDE7FF</color>
+    <color name="widget_background">#F5FFFFFF</color>
+    <color name="widget_text">#FF1C1B1F</color>
+    <color name="widget_text_secondary">#FF5F5B66</color>
+    <color name="widget_button">#FFE9DDFF</color>
 </resources>
