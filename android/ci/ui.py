@@ -10,6 +10,16 @@ import xml.etree.ElementTree as ET
 path, target = sys.argv[1], sys.argv[2]
 nodes = list(ET.parse(path).getroot().iter("node"))
 
+if target == "--texts":
+    # Print every visible label top-to-bottom, for checking what a screen shows.
+    seen = []
+    for n in nodes:
+        for label in ((n.get("text") or "").strip(), (n.get("content-desc") or "").strip()):
+            if label and label not in seen:
+                seen.append(label)
+    print(" | ".join(seen)[:1500])
+    sys.exit(0)
+
 
 def parts(n):
     text = (n.get("text") or "") + "\n" + (n.get("content-desc") or "")

@@ -12,6 +12,8 @@ import org.json.JSONObject
 
 /** Converts between [Song] and Media3 [MediaItem], keeping everything needed to rebuild the song. */
 object SongItems {
+    /** Song key in the metadata extras; the notification's bitmap loader finds artwork with it. */
+    const val K_KEY = "v.key"
     private const val K_MS_ID = "v.msId"
     private const val K_ARTIST = "v.artist"
     private const val K_ALBUM = "v.album"
@@ -35,6 +37,7 @@ object SongItems {
     @OptIn(UnstableApi::class)
     fun toMediaItem(song: Song): MediaItem {
         val extras = Bundle().apply {
+            putString(K_KEY, song.key)
             putLong(K_MS_ID, song.mediaStoreId)
             putString(K_ARTIST, song.artist)
             putString(K_ALBUM, song.album)
@@ -65,8 +68,6 @@ object SongItems {
             .setDiscNumber(song.disc.takeIf { it > 0 })
             .setReleaseYear(song.year.takeIf { it > 0 })
             .setDurationMs(song.durationMs.takeIf { it > 0 })
-            // The service's bitmap loader turns the song uri into its artwork.
-            .setArtworkUri(song.uri)
             .setIsPlayable(true)
             .setIsBrowsable(false)
             .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)

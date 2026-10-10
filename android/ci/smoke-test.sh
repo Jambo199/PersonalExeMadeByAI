@@ -9,17 +9,31 @@ PKG=com.jambo199.vividmusic
 HERE="$(cd "$(dirname "$0")" && pwd)"
 mkdir -p "$OUT"
 
-shot() { sleep "${2:-2}"; adb exec-out screencap -p > "$OUT/$1.png" && echo "📸 $1"; }
+dump() { # writes the UI hierarchy to /tmp/ui.xml; prints why if it can't
+  local out
+  out=$(adb shell uiautomator dump /sdcard/ui.xml 2>&1)
+  if ! echo "$out" | grep -q "dumped to"; then
+    echo "   (uiautomator: ${out//$'\n'/ })"
+    return 1
+  fi
+  adb pull /sdcard/ui.xml /tmp/ui.xml > /dev/null 2>&1
+}
+shot() {
+  sleep "${2:-2}"
+  adb exec-out screencap -p > "$OUT/$1.png" && echo "📸 $1"
+  if dump; then echo "   texts: $(python3 "$HERE/ui.py" /tmp/ui.xml --texts)"; fi
+}
 launch() { adb shell am start -W -n "$PKG/.MainActivity" "$@" > /dev/null; }
 shortcut() { launch --es vivid.shortcut "$1"; }
 tap() { # tap on the element labelled $1
-  for _ in 1 2 3 4; do
-    if adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1 && adb pull /sdcard/ui.xml /tmp/ui.xml > /dev/null 2>&1; then
+  for _ in 1 2 3; do
+    if dump; then
       if xy=$(python3 "$HERE/ui.py" /tmp/ui.xml "$1"); then
         adb shell input tap $xy
         echo "👆 $1 at $xy"
         return 0
       fi
+      echo "   '$1' not among: $(python3 "$HERE/ui.py" /tmp/ui.xml --texts | cut -c1-400)"
     fi
     sleep 1
   done
@@ -28,8 +42,7 @@ tap() { # tap on the element labelled $1
 }
 
 longtap() { # long-press the element labelled $1
-  if adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1 && adb pull /sdcard/ui.xml /tmp/ui.xml > /dev/null 2>&1 \
-    && xy=$(python3 "$HERE/ui.py" /tmp/ui.xml "$1"); then
+  if dump && xy=$(python3 "$HERE/ui.py" /tmp/ui.xml "$1"); then
     set -- $xy
     adb shell input swipe "$1" "$2" "$1" "$2" 900
     echo "👆 long-pressed at $xy"
@@ -131,7 +144,10 @@ shot 23-after-restart 5
 
 echo "== Checking for crashes"
 adb logcat -d > "$OUT/logcat.txt"
-grep -E "VividMusic|vividmusic|AndroidRuntime|ExoPlayer|MediaSession" "$OUT/logcat.txt" | grep -E " [EW] " | tail -60 || true
+grep -E "ServiceBitmapLoader|PlaybackService|ExoPlayerImpl|MediaSessionService" "$OUT/logcat.txt" | tail -25 || true
+echo "-- system errors mentioning our session:"
+grep -B6 -A3 "sanitizeMediaMetadata" "$OUT/logcat.txt" | head -40 || true
+grep -E "vividmusic|AndroidRuntime" "$OUT/logcat.txt" | grep -E " E " | grep -v "jdwp" | tail -30 || true
 if grep -qE "FATAL EXCEPTION|ANR in $PKG" "$OUT/logcat.txt"; then
   echo "❌ The app crashed:"
   grep -A 40 -E "FATAL EXCEPTION|ANR in" "$OUT/logcat.txt" | head -150
