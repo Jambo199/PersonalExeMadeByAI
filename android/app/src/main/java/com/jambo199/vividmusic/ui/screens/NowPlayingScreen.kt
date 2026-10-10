@@ -471,6 +471,7 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                                 dot = hasLyrics && !showLyrics,
                                 color = controlColor,
                                 accent = sliderColor,
+                                showLabel = !landscape,
                             ) { showLyrics = !showLyrics }
                             ExtraButton(
                                 icon = Icons.Rounded.Bedtime,
@@ -482,6 +483,7 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                                 active = sleep != SleepTimer.Mode.Off,
                                 color = controlColor,
                                 accent = sliderColor,
+                                showLabel = !landscape,
                                 onClick = onSleepTimer,
                             )
                             ExtraButton(
@@ -490,6 +492,7 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                                 active = playback.speed != 1f || playback.pitch != 1f,
                                 color = controlColor,
                                 accent = sliderColor,
+                                showLabel = !landscape,
                             ) { showSpeed = true }
                             ExtraButton(
                                 icon = Icons.Rounded.Equalizer,
@@ -497,6 +500,7 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                                 active = settings.eq.enabled,
                                 color = controlColor,
                                 accent = sliderColor,
+                                showLabel = !landscape,
                             ) { nav.equalizer() }
                             ExtraButton(
                                 icon = Icons.AutoMirrored.Rounded.QueueMusic,
@@ -504,6 +508,7 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                                 active = false,
                                 color = controlColor,
                                 accent = sliderColor,
+                                showLabel = !landscape,
                             ) { showQueue = true }
                         }
                     }
@@ -580,6 +585,7 @@ private fun ExtraButton(
     color: Color,
     accent: Color,
     dot: Boolean = false,
+    showLabel: Boolean = true,
     onClick: () -> Unit,
 ) {
     Column(
@@ -601,13 +607,15 @@ private fun ExtraButton(
                 )
             }
         }
-        Spacer(Modifier.height(2.dp))
-        Text(
-            label,
-            style = MaterialTheme.typography.labelSmall,
-            color = if (active) accent else color.copy(alpha = 0.75f),
-            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
-        )
+        if (showLabel) {
+            Spacer(Modifier.height(2.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (active) accent else color.copy(alpha = 0.75f),
+                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+            )
+        }
     }
 }
 
