@@ -6,11 +6,24 @@ and play straight from folders.
 
 ## Install on your phone
 
-1. On your phone, open the latest pre-release:
-   **https://github.com/Jambo199/PersonalExeMadeByAI/releases/tag/vivid-music-latest**
-2. Tap **VividMusic.apk** to download it, then open the download.
-3. If Android asks, allow your browser / file manager to **install unknown apps**, then tap **Install**.
-4. Open **Vivid Music** and tap **Allow access to music**.
+**Option A – direct download (one-time setup).** GitHub only lets the build publish the APK as a
+release if workflows may write to the repo:
+
+1. On GitHub open **Settings → Actions → General → Workflow permissions**, choose
+   **Read and write permissions** and save. (Then re-run the latest *Android app (Vivid Music)* run,
+   or push any change.)
+2. On your phone open **https://github.com/Jambo199/PersonalExeMadeByAI/releases/tag/vivid-music-latest**
+   and tap **VividMusic.apk**.
+
+**Option B – from the build page.** Open the
+[Actions tab](https://github.com/Jambo199/PersonalExeMadeByAI/actions/workflows/android.yml) (signed in),
+pick the latest green run and download the **vivid-music-apk** artifact. It's a zip containing the APK.
+
+Then on the phone:
+
+1. Open the downloaded APK. If Android asks, allow your browser / file manager to
+   **install unknown apps**, then tap **Install**.
+2. Open **Vivid Music** and tap **Allow access to music**.
 
 Every new build installs over the old one and keeps your playlists, favourites and settings.
 
@@ -88,8 +101,11 @@ cd android
 ```
 
 Release builds are signed with `app/vividmusic.jks` so updates install over older builds.
-To use your own key, set `SIGNING_KEYSTORE_PATH`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS` and
-`SIGNING_KEY_PASSWORD` when building.
+Because this repository is public, that key is public too: anyone could sign an APK that Android
+would accept as an update. Only install Vivid Music builds from this repo's own Actions runs or
+releases. To use a private key instead, set `SIGNING_KEYSTORE_PATH`, `SIGNING_STORE_PASSWORD`,
+`SIGNING_KEY_ALIAS` and `SIGNING_KEY_PASSWORD` when building (switching keys means uninstalling the
+old build once).
 
 ## Code map
 
