@@ -58,6 +58,7 @@ You can also lock the app in the recent-apps screen (pull the card down).
 
 **Playback**
 - Background playback with notification, lock-screen and Bluetooth/headset controls
+- Shows up in Android's quick-settings media player, which can resume your last song even after the app was closed
 - Favourite button in the notification
 - Smart shuffle: the current song keeps playing, *Play next* really plays next even when shuffled
 - Repeat all / one, gapless playback, skip silence
@@ -76,7 +77,8 @@ You can also lock the app in the recent-apps screen (pull the card down).
 - Audio quality badge (format, sample rate / bitrate)
 
 **Playlists**
-- Your own playlists (create, rename, reorder, delete)
+- Your own playlists (create, rename, drag to reorder, delete)
+- Import `.m3u`/`.m3u8` playlists from other players, and export any playlist as M3U
 - Automatic Favourites, Recently added, Recently played and Most played
 
 **Everything else**
