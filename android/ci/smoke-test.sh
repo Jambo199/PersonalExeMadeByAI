@@ -18,14 +18,22 @@ dump() { # writes the UI hierarchy to /tmp/ui.xml; prints why if it can't
   fi
   adb pull /sdcard/ui.xml /tmp/ui.xml > /dev/null 2>&1
 }
+clear_dialogs() { # "X isn't responding" dialogs from the emulator's own apps
+  adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS > /dev/null 2>&1
+  if dump && grep -q "isn't responding" /tmp/ui.xml; then
+    xy=$(python3 "$HERE/ui.py" /tmp/ui.xml "Wait") && adb shell input tap $xy && echo "   (dismissed a system 'not responding' dialog)"
+  fi
+}
 shot() {
   sleep "${2:-2}"
+  clear_dialogs
   adb exec-out screencap -p > "$OUT/$1.png" && echo "📸 $1"
   if dump; then echo "   texts: $(python3 "$HERE/ui.py" /tmp/ui.xml --texts)"; fi
 }
 launch() { adb shell am start -W -n "$PKG/.MainActivity" "$@" > /dev/null; }
 shortcut() { launch --es vivid.shortcut "$1"; }
 tap() { # tap on the element labelled $1
+  clear_dialogs
   for _ in 1 2 3; do
     if dump; then
       if xy=$(python3 "$HERE/ui.py" /tmp/ui.xml "$1"); then
@@ -54,6 +62,9 @@ longtap() { # long-press the element labelled $1
 
 adb shell input keyevent KEYCODE_WAKEUP
 adb shell wm dismiss-keyguard || true
+# Don't let ANR/crash dialogs from the emulator's own apps cover the screenshots.
+adb shell settings put global hide_error_dialogs 1 || true
+adb shell settings put secure anr_show_background 0 || true
 adb logcat -c
 
 echo "== Copying test music"
