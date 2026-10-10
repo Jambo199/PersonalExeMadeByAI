@@ -27,6 +27,18 @@ tap() { # tap on the element labelled $1
   return 1
 }
 
+longtap() { # long-press the element labelled $1
+  if adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1 && adb pull /sdcard/ui.xml /tmp/ui.xml > /dev/null 2>&1 \
+    && xy=$(python3 "$HERE/ui.py" /tmp/ui.xml "$1"); then
+    set -- $xy
+    adb shell input swipe "$1" "$2" "$1" "$2" 900
+    echo "👆 long-pressed at $xy"
+    return 0
+  fi
+  echo "⚠️  could not find '$1' to long-press"
+  return 1
+}
+
 adb shell input keyevent KEYCODE_WAKEUP
 adb shell wm dismiss-keyguard || true
 adb logcat -c
@@ -60,6 +72,12 @@ adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS
 adb shell am force-stop $PKG
 launch
 shot 02-songs 6
+if longtap "Alpha Wave"; then
+  sleep 1
+  tap "Beta Drift"
+  shot 02b-multi-select 2
+  adb shell input keyevent KEYCODE_BACK
+fi
 shortcut albums;    shot 03-albums 3
 shortcut artists;   shot 04-artists 3
 shortcut folders;   shot 05-folders 3
