@@ -20,8 +20,11 @@ import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
+import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaLibraryService
+import androidx.media3.session.MediaLibraryService.LibraryParams
+import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
-import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
@@ -51,10 +54,10 @@ import kotlinx.coroutines.withContext
  * lock screen, headset buttons, Bluetooth and Android Auto controls.
  */
 @OptIn(UnstableApi::class)
-class PlaybackService : MediaSessionService() {
+class PlaybackService : MediaLibraryService() {
 
     private lateinit var exo: ExoPlayer
-    private var session: MediaSession? = null
+    private var session: MediaLibrarySession? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var consecutiveErrors = 0
     private var countedCurrent = false
@@ -93,10 +96,9 @@ class PlaybackService : MediaSessionService() {
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        session = MediaSession.Builder(this, ShuffleAwarePlayer(exo))
+        session = MediaLibrarySession.Builder(this, ShuffleAwarePlayer(exo), SessionCallback())
             .setSessionActivity(openPlayer)
             .setBitmapLoader(ServiceBitmapLoader())
-            .setCallback(SessionCallback())
             .build()
 
         setMediaNotificationProvider(
@@ -113,7 +115,7 @@ class PlaybackService : MediaSessionService() {
         updateWidget()
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = session?.player
@@ -327,12 +329,12 @@ class PlaybackService : MediaSessionService() {
         s.setCustomLayout(ImmutableList.of(button))
     }
 
-    private inner class SessionCallback : MediaSession.Callback {
+    private inner class SessionCallback : MediaLibrarySession.Callback {
         override fun onConnect(
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
         ): MediaSession.ConnectionResult {
-            val commands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+            val commands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
                 .add(FAVORITE_COMMAND)
                 .build()
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
@@ -368,6 +370,53 @@ class PlaybackService : MediaSessionService() {
                 }
             }.toMutableList()
             return Futures.immediateFuture(resolved)
+        }
+
+        // Browsing (system media controls, Android Auto, car head units). The "recent" root lets
+        // Android's Quick Settings player offer to resume the last song after the app closed.
+        override fun onGetLibraryRoot(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            params: LibraryParams?,
+        ): ListenableFuture<LibraryResult<MediaItem>> {
+            val id = if (params?.isRecent == true) RECENT_ROOT else BROWSE_ROOT
+            return Futures.immediateFuture(LibraryResult.ofItem(folderItem(id, getString(R.string.app_name)), params))
+        }
+
+        override fun onGetItem(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            mediaId: String,
+        ): ListenableFuture<LibraryResult<MediaItem>> {
+            val song = AppGraph.library.findByKey(mediaId)
+                ?: (0 until exo.mediaItemCount).map { exo.getMediaItemAt(it) }.firstOrNull { it.mediaId == mediaId }?.toSong()
+            return Futures.immediateFuture(
+                if (song != null) LibraryResult.ofItem(song.toMediaItem(), null)
+                else LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE),
+            )
+        }
+
+        override fun onGetChildren(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            parentId: String,
+            page: Int,
+            pageSize: Int,
+            params: LibraryParams?,
+        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+            val items: List<MediaItem> = when (parentId) {
+                RECENT_ROOT -> listOfNotNull(
+                    exo.currentMediaItem ?: AppGraph.queueStore.load()?.let { it.songs.getOrNull(it.index)?.toMediaItem() },
+                )
+                BROWSE_ROOT -> {
+                    val queue = List(exo.mediaItemCount) { exo.getMediaItemAt(it) }
+                    queue.ifEmpty { AppGraph.queueStore.load()?.songs?.map { it.toMediaItem() }.orEmpty() }
+                }
+                else -> emptyList()
+            }
+            val from = (page.coerceAtLeast(0).toLong() * pageSize.coerceAtLeast(1)).coerceAtMost(items.size.toLong()).toInt()
+            val to = (from + pageSize.coerceAtLeast(1)).coerceAtMost(items.size)
+            return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(items.subList(from, to)), params))
         }
 
         // Lets headphones/Bluetooth "play" and the system media controls restart the last queue.
@@ -446,7 +495,21 @@ class PlaybackService : MediaSessionService() {
 
     // endregion
 
+    private fun folderItem(id: String, title: String): MediaItem = MediaItem.Builder()
+        .setMediaId(id)
+        .setMediaMetadata(
+            androidx.media3.common.MediaMetadata.Builder()
+                .setTitle(title)
+                .setIsBrowsable(true)
+                .setIsPlayable(false)
+                .setMediaType(androidx.media3.common.MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+                .build(),
+        )
+        .build()
+
     companion object {
+        private const val BROWSE_ROOT = "vivid:root"
+        private const val RECENT_ROOT = "vivid:recent"
         private const val FADE_MS = 8_000L
         private const val MAX_SKIPS = 6
         private val LYRICS_KEYS = setOf("LYRICS", "UNSYNCEDLYRICS", "SYNCEDLYRICS", "USLT")
