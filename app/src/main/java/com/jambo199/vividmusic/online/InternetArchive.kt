@@ -94,7 +94,8 @@ object InternetArchive {
     fun search(text: String?, scope: String = COLLECTIONS, sort: String = "downloads desc", rows: Int = 50): List<ArchiveItem> {
         val q = buildString {
             if (!text.isNullOrBlank()) append("(").append(text.trim()).append(") AND ")
-            append("mediatype:(audio) AND ").append(scope)
+            // Live Music Archive shows are filed as "etree", everything else as "audio".
+            append("mediatype:(audio OR etree) AND ").append(scope)
         }
         val fields = listOf("identifier", "title", "creator", "date").joinToString("") { "&fl%5B%5D=$it" }
         val url = "https://archive.org/advancedsearch.php?q=${Http.encode(q)}$fields&rows=$rows&page=1&output=json" +

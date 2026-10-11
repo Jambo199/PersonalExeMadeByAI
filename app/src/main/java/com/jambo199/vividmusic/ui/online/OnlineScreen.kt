@@ -103,9 +103,13 @@ private fun FreeMusicPage() {
                     when (val load = shelves[shelf] ?: Load.Loading) {
                         Load.Loading -> LoadingRow()
                         is Load.Failed -> ErrorRow(load.message) { online.startArchive() }
-                        is Load.Ready -> CoverShelf(load.data, key = { it.id }) { item ->
-                            CoverCard(item.cover, item.title, listOf(item.creator, item.year).filter { it.isNotBlank() }.joinToString(" · ")) {
-                                nav.archive(item.id)
+                        is Load.Ready -> if (load.data.isEmpty()) {
+                            Credit("Nothing here right now. Try searching instead.")
+                        } else {
+                            CoverShelf(load.data, key = { it.id }) { item ->
+                                CoverCard(item.cover, item.title, listOf(item.creator, item.year).filter { it.isNotBlank() }.joinToString(" · ")) {
+                                    nav.archive(item.id)
+                                }
                             }
                         }
                     }
