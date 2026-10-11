@@ -13,7 +13,7 @@ import org.json.JSONObject
 import java.io.File
 
 /**
- * Where you stopped in podcasts, audiobooks and other long tracks, so they carry on from there.
+ * Where you stopped in audiobooks, mixes and other long tracks, so they carry on from there.
  * Keeps the most recent [MAX] entries.
  */
 class PositionStore(context: Context, private val scope: CoroutineScope) {
@@ -85,6 +85,6 @@ class PositionStore(context: Context, private val scope: CoroutineScope) {
 
         /** Whether [song] should continue where it was left. */
         fun remembers(song: Song): Boolean =
-            song.key.startsWith(Song.PODCAST_PREFIX) || song.durationMs >= LONG_TRACK_MS
+            song.durationMs >= LONG_TRACK_MS
     }
 }

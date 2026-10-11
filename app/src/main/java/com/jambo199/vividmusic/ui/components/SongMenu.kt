@@ -147,10 +147,12 @@ fun SongMenuHost(state: SongMenuState, viewModel: MainViewModel) {
                     }
                     if (single != null) {
                         val fav = single.key in userData.favoriteSet
-                        MenuRow(
-                            if (fav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            if (fav) "Remove from favourites" else "Add to favourites",
-                        ) { act { viewModel.toggleFavorite(single) } }
+                        if (!single.isOnline) {
+                            MenuRow(
+                                if (fav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                if (fav) "Remove from favourites" else "Add to favourites",
+                            ) { act { viewModel.toggleFavorite(single) } }
+                        }
                         if (library.albumsById.containsKey(single.albumId)) {
                             MenuRow(Icons.Rounded.Album, "Go to album") { act { nav.fromPlayer { album(single.albumId) } } }
                         }

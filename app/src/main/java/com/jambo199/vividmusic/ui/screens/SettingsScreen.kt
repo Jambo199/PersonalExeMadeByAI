@@ -386,7 +386,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 SwitchRow(
                     null,
                     "Continue where you left off",
-                    "Podcasts, audiobooks and other tracks over 15 minutes start again from where you stopped",
+                    "Audiobooks, mixes and other tracks over 15 minutes start again from where you stopped",
                     settings.rememberPositions,
                 ) { v ->
                     viewModel.updateSettings { it.copy(rememberPositions = v) }
@@ -415,6 +415,16 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     settings.onlineLyrics,
                 ) { v ->
                     viewModel.updateSettings { it.copy(onlineLyrics = v) }
+                }
+            }
+            item {
+                SwitchRow(
+                    null,
+                    "Lyrics on lock screen & Dynamic Island",
+                    "Shows the line being sung in place of the artist on the lock screen, notification, Dynamic Island and car screens (songs with synced lyrics)",
+                    settings.sessionLyrics,
+                ) { v ->
+                    viewModel.updateSettings { it.copy(sessionLyrics = v) }
                 }
             }
             item {

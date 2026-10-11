@@ -11,7 +11,7 @@ object Http {
     val USER_AGENT = "VividMusic/${BuildConfig.VERSION_NAME} (Android; https://github.com/Jambo199/PersonalExeMadeByAI)"
 
     /** GET returning the body; follows redirects (also http to https). Throws IOException on failure. */
-    fun get(url: String, accept: String = "application/json", readTimeoutMs: Int = 20_000): String {
+    fun get(url: String, accept: String = "application/json", readTimeoutMs: Int = 20_000, userAgent: String = USER_AGENT): String {
         var target = url
         repeat(MAX_REDIRECTS) {
             val conn = URL(target).openConnection() as HttpURLConnection
@@ -19,7 +19,7 @@ object Http {
                 conn.instanceFollowRedirects = false
                 conn.connectTimeout = 10_000
                 conn.readTimeout = readTimeoutMs
-                conn.setRequestProperty("User-Agent", USER_AGENT)
+                conn.setRequestProperty("User-Agent", userAgent)
                 conn.setRequestProperty("Accept", accept)
                 when (val code = conn.responseCode) {
                     in 200..299 -> return conn.inputStream.use { it.readBytes().toString(Charsets.UTF_8) }

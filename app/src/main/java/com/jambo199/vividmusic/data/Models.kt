@@ -51,8 +51,7 @@ data class Song(
     companion object {
         const val UNKNOWN_ARTIST = "Unknown artist"
         const val UNKNOWN_ALBUM = "Unknown album"
-        const val ARCHIVE_PREFIX = "ia:"
-        const val PODCAST_PREFIX = "pod:"
+        const val NCS_PREFIX = "ncs:"
     }
 }
 

@@ -181,6 +181,11 @@ sleep 2
 adb shell input text "sing"
 shot 15-search 3
 tap "Sing Along" && sleep 2 && shortcut player && sleep 2 && tap "Lyrics" && shot 16-synced-lyrics 5
+echo "lyric line shown to the lock screen / Dynamic Island (as the artist):"
+adb shell dumpsys media_session | grep -m2 "description=" || true
+adb shell cmd statusbar expand-notifications
+shot 16c-notification-lyrics 3
+adb shell cmd statusbar collapse
 
 online_song=$(ls "$MEDIA/Music/Online/"*.mp3 2> /dev/null | head -1)
 if [ -n "$online_song" ]; then
@@ -191,8 +196,8 @@ if [ -n "$online_song" ]; then
   adb logcat -d | grep -E "OnlineLyrics" | grep -vE "OnlineLyrics:[[:space:]]+at " | tail -8
 fi
 
-echo "== Online"
-text_after() { # prints the first visible text after the label $1 (e.g. the first card under a heading)
+echo "== NCS"
+text_after() { # prints the first visible text after the label $1 (e.g. the first song under a heading)
   dump > /dev/null && python3 - "$1" <<'PY'
 import sys, xml.etree.ElementTree as ET
 texts = [(n.get("text") or "").strip() for n in ET.parse("/tmp/ui.xml").getroot().iter("node")]
@@ -202,26 +207,28 @@ if label in texts and texts.index(label) + 1 < len(texts):
     print(texts[texts.index(label) + 1])
 PY
 }
-shortcut online; shot 32-free-music 12
-first_album=$(text_after "Live concerts")
-echo "first album: $first_album"
-if [ -n "$first_album" ]; then
-  tap "$first_album" && shot 33-free-album 12
-  tap "Save all" && sleep 25 && shot 34-free-album-saving 2
-  adb shell ls -R "/sdcard/Music/Vivid Music" 2>&1 | head -12
+shortcut ncs; shot 32-ncs 15
+first_song=$(text_after "Save")
+echo "first NCS song: $first_song"
+if [ -n "$first_song" ] && tap "$first_song"; then
+  sleep 10
+  shortcut player
+  shot 33-ncs-playing 3
+  echo "media session while streaming:"
+  adb shell dumpsys media_session | grep -E "state=PlaybackState|description=" | head -4
 fi
-shortcut online
-tap "Podcasts" && shot 35-podcasts 12
-if tap "Search podcasts"; then
-  adb shell input text "history"
-  adb shell input keyevent KEYCODE_ENTER
-  shot 36-podcast-search 8
-  first_podcast=$(text_after 'Results for "history"')
-  echo "first podcast: $first_podcast"
-  [ -n "$first_podcast" ] && tap "$first_podcast" && shot 37-podcast 12
+shortcut ncs
+first_genre=$(text_after "All genres")
+echo "first genre: $first_genre"
+if [ -n "$first_genre" ] && tap "$first_genre"; then shot 34-ncs-genre 10; fi
+if tap "Save to phone"; then
+  sleep 25
+  shot 35-ncs-saved 2
+  adb shell ls -l "/sdcard/Music/NCS" 2>&1 | head -5
 fi
+tap "Save" && shot 36-ncs-save-dialog 2
 adb shell input keyevent KEYCODE_BACK
-adb logcat -d | grep -E "OnlineViewModel|ExoPlayerImplInternal.*rror" | tail -5
+adb logcat -d | grep -E "NcsViewModel|ExoPlayerImplInternal.*rror|DownloadManager" | tail -5
 
 echo "== Other screens"
 shortcut settings;  shot 17-settings 3

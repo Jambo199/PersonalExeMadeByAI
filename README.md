@@ -54,16 +54,15 @@ You can also lock the app in the recent-apps screen (pull the card down).
 - **Quick picks** – a mix of what you play most, your favourites and songs you haven't heard in a while
 - **Keep listening**, **Forgotten favourites**, **Recently added**, your **top artists** and albums you haven't played yet
 - **Your listening** stats: time listened, plays, a last-7-days chart, most played songs, artists and albums, and a library summary
-- A bottom bar to switch between Home, Library and Folders (a side rail in landscape)
+- A bottom bar to switch between Home, Library, Folders and NCS (a side rail in landscape)
 
-**Online (no ads, no account)**
-- **Free music** – concerts from the Internet Archive's Live Music Archive (bands that allow sharing
-  their shows) and Creative Commons netlabel albums. Stream them, or **download** tracks into
-  Music › Vivid Music so they join your library and play offline. Each album shows its licence
-- **Podcasts** – top charts and search, subscribe, stream or download episodes, and carry on where
-  you left off
-- Not included on purpose: ripping YouTube or other paid/ad-supported services, or peer-to-peer
-  downloading, since that would mean getting around their terms and copyright
+**NCS (NoCopyrightSounds)**
+- Every NCS release, newest first, straight from [ncs.io](https://ncs.io): search by song or
+  artist, and filter by genre or mood
+- Tap to stream (no ads, no account), or **save** songs into Music › NCS so they join your library
+  and play offline. Save one song, the list you're looking at, or every NCS song (Wi-Fi only if
+  you like); songs you already have are skipped, so running it again picks up new releases
+- Saved songs play from the phone even when you start them from the NCS page
 
 **Library**
 - Songs, Albums, Artists and Playlists tabs, all with album-art thumbnails – reorder or hide tabs in Settings
@@ -85,6 +84,9 @@ You can also lock the app in the recent-apps screen (pull the card down).
 
 **Playback**
 - Background playback with notification, lock-screen and Bluetooth/headset controls
+- Works with Dynamic Island-style pop-ups (vivo's Origin Island and similar): title, artist,
+  artwork and progress, plus the **line being sung** in place of the artist for songs with synced
+  lyrics (also on the lock screen and car screens; turn it off in Settings)
 - Shows up in Android's quick-settings media player, which can resume your last song even after the app was closed
 - Favourite button in the notification
 - Smart shuffle: the current song keeps playing, *Play next* really plays next even when shuffled
@@ -96,7 +98,7 @@ You can also lock the app in the recent-apps screen (pull the card down).
   adjustment for untagged songs
 - Fade between songs, a short fade on play/pause, and "pause on repeat"
 - A-B repeat to loop part of a song
-- Podcasts, audiobooks and other tracks over 15 minutes continue where you stopped
+- Audiobooks, mixes and other tracks over 15 minutes continue where you stopped
 - Pauses when headphones are unplugged; handles calls and other apps' audio
 - Resumes your queue and position after closing the app or restarting the phone
 - "Open with" support: play audio files straight from your file manager, WhatsApp, Downloads…
@@ -161,8 +163,8 @@ Kotlin sources live in `app/src/main/java/com/jambo199/vividmusic/`.
 | `data/HomeFeed.kt` | Quick picks and the other Home rows |
 | `data/Stats.kt` | Numbers for the listening stats screen |
 | `data/Backup.kt` | Backup file and restoring it |
-| `online/` | Internet Archive and podcast clients, downloads |
-| `ui/online/` | The Online page, free-music albums and podcast shows |
+| `online/` | NCS (ncs.io) client, downloads |
+| `ui/online/` | The NCS page |
 | `playback/PlaybackService.kt` | Media3 ExoPlayer + media session (notification, headset, resume) |
 | `playback/SmartShuffle.kt` | Shuffle order that respects the current song and "Play next" |
 | `playback/PlaybackExtras.kt` | Sleep timer and equalizer/effects |

@@ -53,8 +53,6 @@ import com.jambo199.vividmusic.ui.components.MiniPlayer
 import com.jambo199.vividmusic.ui.components.SelectionBar
 import com.jambo199.vividmusic.ui.components.SelectionState
 import com.jambo199.vividmusic.ui.components.SongMenuHost
-import com.jambo199.vividmusic.ui.online.ArchiveAlbumScreen
-import com.jambo199.vividmusic.ui.online.PodcastScreen
 import com.jambo199.vividmusic.ui.screens.AlbumScreen
 import com.jambo199.vividmusic.ui.screens.ArtistScreen
 import com.jambo199.vividmusic.ui.screens.EqualizerScreen
@@ -70,7 +68,7 @@ import com.jambo199.vividmusic.ui.screens.SleepTimerDialog
 import com.jambo199.vividmusic.ui.screens.StatsScreen
 import kotlinx.coroutines.launch
 
-private val NAV_ROUTES = setOf(Routes.MAIN, Routes.ALBUM, Routes.ARTIST, Routes.FOLDER, Routes.PLAYLIST, Routes.STATS, Routes.GENRE, Routes.ARCHIVE, Routes.PODCAST)
+private val NAV_ROUTES = setOf(Routes.MAIN, Routes.ALBUM, Routes.ARTIST, Routes.FOLDER, Routes.PLAYLIST, Routes.STATS, Routes.GENRE)
 
 /** Height of the Material navigation bar, not counting the system navigation bar under it. */
 private val NAV_BAR_HEIGHT = 80.dp
@@ -212,12 +210,6 @@ fun VividMusicApp(viewModel: MainViewModel) {
                     }
                     composable(Routes.GENRE, arguments = listOf(navArgument("name") { type = NavType.StringType })) { entry ->
                         GenreScreen(viewModel, entry.arguments?.getString("name").orEmpty())
-                    }
-                    composable(Routes.ARCHIVE, arguments = listOf(navArgument("id") { type = NavType.StringType })) { entry ->
-                        ArchiveAlbumScreen(viewModel, entry.arguments?.getString("id").orEmpty())
-                    }
-                    composable(Routes.PODCAST, arguments = listOf(navArgument("url") { type = NavType.StringType })) { entry ->
-                        PodcastScreen(viewModel, entry.arguments?.getString("url").orEmpty())
                     }
                 }
 

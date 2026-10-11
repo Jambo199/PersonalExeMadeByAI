@@ -99,7 +99,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val sleepTimer: StateFlow<SleepTimer.Mode> = SleepTimer.mode
     val update: StateFlow<UpdateState> = AppGraph.updates.state
 
-    /** Where podcasts and long tracks were left, by song key. */
+    /** Where long tracks were left, by song key. */
     val positions: StateFlow<Map<String, Long>> = AppGraph.positions.state
 
     private val _updateBannerDismissed = MutableStateFlow(false)
@@ -313,7 +313,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             "player" -> requestOpenPlayer()
             "home" -> showSection(MainSection.HOME)
             "folders" -> showSection(MainSection.FOLDERS)
-            "online" -> showSection(MainSection.ONLINE)
+            "ncs" -> showSection(MainSection.NCS)
             "songs" -> requestTab(LibraryTab.SONGS)
             "albums" -> requestTab(LibraryTab.ALBUMS)
             "artists" -> requestTab(LibraryTab.ARTISTS)

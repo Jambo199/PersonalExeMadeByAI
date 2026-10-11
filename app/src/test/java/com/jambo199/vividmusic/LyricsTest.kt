@@ -2,6 +2,7 @@ package com.jambo199.vividmusic
 
 import com.jambo199.vividmusic.data.EmbeddedLyrics
 import com.jambo199.vividmusic.data.LrcParser
+import com.jambo199.vividmusic.data.Lyrics
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -55,5 +56,15 @@ class LyricsTest {
         assertEquals("Hi", EmbeddedLyrics.parseUslt(utf16))
 
         assertNull(EmbeddedLyrics.parseUslt(byteArrayOf(0, 1)))
+    }
+
+    @Test
+    fun lineAtPosition() {
+        val lyrics = Lyrics("k", LrcParser.parse("[00:01.00]One\n[00:05.00]Two\n[00:09.00]Three"), "", "test")
+        assertEquals(-1, lyrics.lineAt(0))
+        assertEquals(0, lyrics.lineAt(800)) // a little early, so it doesn't feel late
+        assertEquals(0, lyrics.lineAt(4_000))
+        assertEquals(1, lyrics.lineAt(5_000))
+        assertEquals(2, lyrics.lineAt(60_000))
     }
 }

@@ -6,54 +6,67 @@ import android.net.Uri
 import android.os.Environment
 
 /**
- * Saves online songs and podcast episodes with Android's download manager, so downloads carry
- * on in the background, show progress in the notification shade, and land in the shared Music
- * (or Podcasts) folder where the library picks them up.
+ * Saves online songs with Android's download manager, so downloads carry on in the background,
+ * show progress in the notification shade, and land in the shared Music folder where the
+ * library picks them up.
  */
 object Downloads {
     enum class Status { NONE, QUEUED, RUNNING, DONE, FAILED }
 
-    data class Info(val status: Status, val progress: Float, val localUri: Uri?)
+    data class Info(val status: Status, val progress: Float)
 
-    /** Starts a download to [relativePath] inside the shared [directory]. Returns its id. */
+    /**
+     * Starts a download to [relativePath] inside the shared [directory]. Returns its id.
+     * [quiet] skips the "download complete" notification (for saving many songs at once);
+     * [wifiOnly] waits for Wi-Fi.
+     */
     fun enqueue(
         context: Context,
         url: String,
         relativePath: String,
         title: String,
         directory: String = Environment.DIRECTORY_MUSIC,
+        quiet: Boolean = false,
+        wifiOnly: Boolean = false,
     ): Long {
         val request = DownloadManager.Request(Uri.parse(url))
             .setTitle(title)
             .setDescription("Vivid Music")
             .addRequestHeader("User-Agent", Http.USER_AGENT)
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setNotificationVisibility(
+                if (quiet) DownloadManager.Request.VISIBILITY_VISIBLE else DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED,
+            )
             .setDestinationInExternalPublicDir(directory, relativePath)
-            .setAllowedOverMetered(true)
+            .setAllowedOverMetered(!wifiOnly)
             .setAllowedOverRoaming(false)
         @Suppress("DEPRECATION")
         request.allowScanningByMediaScanner()
         return manager(context).enqueue(request)
     }
 
-    fun info(context: Context, id: Long): Info {
-        val query = DownloadManager.Query().setFilterById(id)
-        manager(context).query(query)?.use { c ->
-            if (!c.moveToFirst()) return Info(Status.NONE, 0f, null)
-            val status = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-            val total = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
-            val done = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
-            val local = c.getString(c.getColumnIndexOrThrow(DownloadManager.COLUMN_LOCAL_URI))
-            val progress = if (total > 0) (done.toFloat() / total).coerceIn(0f, 1f) else 0f
-            return when (status) {
-                // The download provider's own address works for us without storage permission.
-                DownloadManager.STATUS_SUCCESSFUL -> Info(Status.DONE, 1f, manager(context).getUriForDownloadedFile(id) ?: local?.let(Uri::parse))
-                DownloadManager.STATUS_FAILED -> Info(Status.FAILED, 0f, null)
-                DownloadManager.STATUS_RUNNING -> Info(Status.RUNNING, progress, null)
-                else -> Info(Status.QUEUED, progress, null)
+    /** Status of many downloads at once (one look-up per few hundred), by id. */
+    fun infoAll(context: Context, ids: Collection<Long>): Map<Long, Info> {
+        val out = HashMap<Long, Info>(ids.size)
+        ids.chunked(400).forEach { chunk ->
+            val query = DownloadManager.Query().setFilterById(*chunk.toLongArray())
+            manager(context).query(query)?.use { c ->
+                val idCol = c.getColumnIndexOrThrow(DownloadManager.COLUMN_ID)
+                val statusCol = c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)
+                val totalCol = c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
+                val doneCol = c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
+                while (c.moveToNext()) {
+                    val total = c.getLong(totalCol)
+                    val progress = if (total > 0) (c.getLong(doneCol).toFloat() / total).coerceIn(0f, 1f) else 0f
+                    out[c.getLong(idCol)] = when (c.getInt(statusCol)) {
+                        DownloadManager.STATUS_SUCCESSFUL -> Info(Status.DONE, 1f)
+                        DownloadManager.STATUS_FAILED -> Info(Status.FAILED, 0f)
+                        DownloadManager.STATUS_RUNNING -> Info(Status.RUNNING, progress)
+                        else -> Info(Status.QUEUED, progress)
+                    }
+                }
             }
         }
-        return Info(Status.NONE, 0f, null)
+        return out
     }
 
     fun cancel(context: Context, id: Long) {

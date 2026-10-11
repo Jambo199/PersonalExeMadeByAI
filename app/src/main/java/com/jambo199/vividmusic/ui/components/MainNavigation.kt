@@ -3,13 +3,13 @@ package com.jambo199.vividmusic.ui.components
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LibraryMusic
-import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -25,7 +25,7 @@ private fun MainSection.icon(selected: Boolean): ImageVector = when (this) {
     MainSection.HOME -> if (selected) Icons.Rounded.Home else Icons.Outlined.Home
     MainSection.LIBRARY -> if (selected) Icons.Rounded.LibraryMusic else Icons.Outlined.LibraryMusic
     MainSection.FOLDERS -> if (selected) Icons.Rounded.Folder else Icons.Outlined.Folder
-    MainSection.ONLINE -> if (selected) Icons.Rounded.Public else Icons.Outlined.Public
+    MainSection.NCS -> if (selected) Icons.Rounded.Headphones else Icons.Outlined.Headphones
 }
 
 @Composable

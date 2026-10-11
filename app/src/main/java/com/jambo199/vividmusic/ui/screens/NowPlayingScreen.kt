@@ -378,7 +378,7 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                             }
                             val fav = song.key in userData.favoriteSet
                             val favScale by animateFloatAsState(if (fav) 1.15f else 1f, spring(dampingRatio = 0.35f), label = "fav")
-                            // Albums and podcasts streamed from the internet aren't in the library to favourite.
+                            // Songs streamed from NCS aren't in the library to favourite.
                             if (!song.isOnline) IconButton(onClick = { viewModel.toggleFavorite(song) }) {
                                 Icon(
                                     if (fav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,

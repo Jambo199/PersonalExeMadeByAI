@@ -2,11 +2,8 @@ package com.jambo199.vividmusic.ui.online
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,9 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -39,7 +33,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -48,15 +41,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.jambo199.vividmusic.ui.components.placeholderBrush
 
-/** One OnlineViewModel for the whole app, so lists stay loaded while you move between screens. */
+/** One NcsViewModel for the whole app, so the list stays loaded while you move between screens. */
 @Composable
-fun onlineViewModel(): OnlineViewModel {
+fun ncsViewModel(): NcsViewModel {
     val activity = LocalContext.current as ComponentActivity
     return viewModel(viewModelStoreOwner = activity)
 }
@@ -158,46 +150,5 @@ fun RemoteImage(url: String?, seed: String, modifier: Modifier, fit: Boolean = f
                     .padding(if (fit) 6.dp else 0.dp),
             )
         }
-    }
-}
-
-/** Square cover with a title and subtitle underneath, for sideways shelves. */
-@Composable
-fun CoverCard(image: String?, title: String, subtitle: String, width: Dp = 148.dp, round: Boolean = false, onClick: () -> Unit) {
-    Column(
-        Modifier
-            .width(width)
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
-            .padding(4.dp),
-    ) {
-        RemoteImage(
-            url = image,
-            seed = title,
-            modifier = Modifier
-                .size(width - 8.dp)
-                .clip(if (round) RoundedCornerShape(50) else RoundedCornerShape(12.dp)),
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        if (subtitle.isNotBlank()) {
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
-
-@Composable
-fun <T> CoverShelf(items: List<T>, key: (T) -> Any, content: @Composable (T) -> Unit) {
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        items(items, key = key) { content(it) }
     }
 }

@@ -18,7 +18,7 @@ enum class PlayerBackground(val label: String) { BLUR("Blurred artwork"), GRADIE
 enum class LibraryTab(val label: String) { SONGS("Songs"), ALBUMS("Albums"), ARTISTS("Artists"), PLAYLISTS("Playlists") }
 
 /** The pages in the bottom navigation bar. */
-enum class MainSection(val label: String) { HOME("Home"), LIBRARY("Library"), FOLDERS("Folders"), ONLINE("Online") }
+enum class MainSection(val label: String) { HOME("Home"), LIBRARY("Library"), FOLDERS("Folders"), NCS("NCS") }
 
 data class EqSettings(
     val enabled: Boolean = false,
@@ -81,7 +81,7 @@ data class Settings(
     val songFadeSec: Int = 0,
     /** With "repeat one", stop after each play instead of looping (Auxio's "pause on repeat"). */
     val pauseOnRepeat: Boolean = false,
-    /** Carry on podcasts, audiobooks and other long tracks where they were left. */
+    /** Carry on audiobooks, mixes and other long tracks where they were left. */
     val rememberPositions: Boolean = true,
     val stopOnTaskRemoved: Boolean = false,
     val keepScreenOn: Boolean = false,
@@ -92,6 +92,11 @@ data class Settings(
     val showLyricsWhenAvailable: Boolean = false,
     /** Look up lyrics on LRCLIB when you open the lyrics of a song that has none. */
     val onlineLyrics: Boolean = true,
+    /**
+     * Show the current synced lyric line in place of the artist on the lock screen, notification,
+     * Dynamic Island-style pop-ups and car screens.
+     */
+    val sessionLyrics: Boolean = true,
     val autoCheckUpdates: Boolean = true,
     /** Most recent first. */
     val searchHistory: List<String> = emptyList(),
@@ -202,6 +207,7 @@ class SettingsStore(context: Context) {
             swipeArtworkToSkip = prefs.getBoolean("swipeArtworkToSkip", d.swipeArtworkToSkip),
             showLyricsWhenAvailable = prefs.getBoolean("showLyricsWhenAvailable", d.showLyricsWhenAvailable),
             onlineLyrics = prefs.getBoolean("onlineLyrics", d.onlineLyrics),
+            sessionLyrics = prefs.getBoolean("sessionLyrics", d.sessionLyrics),
             autoCheckUpdates = prefs.getBoolean("autoCheckUpdates", d.autoCheckUpdates),
             searchHistory = readList("searchHistory"),
             eq = EqSettings(
@@ -258,6 +264,7 @@ class SettingsStore(context: Context) {
             .putBoolean("swipeArtworkToSkip", s.swipeArtworkToSkip)
             .putBoolean("showLyricsWhenAvailable", s.showLyricsWhenAvailable)
             .putBoolean("onlineLyrics", s.onlineLyrics)
+            .putBoolean("sessionLyrics", s.sessionLyrics)
             .putBoolean("autoCheckUpdates", s.autoCheckUpdates)
             .putString("searchHistory", JSONArray(s.searchHistory).toString())
             .putBoolean("eq.enabled", s.eq.enabled)

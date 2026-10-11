@@ -28,6 +28,28 @@ data class Lyrics(
     val source: String,
 ) {
     val isSynced: Boolean get() = lines.isNotEmpty()
+
+    /** Index of the line being sung at [positionMs], or -1 before the first line. */
+    fun lineAt(positionMs: Long): Int {
+        var lo = 0
+        var hi = lines.lastIndex
+        var ans = -1
+        while (lo <= hi) {
+            val mid = (lo + hi) / 2
+            if (lines[mid].timeMs <= positionMs + LEAD_MS) {
+                ans = mid
+                lo = mid + 1
+            } else {
+                hi = mid - 1
+            }
+        }
+        return ans
+    }
+
+    companion object {
+        /** Lines light up this much early, so they don't feel late. */
+        const val LEAD_MS = 200L
+    }
 }
 
 object LrcParser {

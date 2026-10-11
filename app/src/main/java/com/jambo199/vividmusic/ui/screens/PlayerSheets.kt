@@ -240,7 +240,7 @@ fun LyricsView(
             delay(if (isPlaying) 150 else 600)
         }
     }
-    val current = currentLine(lines, positionMs)
+    val current = lyrics.lineAt(positionMs)
     LaunchedEffect(current) {
         if (current >= 0) listState.animateScrollToItem((current - 2).coerceAtLeast(0))
     }
@@ -316,22 +316,6 @@ private fun LyricRow(line: LyricLine, active: Boolean, passed: Boolean, contentC
             }
             .padding(horizontal = 12.dp, vertical = 10.dp),
     )
-}
-
-private fun currentLine(lines: List<LyricLine>, positionMs: Long): Int {
-    var lo = 0
-    var hi = lines.lastIndex
-    var ans = -1
-    while (lo <= hi) {
-        val mid = (lo + hi) / 2
-        if (lines[mid].timeMs <= positionMs + 200) {
-            ans = mid
-            lo = mid + 1
-        } else {
-            hi = mid - 1
-        }
-    }
-    return ans
 }
 
 // endregion

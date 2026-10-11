@@ -5,6 +5,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -107,7 +108,7 @@ class SmartShuffleOrder private constructor(
  * The player the media session sees: shuffle always starts from the song that's playing, plus a
  * short volume fade when you press play or pause (from the app, notification, headset or widget)
  * so music doesn't start or stop with a click. Pauses Android makes itself (headphones
- * unplugged, a call) stay instant.
+ * unplugged, a call) stay instant. It can also show the current lyric line as the artist.
  */
 @OptIn(UnstableApi::class)
 class ShuffleAwarePlayer(
@@ -139,6 +140,29 @@ class ShuffleAwarePlayer(
     override fun removeListener(listener: Player.Listener) {
         super.removeListener(listener)
         listeners -= listener
+    }
+
+    /** The lyric line being sung, and the song it belongs to. */
+    private var lyricKey: String? = null
+    private var lyricLine: String? = null
+
+    /**
+     * Shows [line] in place of the artist everywhere outside the app: lock screen, notification,
+     * Dynamic Island-style pop-ups and car screens. Null puts the artist back.
+     */
+    fun showLyricLine(songKey: String?, line: String?) {
+        if (songKey == lyricKey && line == lyricLine) return
+        lyricKey = songKey
+        lyricLine = line
+        val metadata = mediaMetadata
+        listeners.forEach { it.onMediaMetadataChanged(metadata) }
+    }
+
+    override fun getMediaMetadata(): MediaMetadata {
+        val metadata = super.getMediaMetadata()
+        val line = lyricLine ?: return metadata
+        if (lyricKey != exo.currentMediaItem?.mediaId) return metadata
+        return metadata.buildUpon().setArtist(line).build()
     }
 
     override fun getPlayWhenReady(): Boolean = !pausing && super.getPlayWhenReady()

@@ -39,6 +39,7 @@ import com.jambo199.vividmusic.AppGraph
 import com.jambo199.vividmusic.MainActivity
 import com.jambo199.vividmusic.R
 import com.jambo199.vividmusic.data.EmbeddedLyrics
+import com.jambo199.vividmusic.data.Lyrics
 import com.jambo199.vividmusic.data.PositionStore
 import com.jambo199.vividmusic.data.ReplayGain
 import com.jambo199.vividmusic.data.Song
@@ -52,6 +53,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
@@ -91,7 +93,7 @@ class PlaybackService : MediaLibraryService() {
         instance = this
         val settings = AppGraph.settings.current
 
-        // Streams (Internet Archive, podcasts) often redirect from http to https.
+        // Streams can redirect, sometimes from http to https.
         val http = DefaultHttpDataSource.Factory()
             .setUserAgent(Http.USER_AGENT)
             .setAllowCrossProtocolRedirects(true)
@@ -243,6 +245,38 @@ class PlaybackService : MediaLibraryService() {
                     if (!fading && sessionPlayer?.isFading != true) exo.volume = normalizedVolume() * factor
                 }
                 delay(if (near || factor < 1f) 50 else 500)
+            }
+        }
+        // The line being sung, in place of the artist on the lock screen, notification, Dynamic
+        // Island and car screens.
+        scope.launch {
+            combine(AppGraph.lyrics.current, AppGraph.settings.state.map { it.sessionLyrics }.distinctUntilChanged()) { lyrics, on ->
+                lyrics?.takeIf { on && it.isSynced }
+            }.collectLatest { lyrics ->
+                if (lyrics == null) {
+                    sessionPlayer?.showLyricLine(null, null)
+                    return@collectLatest
+                }
+                while (isActive) {
+                    val key = exo.currentMediaItem?.mediaId
+                    if (key != lyrics.songKey) {
+                        sessionPlayer?.showLyricLine(null, null)
+                        delay(500)
+                        continue
+                    }
+                    val pos = exo.currentPosition
+                    val i = lyrics.lineAt(pos)
+                    // Gaps between verses (blank lines) and the intro show the artist again.
+                    val line = lyrics.lines.getOrNull(i)?.text?.takeIf { it.isNotBlank() }
+                    sessionPlayer?.showLyricLine(key, line)
+                    val next = lyrics.lines.getOrNull(i + 1)?.timeMs
+                    val wait = if (!exo.isPlaying || next == null) {
+                        500L
+                    } else {
+                        ((next - Lyrics.LEAD_MS - pos) / exo.playbackParameters.speed).toLong().coerceIn(40L, 500L)
+                    }
+                    delay(wait)
+                }
             }
         }
         scope.launch {
