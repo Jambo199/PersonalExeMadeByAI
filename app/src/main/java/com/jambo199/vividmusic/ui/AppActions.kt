@@ -15,6 +15,7 @@ object Routes {
     const val SEARCH = "search"
     const val SETTINGS = "settings"
     const val EQUALIZER = "equalizer"
+    const val STATS = "stats"
     const val ALBUM = "album/{id}"
     const val ARTIST = "artist/{name}"
     const val FOLDER = "folder/{key}"
@@ -31,6 +32,7 @@ class NavActions(private val nav: NavHostController) {
     fun search() = nav.navigate(Routes.SEARCH) { launchSingleTop = true }
     fun settings() = nav.navigate(Routes.SETTINGS) { launchSingleTop = true }
     fun equalizer() = nav.navigate(Routes.EQUALIZER) { launchSingleTop = true }
+    fun stats() = nav.navigate(Routes.STATS) { launchSingleTop = true }
     fun back() {
         nav.popBackStack()
     }

@@ -187,6 +187,7 @@ echo "== Other screens"
 shortcut settings;  shot 17-settings 3
 shortcut equalizer; shot 18-equalizer 3
 shortcut favorites; shot 19-favourites 3
+shortcut stats;     shot 19b-stats 3
 
 echo "== Dark mode and landscape"
 adb shell cmd uimode night yes
@@ -197,6 +198,7 @@ shortcut artists;   shot 20c-dark-artists 3
 shortcut folders;   shot 20d-dark-folders 3
 shortcut playlists; shot 20e-dark-playlists 3
 shortcut settings;  shot 20f-dark-settings 3
+shortcut stats;     shot 20g-dark-stats 3
 shortcut player; shot 21-dark-player 4
 adb shell settings put system accelerometer_rotation 0
 adb shell settings put system user_rotation 1

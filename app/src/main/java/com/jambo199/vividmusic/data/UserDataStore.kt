@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.util.Calendar
 
 data class UserData(
     val playlists: List<Playlist> = emptyList(),
@@ -20,6 +21,12 @@ data class UserData(
     val recent: List<String> = emptyList(),
     val playCounts: Map<String, Int> = emptyMap(),
     val nextPlaylistId: Long = 1,
+    /** Total time spent listening, in milliseconds. */
+    val listenedMs: Long = 0,
+    /** Listening time per day ("2026-10-11" to ms), last [UserDataStore.DAYS_KEPT] days. */
+    val dailyMs: Map<String, Long> = emptyMap(),
+    /** When listening stats started being kept. */
+    val statsSince: Long = 0,
 ) {
     val favoriteSet: Set<String> by lazy { favorites.toSet() }
 }
@@ -98,7 +105,23 @@ class UserDataStore(context: Context, private val scope: CoroutineScope) {
         )
     }
 
-    fun clearHistory() = mutate { it.copy(recent = emptyList(), playCounts = emptyMap()) }
+    /** Called by the player with time spent playing since the last call. */
+    fun addListeningTime(ms: Long, now: Long = System.currentTimeMillis()) {
+        if (ms <= 0) return
+        val today = dayKey(now)
+        val oldest = dayKey(now - (DAYS_KEPT - 1) * DAY_MS)
+        mutate { d ->
+            d.copy(
+                listenedMs = d.listenedMs + ms,
+                dailyMs = (d.dailyMs + (today to (d.dailyMs[today] ?: 0L) + ms)).filterKeys { it >= oldest },
+                statsSince = d.statsSince.takeIf { it > 0 } ?: now,
+            )
+        }
+    }
+
+    fun clearHistory() = mutate {
+        it.copy(recent = emptyList(), playCounts = emptyMap(), listenedMs = 0, dailyMs = emptyMap(), statsSince = 0)
+    }
 
     /** Drops references to deleted files. */
     fun forget(keys: Set<String>) = mutate { d ->
@@ -138,6 +161,9 @@ class UserDataStore(context: Context, private val scope: CoroutineScope) {
                 recent = root.optJSONArray("recent").toStringList(),
                 playCounts = counts,
                 nextPlaylistId = root.optLong("nextId", (playlists.maxOfOrNull { it.id } ?: 0) + 1),
+                listenedMs = root.optLong("listenedMs"),
+                dailyMs = root.optJSONObject("dailyMs")?.let { o -> o.keys().asSequence().associateWith { o.optLong(it) } }.orEmpty(),
+                statsSince = root.optLong("statsSince"),
             )
         } catch (e: Exception) {
             Log.e(TAG, "Could not read user data", e)
@@ -158,6 +184,9 @@ class UserDataStore(context: Context, private val scope: CoroutineScope) {
             root.put("recent", JSONArray(data.recent))
             root.put("playCounts", JSONObject().apply { data.playCounts.forEach { (k, v) -> put(k, v) } })
             root.put("nextId", data.nextPlaylistId)
+            root.put("listenedMs", data.listenedMs)
+            root.put("dailyMs", JSONObject().apply { data.dailyMs.forEach { (k, v) -> put(k, v) } })
+            root.put("statsSince", data.statsSince)
             file.writeTextAtomically(root.toString())
         } catch (e: Exception) {
             Log.e(TAG, "Could not save user data", e)
@@ -167,6 +196,14 @@ class UserDataStore(context: Context, private val scope: CoroutineScope) {
     companion object {
         private const val TAG = "UserDataStore"
         private const val MAX_RECENT = 200
+        const val DAYS_KEPT = 30
+        private const val DAY_MS = 24L * 60 * 60 * 1000
+
+        /** Local calendar day, sortable as text. */
+        fun dayKey(time: Long): String {
+            val c = Calendar.getInstance().apply { timeInMillis = time }
+            return "%04d-%02d-%02d".format(c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH))
+        }
     }
 }
 

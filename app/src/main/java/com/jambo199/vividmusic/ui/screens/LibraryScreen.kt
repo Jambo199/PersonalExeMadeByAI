@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Equalizer
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Person
@@ -145,6 +146,14 @@ fun MainScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                         onClick = {
                             menuOpen = false
                             nav.equalizer()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Listening stats") },
+                        leadingIcon = { Icon(Icons.Rounded.Insights, null) },
+                        onClick = {
+                            menuOpen = false
+                            nav.stats()
                         },
                     )
                     DropdownMenuItem(

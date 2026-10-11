@@ -28,9 +28,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.NewReleases
 import androidx.compose.material.icons.rounded.Person
@@ -67,6 +69,7 @@ import com.jambo199.vividmusic.data.HomeFeed
 import com.jambo199.vividmusic.data.MainSection
 import com.jambo199.vividmusic.data.SmartPlaylists
 import com.jambo199.vividmusic.data.Song
+import com.jambo199.vividmusic.data.UserDataStore
 import com.jambo199.vividmusic.data.formatTotalDuration
 import com.jambo199.vividmusic.data.pluralize
 import com.jambo199.vividmusic.playback.PlaybackState
@@ -176,6 +179,8 @@ fun HomeScreen(viewModel: MainViewModel) {
             item(key = "unplayed-title") { HomeHeader("Not played yet", "Albums waiting for a first listen") }
             item(key = "unplayed") { AlbumCarousel(feed.unplayedAlbums, onOpen = { nav.album(it.id) }, onPlay = playAlbum) }
         }
+
+        item(key = "stats") { StatsCard(viewModel) { nav.stats() } }
     }
 }
 
@@ -432,6 +437,37 @@ private fun ArtistCarousel(artists: List<Artist>, onOpen: (Artist) -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun StatsCard(viewModel: MainViewModel, onOpen: () -> Unit) {
+    val data by viewModel.userData.collectAsState()
+    val week = remember(data.dailyMs) {
+        val now = System.currentTimeMillis()
+        (0 until 7).sumOf { data.dailyMs[UserDataStore.dayKey(now - it * 24L * 60 * 60 * 1000)] ?: 0L }
+    }
+    Surface(
+        onClick = onOpen,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 28.dp),
+    ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.Insights, contentDescription = null, modifier = Modifier.size(32.dp))
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Your listening", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    if (week > 0) "${formatTotalDuration(week)} this week • ${pluralize(data.playCounts.values.sum(), "play")} in total"
+                    else "See what you play most",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null)
         }
     }
 }

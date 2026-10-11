@@ -150,7 +150,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** History as it was when the quick picks were last shuffled, so they stay put while you listen. */
     @Volatile private var quickPicksHistory = AppGraph.userData.current
 
-    val home: StateFlow<HomeFeed> = combine(library, userData.debounce(300), homeSeed) { lib, data, seed ->
+    private val listeningHistory = userData.distinctUntilChanged { a, b ->
+        a.recent == b.recent && a.playCounts == b.playCounts && a.favorites == b.favorites
+    }
+
+    val home: StateFlow<HomeFeed> = combine(library, listeningHistory.debounce(300), homeSeed) { lib, data, seed ->
         HomeFeedBuilder.build(lib, data, seed, quickPicksHistory)
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Eagerly, HomeFeed())
 

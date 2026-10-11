@@ -13,10 +13,8 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -36,7 +34,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -64,9 +64,10 @@ import com.jambo199.vividmusic.ui.screens.PlaylistScreen
 import com.jambo199.vividmusic.ui.screens.SearchScreen
 import com.jambo199.vividmusic.ui.screens.SettingsScreen
 import com.jambo199.vividmusic.ui.screens.SleepTimerDialog
+import com.jambo199.vividmusic.ui.screens.StatsScreen
 import kotlinx.coroutines.launch
 
-private val NAV_ROUTES = setOf(Routes.MAIN, Routes.ALBUM, Routes.ARTIST, Routes.FOLDER, Routes.PLAYLIST)
+private val NAV_ROUTES = setOf(Routes.MAIN, Routes.ALBUM, Routes.ARTIST, Routes.FOLDER, Routes.PLAYLIST, Routes.STATS)
 
 /** Height of the Material navigation bar, not counting the system navigation bar under it. */
 private val NAV_BAR_HEIGHT = 80.dp
@@ -130,6 +131,7 @@ fun VividMusicApp(viewModel: MainViewModel) {
             "search" -> nav.search()
             "settings" -> nav.settings()
             "equalizer" -> nav.equalizer()
+            "stats" -> nav.stats()
             "favorites" -> nav.playlist(com.jambo199.vividmusic.data.SmartPlaylists.FAVORITES)
             "queue" -> nav.nowPlaying()
         }
@@ -149,6 +151,8 @@ fun VividMusicApp(viewModel: MainViewModel) {
     val miniHeight = if (showMini || showSelection) 84.dp else 0.dp
     val barHeight = if (showBottomBar) NAV_BAR_HEIGHT else 0.dp
     val miniLift by animateDpAsState(barHeight, tween(220), label = "miniLift")
+    val density = LocalDensity.current
+    var railWidth by remember { mutableStateOf(80.dp) }
 
     CompositionLocalProvider(
         LocalNav provides nav,
@@ -156,18 +160,15 @@ fun VividMusicApp(viewModel: MainViewModel) {
         LocalSelection provides selection,
         LocalBottomPadding provides navBar + barHeight + miniHeight,
     ) {
-        Row(
+        Box(
             Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background),
         ) {
-            AnimatedVisibility(visible = showRail) {
-                MainNavigationRail(section, onSelectSection)
-            }
             Box(
                 Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
+                    .fillMaxSize()
+                    .padding(start = if (showRail) railWidth else 0.dp),
             ) {
                 NavHost(
                     navController = navController,
@@ -193,6 +194,7 @@ fun VividMusicApp(viewModel: MainViewModel) {
                     composable(Routes.SEARCH) { SearchScreen(viewModel) }
                     composable(Routes.SETTINGS) { SettingsScreen(viewModel) }
                     composable(Routes.EQUALIZER) { EqualizerScreen(viewModel) }
+                    composable(Routes.STATS) { StatsScreen(viewModel) }
                     composable(Routes.ALBUM, arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
                         AlbumScreen(viewModel, entry.arguments?.getLong("id") ?: 0L)
                     }
@@ -275,6 +277,19 @@ fun VividMusicApp(viewModel: MainViewModel) {
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = navBar + barHeight + miniHeight),
+                )
+            }
+
+            AnimatedVisibility(
+                visible = showRail,
+                modifier = Modifier.align(Alignment.CenterStart),
+                enter = slideInHorizontally { -it },
+                exit = slideOutHorizontally { -it },
+            ) {
+                MainNavigationRail(
+                    section,
+                    onSelectSection,
+                    Modifier.onSizeChanged { railWidth = with(density) { it.width.toDp() } },
                 )
             }
         }

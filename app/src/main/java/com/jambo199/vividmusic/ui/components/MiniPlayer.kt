@@ -8,6 +8,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,7 +49,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
-/** Compact player pinned above the bottom of every library screen. Swipe sideways to skip. */
+/** Compact player pinned above the bottom of every library screen. Swipe sideways to skip, up to open. */
 @Composable
 fun MiniPlayer(
     state: PlaybackState,
@@ -60,6 +62,7 @@ fun MiniPlayer(
 ) {
     val song = state.song ?: return
     val scope = rememberCoroutineScope()
+    val open by rememberUpdatedState(onOpen)
     val offsetX = remember { Animatable(0f) }
     LaunchedEffect(song.key) { offsetX.snapTo(0f) }
 
@@ -83,6 +86,18 @@ fun MiniPlayer(
             Row(
                 modifier = Modifier
                     .clickable(onClick = onOpen)
+                    .pointerInput(Unit) {
+                        val threshold = 36.dp.toPx()
+                        var dragged = 0f
+                        detectVerticalDragGestures(
+                            onDragStart = { dragged = 0f },
+                            onDragEnd = { if (dragged < -threshold) open() },
+                            onVerticalDrag = { change, amount ->
+                                change.consume()
+                                dragged += amount
+                            },
+                        )
+                    }
                     .pointerInput(song.key) {
                         detectHorizontalDragGestures(
                             onDragEnd = {

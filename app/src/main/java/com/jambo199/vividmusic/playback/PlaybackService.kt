@@ -62,6 +62,7 @@ class PlaybackService : MediaLibraryService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var consecutiveErrors = 0
     private var countedCurrent = false
+    private var unsavedListeningMs = 0L
     private var saveQueueJob: Job? = null
     private var saveStateJob: Job? = null
 
@@ -152,6 +153,7 @@ class PlaybackService : MediaLibraryService() {
         saveQueueNow(sync = true)
         saveStateNow(sync = true)
         WidgetUpdater.update(this, currentSong(), false)
+        flushListeningTime()
         AppGraph.userData.flush()
         AudioEffects.release(this)
         session?.run {
@@ -206,6 +208,8 @@ class PlaybackService : MediaLibraryService() {
             while (isActive) {
                 delay(1000)
                 if (!exo.isPlaying) continue
+                unsavedListeningMs += 1000
+                if (unsavedListeningMs >= 30_000) flushListeningTime()
                 val duration = exo.duration
                 val threshold = if (duration > 0) minOf(30_000L, duration / 2) else 30_000L
                 if (!countedCurrent && exo.currentPosition >= threshold) {
@@ -219,6 +223,11 @@ class PlaybackService : MediaLibraryService() {
                 }
             }
         }
+    }
+
+    private fun flushListeningTime() {
+        AppGraph.userData.addListeningTime(unsavedListeningMs)
+        unsavedListeningMs = 0
     }
 
     private fun currentSong(): Song? {
@@ -258,7 +267,12 @@ class PlaybackService : MediaLibraryService() {
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            if (isPlaying) consecutiveErrors = 0 else saveStateSoon()
+            if (isPlaying) {
+                consecutiveErrors = 0
+            } else {
+                saveStateSoon()
+                flushListeningTime()
+            }
         }
 
         override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) = saveStateSoon()
