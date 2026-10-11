@@ -103,7 +103,11 @@ class PlaybackService : MediaLibraryService() {
     private var saveStateJob: Job? = null
 
     /** The music alarm is playing (until it's paused, snoozed or stopped). */
-    private var alarmRinging = false
+    private var alarmRinging: Boolean
+        get() = MusicAlarm.ringing.value
+        set(value) {
+            MusicAlarm.ringing.value = value
+        }
 
     override fun onCreate() {
         super.onCreate()
@@ -294,6 +298,7 @@ class PlaybackService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
+        alarmRinging = false
         saveQueueNow(sync = true)
         saveStateNow(sync = true)
         WidgetUpdater.update(this, currentSong(), false)

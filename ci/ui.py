@@ -33,7 +33,8 @@ def area(n):
 
 exact = [n for n in nodes if target in parts(n) and area(n) > 0]
 loose = [n for n in nodes if any(target.lower() in p.lower() for p in parts(n)) and area(n) > 0]
-candidates = exact or loose
+# "exact" refuses near misses (e.g. "Stop" inside a sentence about stopping).
+candidates = exact if (len(sys.argv) > 3 and sys.argv[3] == "exact") else (exact or loose)
 if not candidates:
     sys.exit(1)
 def top(n):

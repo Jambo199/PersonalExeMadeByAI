@@ -25,6 +25,7 @@ import com.jambo199.vividmusic.data.Song
 import com.jambo199.vividmusic.data.SongOfTheDay
 import com.jambo199.vividmusic.data.UserData
 import com.jambo199.vividmusic.data.UserDataStore
+import kotlinx.coroutines.flow.MutableStateFlow
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -45,6 +46,9 @@ object MusicAlarm {
     private const val EXTRA_ROUND = "vivid.focus.round"
     private const val FOCUS_REQUEST = 74
     const val SNOOZE_MINUTES = 9L
+
+    /** True while the wake-up music plays (until it's paused, snoozed or stopped). */
+    val ringing = MutableStateFlow(false)
 
     /** How long the gentle wake-up takes to reach full volume. */
     const val GENTLE_MS = 60_000L

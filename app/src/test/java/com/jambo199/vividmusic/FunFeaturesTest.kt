@@ -2,6 +2,8 @@ package com.jambo199.vividmusic
 
 import com.jambo199.vividmusic.data.Decade
 import com.jambo199.vividmusic.data.ListeningClock
+import com.jambo199.vividmusic.data.LrcParser
+import com.jambo199.vividmusic.data.LrcWriter
 import com.jambo199.vividmusic.data.Mood
 import com.jambo199.vividmusic.data.UserData
 import com.jambo199.vividmusic.data.UserDataStore
@@ -173,5 +175,17 @@ class FunFeaturesTest {
         assertEquals(2, (second as FocusTimer.Mode.Focus).round)
         // The last round's focus ends the session: no break after it.
         assertEquals(FocusTimer.Mode.Off, FocusTimer.next(second, now = 3_300_000))
+    }
+
+    @Test
+    fun handTimedLyricsBecomeLrc() {
+        assertEquals("[00:00.00]", LrcWriter.stamp(0))
+        assertEquals("[01:23.45]", LrcWriter.stamp(83_456))
+        val lines = LrcWriter.linesOf("[Verse 1]\nHello there\n\n  Second line  \n")
+        assertEquals(listOf("Hello there", "Second line"), lines)
+        val lrc = LrcWriter.write("Song", "Artist", lines, listOf(1_000, 4_250))
+        assertEquals("[ti:Song]\n[ar:Artist]\n[by:Vivid Music]\n[00:01.00]Hello there\n[00:04.25]Second line\n", lrc)
+        // And it reads back as synced lyrics.
+        assertEquals(listOf(1_000L, 4_250L), LrcParser.parse(lrc).map { it.timeMs })
     }
 }

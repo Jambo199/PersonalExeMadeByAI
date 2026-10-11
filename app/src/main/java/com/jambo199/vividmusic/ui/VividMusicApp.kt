@@ -65,6 +65,7 @@ import com.jambo199.vividmusic.ui.screens.EqualizerScreen
 import com.jambo199.vividmusic.ui.screens.FocusScreen
 import com.jambo199.vividmusic.ui.screens.FolderScreen
 import com.jambo199.vividmusic.ui.screens.GenreScreen
+import com.jambo199.vividmusic.ui.screens.LyricsSyncScreen
 import com.jambo199.vividmusic.ui.screens.MainScreen
 import com.jambo199.vividmusic.ui.screens.NowPlayingScreen
 import com.jambo199.vividmusic.ui.screens.PartyScreen
@@ -150,6 +151,7 @@ fun VividMusicApp(viewModel: MainViewModel) {
             "party" -> nav.party()
             "car" -> nav.car()
             "focus" -> nav.focus()
+            "lyrics_sync" -> nav.lyricsSync()
             "favorites" -> nav.playlist(com.jambo199.vividmusic.data.SmartPlaylists.FAVORITES)
             "queue" -> nav.nowPlaying()
         }
@@ -220,6 +222,7 @@ fun VividMusicApp(viewModel: MainViewModel) {
                     composable(Routes.PARTY) { PartyScreen(viewModel) }
                     composable(Routes.CAR) { CarScreen(viewModel) }
                     composable(Routes.FOCUS) { FocusScreen(viewModel) }
+                    composable(Routes.LYRICS_SYNC) { LyricsSyncScreen(viewModel) }
                     composable(Routes.ALBUM, arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
                         AlbumScreen(viewModel, entry.arguments?.getLong("id") ?: 0L)
                     }
@@ -344,4 +347,4 @@ fun VividMusicApp(viewModel: MainViewModel) {
     }
 }
 
-private val NO_MINI_PLAYER = setOf<String?>(Routes.NOW_PLAYING, Routes.QUIZ, Routes.WRAPPED, Routes.DISCOVER, Routes.PARTY, Routes.CAR)
+private val NO_MINI_PLAYER = setOf<String?>(Routes.NOW_PLAYING, Routes.QUIZ, Routes.WRAPPED, Routes.DISCOVER, Routes.PARTY, Routes.CAR, Routes.LYRICS_SYNC)

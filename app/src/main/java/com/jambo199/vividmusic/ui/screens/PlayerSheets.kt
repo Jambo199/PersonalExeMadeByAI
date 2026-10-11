@@ -206,6 +206,8 @@ fun LyricsView(
     song: Song? = null,
     /** Fill the line being sung from left to right, karaoke style. */
     karaoke: Boolean = true,
+    /** Opens the page for timing plain lyrics by hand. */
+    onSync: (() -> Unit)? = null,
 ) {
     if (lyrics == null) {
         if (autoSearch) {
@@ -236,6 +238,13 @@ fun LyricsView(
                     style = MaterialTheme.typography.titleMedium.copy(lineHeight = MaterialTheme.typography.titleMedium.lineHeight * 1.3f),
                     color = contentColor,
                 )
+            }
+            if (onSync != null) {
+                item {
+                    OutlinedButton(onClick = onSync, modifier = Modifier.padding(top = 16.dp)) {
+                        Text("Sync these lyrics yourself", color = contentColor)
+                    }
+                }
             }
             item { credit() }
         }

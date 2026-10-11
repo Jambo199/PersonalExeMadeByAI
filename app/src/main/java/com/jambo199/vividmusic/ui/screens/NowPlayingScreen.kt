@@ -359,6 +359,7 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                                     modifier = Modifier.fillMaxSize(),
                                     song = song,
                                     karaoke = settings.karaokeLyrics,
+                                    onSync = { nav.lyricsSync() },
                                 )
                             } else {
                                 SwipeableArtwork(

@@ -171,6 +171,23 @@ fun AlarmScreen(viewModel: MainViewModel) {
                 }
             }
 
+            val ringing by MusicAlarm.ringing.collectAsState()
+            if (ringing) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .fillMaxWidth(),
+                ) {
+                    Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Your alarm is playing", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                        TextButton(onClick = { MusicAlarm.snooze(context) }) { Text("Snooze") }
+                        TextButton(onClick = { MusicAlarm.stop(context) }) { Text("Stop alarm") }
+                    }
+                }
+            }
+
             if (settings.alarmEnabled && !onTime && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 Surface(
                     color = MaterialTheme.colorScheme.errorContainer,

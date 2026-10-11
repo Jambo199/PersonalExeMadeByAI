@@ -29,6 +29,7 @@ object Routes {
     const val PARTY = "party"
     const val CAR = "car"
     const val FOCUS = "focus"
+    const val LYRICS_SYNC = "lyrics_sync"
 }
 
 @Stable
@@ -51,6 +52,7 @@ class NavActions(private val nav: NavHostController) {
     fun party() = nav.navigate(Routes.PARTY) { launchSingleTop = true }
     fun car() = nav.navigate(Routes.CAR) { launchSingleTop = true }
     fun focus() = nav.navigate(Routes.FOCUS) { launchSingleTop = true }
+    fun lyricsSync() = nav.navigate(Routes.LYRICS_SYNC) { launchSingleTop = true }
     fun back() {
         nav.popBackStack()
     }

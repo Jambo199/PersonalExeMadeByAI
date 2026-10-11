@@ -130,6 +130,8 @@ You can also lock the app in the recent-apps screen (pull the card down).
   plus room / hall / plate **reverb** on anything
 - **Karaoke lyrics**: the line being sung fills with colour as it goes; long-press a line to
   share it as a picture card in the song's colours
+- **Sync lyrics yourself**: songs with plain lyrics get a "Sync these lyrics yourself" button –
+  tap along as each line starts and they're saved as a synced .lrc for that song
 - **Guess the song**: hear a few seconds and pick the right title (or **name the artist**) – from
   your songs or NCS hits, with points for speed and streaks
 - **Voice search**: tap the mic in Search and say a name – or "play Alan Walker", "shuffle

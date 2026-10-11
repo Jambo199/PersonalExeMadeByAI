@@ -329,14 +329,23 @@ if tap "Try it now"; then
   echo "-- media session after 'Try it now':"
   adb shell dumpsys media_session | grep -E "state=PlaybackState" | head -3
   adb shell dumpsys notification --noredact | grep -E "android.title=|android.text=" | grep -iE "morning|waking" | head -4
-  adb shell cmd statusbar expand-notifications
-  shot 53-alarm-ringing 3
-  if tap "Stop"; then
-    sleep 2
+  # The shade, without shot(): its dialog clearing would close it again.
+  adb shell cmd statusbar expand-notifications; sleep 3
+  adb exec-out screencap -p > "$OUT/53-alarm-ringing.png" && echo "📸 53-alarm-ringing"
+  if dump && xy=$(python3 "$HERE/ui.py" /tmp/ui.xml "Stop" exact); then
+    adb shell input tap $xy; echo "👆 Stop (notification) at $xy"
+    sleep 3
     echo "-- media session after Stop:"
-    adb shell dumpsys media_session | grep -E "state=PlaybackState" | head -3
+    adb shell dumpsys media_session | grep -m1 -E "state=PlaybackState"
+  else
+    echo "⚠️  no Stop button in the shade: $(python3 "$HERE/ui.py" /tmp/ui.xml --texts | cut -c1-600)"
   fi
   adb shell cmd statusbar collapse
+  # The alarm page's own Stop, in case the shade's wasn't reachable.
+  if tap "Stop alarm"; then
+    sleep 2
+    echo "-- media session after Stop alarm: $(adb shell dumpsys media_session | grep -m1 -oE 'state=[A-Z]+\([0-9]\)')"
+  fi
 fi
 if tap "Wake up to music"; then
   shot 54-alarm-picker 2
@@ -380,6 +389,10 @@ adb shell input keyevent KEYCODE_BACK
 shortcut home
 adb shell input swipe 540 1500 540 900 300; sleep 1
 if tap "Chill"; then sleep 4; echo "-- after picking a mood: $(adb shell dumpsys media_session | grep -m1 -oE 'description=[^,]*')"; shot 21i-mood 3; fi
+adb shell input keyevent KEYCODE_BACK
+
+echo "== Sync lyrics yourself"
+shortcut lyrics_sync; shot 21j-lyrics-sync 3
 adb shell input keyevent KEYCODE_BACK
 
 echo "== Car mode"
