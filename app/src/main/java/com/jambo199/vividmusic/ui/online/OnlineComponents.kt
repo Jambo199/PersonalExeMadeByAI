@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -57,6 +58,7 @@ fun ncsViewModel(): NcsViewModel {
 fun OnlineSearchField(placeholder: String, initial: String = "", onSearch: (String) -> Unit) {
     var text by rememberSaveable { mutableStateOf(initial) }
     val keyboard = LocalSoftwareKeyboardController.current
+    val focus = LocalFocusManager.current
     OutlinedTextField(
         value = text,
         onValueChange = { text = it },
@@ -75,6 +77,7 @@ fun OnlineSearchField(placeholder: String, initial: String = "", onSearch: (Stri
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = {
             keyboard?.hide()
+            focus.clearFocus()
             onSearch(text)
         }),
         modifier = Modifier

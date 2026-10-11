@@ -36,7 +36,15 @@ loose = [n for n in nodes if any(target.lower() in p.lower() for p in parts(n)) 
 candidates = exact or loose
 if not candidates:
     sys.exit(1)
-# Prefer clickable nodes, then the smallest one (the most specific element).
-candidates.sort(key=lambda n: (n.get("clickable") != "true", area(n)))
+def top(n):
+    return int(re.findall(r"\d+", n.get("bounds"))[1])
+
+
+# Prefer clickable nodes, then the smallest one (the most specific element); with "top", the
+# highest one on screen (so the mini player at the bottom doesn't win).
+if len(sys.argv) > 3 and sys.argv[3] == "top":
+    candidates.sort(key=lambda n: (n.get("clickable") != "true", top(n)))
+else:
+    candidates.sort(key=lambda n: (n.get("clickable") != "true", area(n)))
 x1, y1, x2, y2 = map(int, re.findall(r"\d+", candidates[0].get("bounds")))
 print((x1 + x2) // 2, (y1 + y2) // 2)

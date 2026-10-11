@@ -33,11 +33,11 @@ shot() {
 }
 launch() { adb shell am start -W -n "$PKG/.MainActivity" "$@" > /dev/null; }
 shortcut() { launch --es vivid.shortcut "$1"; }
-tap() { # tap on the element labelled $1
+tap() { # tap on the element labelled $1 ($2 = "top" picks the highest match on screen)
   clear_dialogs
   for _ in 1 2 3; do
     if dump; then
-      if xy=$(python3 "$HERE/ui.py" /tmp/ui.xml "$1"); then
+      if xy=$(python3 "$HERE/ui.py" /tmp/ui.xml "$1" ${2:-}); then
         adb shell input tap $xy
         echo "👆 $1 at $xy"
         return 0
@@ -241,20 +241,22 @@ fi
 shortcut ncs
 tap "Newest"
 if tap "Search NCS songs and artists"; then
+  sleep 1
   adb shell input text "alan%swalker"
   adb shell input keyevent KEYCODE_ENTER
   shot 40-ncs-search-artist 10
-  if tap "Alan Walker"; then shot 41-ncs-alan-walker 10; fi
+  if tap "Alan Walker" top; then shot 41-ncs-alan-walker 10; fi
 fi
 echo "== NCS artists"
 shortcut ncs
 if tap "Artists"; then shot 42-ncs-artists 20; fi
 if tap "A–Z"; then shot 43-ncs-artists-az 8; fi
 if tap "Search NCS artists"; then
+  sleep 1
   adb shell input text "jim"
   adb shell input keyevent KEYCODE_ENTER
   shot 44-ncs-artist-search 8
-  if tap "Jim Yosef"; then shot 45-ncs-jim-yosef 10; fi
+  if tap "Jim Yosef" top; then shot 45-ncs-jim-yosef 10; fi
 fi
 adb logcat -d | grep -E "NcsViewModel" | tail -14
 adb logcat -d | grep -E "NcsViewModel|ExoPlayerImplInternal.*rror|DownloadManager" | tail -5
