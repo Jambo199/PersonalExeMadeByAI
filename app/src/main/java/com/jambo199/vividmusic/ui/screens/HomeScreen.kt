@@ -31,10 +31,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FiberNew
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.NewReleases
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
@@ -219,7 +219,7 @@ private val Tiles = listOf(
     Tile(SmartPlaylists.FAVORITES, Icons.Rounded.Favorite, listOf(Color(0xFF7C4DFF), Color(0xFFE040FB))),
     Tile(SmartPlaylists.RECENTLY_PLAYED, Icons.Rounded.History, listOf(Color(0xFF1E88E5), Color(0xFF26C6DA))),
     Tile(SmartPlaylists.MOST_PLAYED, Icons.Rounded.Whatshot, listOf(Color(0xFFF4511E), Color(0xFFFFB300))),
-    Tile(SmartPlaylists.RECENTLY_ADDED, Icons.Rounded.NewReleases, listOf(Color(0xFF00897B), Color(0xFF9CCC65))),
+    Tile(SmartPlaylists.RECENTLY_ADDED, Icons.Rounded.FiberNew, listOf(Color(0xFF00897B), Color(0xFF9CCC65))),
 )
 
 @Composable

@@ -180,7 +180,7 @@ if [ -n "$online_song" ]; then
   title=$(basename "$online_song" .mp3)
   shortcut songs
   tap "$title" && sleep 2 && shortcut player && sleep 2 && tap "Lyrics" && shot 16b-online-lyrics 8
-  adb logcat -d | grep -E "OnlineLyrics" | tail -5
+  adb logcat -d | grep -E "OnlineLyrics" | grep -vE "OnlineLyrics:[[:space:]]+at " | tail -8
 fi
 
 echo "== Other screens"

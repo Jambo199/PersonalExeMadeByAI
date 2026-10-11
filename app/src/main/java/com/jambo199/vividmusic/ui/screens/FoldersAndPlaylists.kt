@@ -24,11 +24,11 @@ import androidx.compose.material.icons.rounded.AccountTree
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CreateNewFolder
 import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.GetApp
+import androidx.compose.material.icons.rounded.FiberNew
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.GetApp
 import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.NewReleases
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.SdStorage
 import androidx.compose.material.icons.rounded.ViewList
@@ -225,7 +225,7 @@ fun PlaylistsTab(viewModel: MainViewModel) {
         item(key = "smart") { SectionHeader("For you") }
         val smart = listOf(
             Triple(SmartPlaylists.FAVORITES, Icons.Rounded.Favorite, userData.favorites.count { library.byKey.containsKey(it) }),
-            Triple(SmartPlaylists.RECENTLY_ADDED, Icons.Rounded.NewReleases, minOf(100, library.songs.size)),
+            Triple(SmartPlaylists.RECENTLY_ADDED, Icons.Rounded.FiberNew, minOf(100, library.songs.size)),
             Triple(SmartPlaylists.RECENTLY_PLAYED, Icons.Rounded.History, userData.recent.count { library.byKey.containsKey(it) }),
             Triple(SmartPlaylists.MOST_PLAYED, Icons.Rounded.Whatshot, minOf(100, userData.playCounts.keys.count { library.byKey.containsKey(it) })),
         )

@@ -8,6 +8,7 @@ import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
 import java.net.URL
 import java.net.URLEncoder
 import java.security.MessageDigest
@@ -59,11 +60,14 @@ class OnlineLyrics(context: Context) {
                 file(song, "none").delete()
                 Result.Found(text)
             }
+        } catch (e: SocketTimeoutException) {
+            Log.w(TAG, "Lyrics look-up timed out: $e")
+            Result.Failed("LRCLIB is taking too long to answer. Try again in a moment.")
         } catch (e: IOException) {
-            Log.w(TAG, "Lyrics look-up failed", e)
+            Log.w(TAG, "Lyrics look-up failed: $e")
             Result.Failed("Couldn't reach LRCLIB. Check your internet connection.")
         } catch (e: Exception) {
-            Log.w(TAG, "Lyrics look-up failed", e)
+            Log.w(TAG, "Lyrics look-up failed: $e")
             Result.Failed("Couldn't read the lyrics from LRCLIB.")
         }
     }
@@ -76,7 +80,14 @@ class OnlineLyrics(context: Context) {
             if (q.album.isNotBlank()) put("album_name", q.album)
             put("duration", q.durationSec.toString())
         }
-        val body = get("/api/get", params) ?: return null
+        // For songs it doesn't know, LRCLIB asks other sites first, which can take a while;
+        // if it's slow, carry on with a plain search instead of giving up.
+        val body = try {
+            get("/api/get", params)
+        } catch (e: SocketTimeoutException) {
+            Log.i(TAG, "Exact look-up timed out, searching instead")
+            null
+        } ?: return null
         return lyricsOf(JSONObject(body))
     }
 
@@ -97,7 +108,7 @@ class OnlineLyrics(context: Context) {
         val conn = URL("$BASE$path?$query").openConnection() as HttpURLConnection
         try {
             conn.connectTimeout = 10_000
-            conn.readTimeout = 15_000
+            conn.readTimeout = 20_000
             conn.setRequestProperty("User-Agent", "VividMusic/${BuildConfig.VERSION_NAME} (https://github.com/Jambo199/PersonalExeMadeByAI)")
             conn.setRequestProperty("Accept", "application/json")
             return when (val code = conn.responseCode) {
