@@ -1,8 +1,10 @@
 package com.jambo199.vividmusic
 
+import com.jambo199.vividmusic.online.ChartArtist
 import com.jambo199.vividmusic.online.ChartEntry
 import com.jambo199.vividmusic.online.ChartProgress
 import com.jambo199.vividmusic.online.Ncs
+import com.jambo199.vividmusic.online.NcsArtistItem
 import com.jambo199.vividmusic.online.NcsArtistRef
 import com.jambo199.vividmusic.online.NcsChart
 import com.jambo199.vividmusic.online.NcsTrack
@@ -159,5 +161,52 @@ class NcsParserTest {
         assertEquals("Tom & Jerry's \"song\" <3 é", Ncs.unescape("Tom &amp; Jerry&#039;s &quot;song&quot; &lt;3 &#xe9;"))
         assertEquals("&unknown;", Ncs.unescape("&unknown;"))
         assertNull(Ncs.parse(page, 1).tracks.firstOrNull { it.title.contains("&") })
+    }
+
+    @Test
+    fun artistDirectory() {
+        val html = """
+            <article class="module artists"> <div class="container-fluid"> <div class="row">
+            <div class="col-lg-2 item"> <a href="/artist/210/jim-yosef"> <div class="inner"> <div class="img" style="background-image: url('https://ncsmusic.s3.eu-west-1.amazonaws.com/artists/000/000/210/325x325/jim.png')"></div> </div>
+            <div class="bottom"> <p><strong>Jim Yosef</strong></p> <span class="tags">Electro House, House, </span> </div> </a> </div>
+            <div class="col-lg-2 item"> <a href="/artist/1511/zack-griffin"> <div class="inner"> <div class="img" style="background-image: url('/static/web/img/no-artist.png?_m=1693299337')"></div> </div>
+            <div class="bottom"> <p><strong>Zack Griffin &amp; Co</strong></p> <span class="tags">Tech House</span> </div> </a> </div>
+            </div></div></article>
+            <a href="https://ncs.io/artists?page=2">2</a>
+        """
+        val page = Ncs.parseArtists(html, 1)
+        assertEquals(
+            listOf(
+                NcsArtistItem("Jim Yosef", "/artist/210/jim-yosef", "https://ncsmusic.s3.eu-west-1.amazonaws.com/artists/000/000/210/325x325/jim.png", "Electro House, House"),
+                NcsArtistItem("Zack Griffin & Co", "/artist/1511/zack-griffin", null, "Tech House"),
+            ),
+            page.artists,
+        )
+        assertTrue(page.hasMore)
+        assertFalse(Ncs.parseArtists(html, 2).hasMore)
+        assertTrue(Ncs.parseArtists("<html></html>", 1).artists.isEmpty())
+    }
+
+    @Test
+    fun artistsRankedByPlays() {
+        val chart = listOf(
+            ChartEntry("Cradles", "Sub Urban", 0, "https://pic/sub"),
+            ChartEntry("Sky High", "Elektronomia", 0, "https://pic/elek"),
+            ChartEntry("Firefly", "Jim Yosef", 0),
+            ChartEntry("Link", "Jim Yosef", 0, "https://pic/jim"),
+            ChartEntry("Energy", "Elektronomia", 0),
+            ChartEntry("Untitled", "", 0),
+        )
+        val ranked = NcsChart.rankArtists(chart)
+        // Two hits beat a single one placed just above them.
+        assertEquals(listOf("Elektronomia", "Jim Yosef", "Sub Urban"), ranked.map { it.name })
+        assertEquals(ChartArtist("Elektronomia", "https://pic/elek", songs = 2, topSong = "Sky High", bestPlace = 2), ranked[0])
+        assertEquals("https://pic/jim", ranked[1].picture)
+    }
+
+    @Test
+    fun chartKeepsArtistPictures() {
+        val json = """{"data":[{"title":"Sky High","duration":236,"artist":{"name":"Elektronomia","picture_medium":"https://cdn/elek.jpg"}}]}"""
+        assertEquals("https://cdn/elek.jpg", NcsChart.parse(json).entries.single().artistPicture)
     }
 }

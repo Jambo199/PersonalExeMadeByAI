@@ -246,6 +246,16 @@ if tap "Search NCS songs and artists"; then
   shot 40-ncs-search-artist 10
   if tap "Alan Walker"; then shot 41-ncs-alan-walker 10; fi
 fi
+echo "== NCS artists"
+shortcut ncs
+if tap "Artists"; then shot 42-ncs-artists 20; fi
+if tap "A–Z"; then shot 43-ncs-artists-az 8; fi
+if tap "Search NCS artists"; then
+  adb shell input text "jim"
+  adb shell input keyevent KEYCODE_ENTER
+  shot 44-ncs-artist-search 8
+  if tap "Jim Yosef"; then shot 45-ncs-jim-yosef 10; fi
+fi
 adb logcat -d | grep -E "NcsViewModel" | tail -14
 adb logcat -d | grep -E "NcsViewModel|ExoPlayerImplInternal.*rror|DownloadManager" | tail -5
 

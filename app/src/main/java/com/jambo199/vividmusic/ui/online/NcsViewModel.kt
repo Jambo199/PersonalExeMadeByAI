@@ -69,6 +69,41 @@ data class NcsListing(
             (mood == null || t.moods.any { it.equals(mood.name, ignoreCase = true) })
 }
 
+/** How the artist list is ordered; [param] is ncs.io's name for it. */
+enum class NcsArtistSort(val label: String, val param: String) {
+    POPULAR("Popular", "az"),
+    AZ("A–Z", "az"),
+    ZA("Z–A", "za"),
+    LATEST("Recently joined", "latest"),
+}
+
+/** One artist in the artist list. */
+@Immutable
+data class NcsArtistEntry(
+    val name: String,
+    /** Their page on ncs.io, or "name:" and their name to look it up when opened. */
+    val path: String,
+    val image: String?,
+    val subtitle: String,
+    /** Place among the most played artists, 0 when not ranked. */
+    val rank: Int = 0,
+)
+
+/** The NCS artists being listed, a page at a time. */
+@Immutable
+data class NcsArtistListing(
+    val query: String = "",
+    val sort: NcsArtistSort = NcsArtistSort.POPULAR,
+    val artists: List<NcsArtistEntry> = emptyList(),
+    val pages: Int = 0,
+    val hasMore: Boolean = true,
+    val loading: Boolean = false,
+    val error: String? = null,
+) {
+    /** Ranked by plays when browsing; a typed search goes through ncs.io's directory. */
+    val popular: Boolean get() = sort == NcsArtistSort.POPULAR && query.isBlank()
+}
+
 /** Progress of "save every song". */
 @Immutable
 data class NcsSaveAll(val pagesRead: Int, val queued: Int, val running: Boolean, val error: String? = null)
@@ -99,7 +134,11 @@ class NcsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun selectMood(mood: NcsFilter?) = restart(_listing.value.copy(mood = mood))
 
-    fun selectSort(sort: NcsSort) = restart(_listing.value.copy(sort = sort))
+    /** Picking an order shows songs again, and leaves any search behind. */
+    fun selectSort(sort: NcsSort) {
+        _showArtists.value = false
+        restart(_listing.value.copy(sort = sort, query = ""))
+    }
 
     fun clearFilters() = restart(_listing.value.copy(genre = null, mood = null))
 
@@ -217,11 +256,91 @@ class NcsViewModel(app: Application) : AndroidViewModel(app) {
 
     // endregion
 
+    // region artist list
+
+    private val _showArtists = MutableStateFlow(false)
+
+    /** True while the page lists artists instead of songs. */
+    val showArtists: StateFlow<Boolean> = _showArtists.asStateFlow()
+
+    private val _artistList = MutableStateFlow(NcsArtistListing())
+    val artistList: StateFlow<NcsArtistListing> = _artistList.asStateFlow()
+    private var artistJob: Job? = null
+
+    fun showArtistList() {
+        _showArtists.value = true
+        val l = _artistList.value
+        if (l.pages == 0 && !l.loading && l.error == null) loadMoreArtists()
+    }
+
+    fun searchArtists(query: String) = restartArtists(_artistList.value.copy(query = query.trim()))
+
+    fun sortArtists(sort: NcsArtistSort) = restartArtists(_artistList.value.copy(sort = sort, query = ""))
+
+    private fun restartArtists(wanted: NcsArtistListing) {
+        val now = _artistList.value
+        if (wanted.query == now.query && wanted.sort == now.sort && now.pages > 0) return
+        artistJob?.cancel()
+        _artistList.value = NcsArtistListing(query = wanted.query, sort = wanted.sort)
+        loadMoreArtists()
+    }
+
+    /** Loads the next page of artists, or tries again after an error. */
+    fun loadMoreArtists() {
+        val l = _artistList.value
+        if (l.loading || !l.hasMore) return
+        _artistList.value = l.copy(loading = true, error = null)
+        artistJob = viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    if (l.popular) {
+                        popularArtists() to false
+                    } else {
+                        val page = Ncs.artists(l.query, l.sort.param, l.pages + 1)
+                        page.artists.map { NcsArtistEntry(it.name, it.path, it.image, it.tags) } to page.hasMore
+                    }
+                }
+            }
+            val now = _artistList.value
+            if (now.query != l.query || now.sort != l.sort) return@launch
+            result.onSuccess { (found, more) ->
+                val seen = now.artists.mapTo(HashSet()) { it.path }
+                val fresh = found.filter { seen.add(it.path) }
+                _artistList.value = now.copy(
+                    artists = now.artists + fresh,
+                    pages = l.pages + 1,
+                    hasMore = more && fresh.isNotEmpty(),
+                    loading = false,
+                )
+            }.onFailure { e ->
+                _artistList.value = now.copy(loading = false, error = e.friendlyMessage())
+            }
+        }
+    }
+
+    @Volatile
+    private var chartArtists: List<NcsArtistEntry>? = null
+
+    /** Artists ranked by how much their songs are played (from Deezer's chart). */
+    private fun popularArtists(): List<NcsArtistEntry> = chartArtists ?: NcsChart.rankArtists(NcsChart.all())
+        .mapIndexed { i, a ->
+            NcsArtistEntry(
+                name = a.name,
+                path = NAME_PREFIX + a.name,
+                image = a.picture,
+                subtitle = if (a.songs == 1) "1 hit · ${a.topSong}" else "${a.songs} hits · best: ${a.topSong}",
+                rank = i + 1,
+            )
+        }
+        .also { chartArtists = it }
+
+    // endregion
+
     // region artists and song details
 
     private val artists = HashMap<String, MutableStateFlow<Load<NcsArtist>>>()
 
-    /** An NCS artist's page, most popular songs first. */
+    /** An NCS artist's page, most popular songs first. [path] can also be "name:" and a name. */
     fun artist(path: String, retry: Boolean = false): StateFlow<Load<NcsArtist>> {
         val flow = artists.getOrPut(path) { MutableStateFlow(Load.Failed("")) }
         if (flow.value is Load.Failed || (retry && flow.value !is Load.Loading)) {
@@ -229,7 +348,8 @@ class NcsViewModel(app: Application) : AndroidViewModel(app) {
             viewModelScope.launch {
                 flow.value = withContext(Dispatchers.IO) {
                     try {
-                        val a = Ncs.artist(path)
+                        val real = if (path.startsWith(NAME_PREFIX)) Ncs.findArtistPath(path.removePrefix(NAME_PREFIX)) else path
+                        val a = Ncs.artist(real)
                         NcsSeen.add(a.tracks)
                         Load.Ready(a)
                     } catch (e: Exception) {
@@ -402,5 +522,8 @@ class NcsViewModel(app: Application) : AndroidViewModel(app) {
         /** Chart places matched per page (each needs a look-up on ncs.io). */
         private const val CHART_PAGE = 25
         private const val TAG = "NcsViewModel"
+
+        /** Marks an artist known only by name; their ncs.io page is looked up when opened. */
+        const val NAME_PREFIX = "name:"
     }
 }

@@ -157,6 +157,20 @@ data class NcsArtist(
     val tracks: List<NcsTrack>,
 )
 
+/** An artist in ncs.io's artist directory. */
+@Immutable
+data class NcsArtistItem(
+    val name: String,
+    val path: String,
+    /** Their photo, when NCS has one. */
+    val image: String?,
+    /** Genres they release in. */
+    val tags: String,
+)
+
+@Immutable
+data class NcsArtistPage(val artists: List<NcsArtistItem>, val hasMore: Boolean)
+
 /** The extra details on a track's own page. */
 @Immutable
 data class NcsTrackDetails(
@@ -187,6 +201,22 @@ object Ncs {
 
     /** An artist's page, e.g. [path] "/artist/13/alan-walker". */
     fun artist(path: String): NcsArtist = parseArtist(fetch(SITE + path), path)
+
+    /**
+     * Page [page] of ncs.io's artist directory, [sort] being "az", "za" or "latest", narrowed
+     * to names matching [query].
+     */
+    fun artists(query: String = "", sort: String = "az", page: Int = 1): NcsArtistPage {
+        val url = "$SITE/artists?q=${Http.encode(query.trim())}&sort=$sort" + if (page > 1) "&page=$page" else ""
+        return parseArtists(fetch(url), page)
+    }
+
+    /** Where the artist called [name] has their page on ncs.io. */
+    fun findArtistPath(name: String): String {
+        val found = parseArtists(fetch("$SITE/artists?q=${Http.encode(name.trim())}&sort=az"), 1).artists
+        val match = found.firstOrNull { norm(it.name) == norm(name) } ?: found.firstOrNull()
+        return match?.path ?: throw java.io.IOException("$name isn't on ncs.io")
+    }
 
     /** The credit text and video link from a track's page ([page] is its full address). */
     fun details(page: String): NcsTrackDetails = parseDetails(fetch(page))
@@ -273,6 +303,22 @@ object Ncs {
             tags = unescape(info?.groupValues?.get(2).orEmpty()).trim().trimEnd(',').trim(),
             tracks = parseRows(html),
         )
+    }
+
+    private val ARTIST_ITEM = Regex("<div class=\"col-lg-2 item\">\\s*<a href=\"(/artist/\\d+/[^\"]+)\">(.*?)</a>", RegexOption.DOT_MATCHES_ALL)
+
+    internal fun parseArtists(html: String, page: Int): NcsArtistPage {
+        val artists = ARTIST_ITEM.findAll(html).mapNotNull { m ->
+            val body = m.groupValues[2]
+            val name = Regex("<strong>([^<]+)</strong>").find(body)?.groupValues?.get(1)?.let(::unescape)?.trim()
+                ?: return@mapNotNull null
+            val image = Regex("url\\('([^']+)'\\)").find(body)?.groupValues?.get(1)
+                ?.takeUnless { "no-artist" in it }
+                ?.let { if (it.startsWith("/")) SITE + it else it }
+            val tags = Regex("<span class=\"tags\">([^<]*)</span>").find(body)?.groupValues?.get(1).orEmpty()
+            NcsArtistItem(name, m.groupValues[1], image, unescape(tags).trim().trimEnd(',').trim())
+        }.distinctBy { it.path }.toList()
+        return NcsArtistPage(artists, hasMore = artists.isNotEmpty() && Regex("page=${page + 1}(?!\\d)").containsMatchIn(html))
     }
 
     internal fun parseDetails(html: String): NcsTrackDetails {

@@ -61,6 +61,8 @@ You can also lock the app in the recent-apps screen (pull the card down).
   (ranked by plays on Deezer's charts), with genre and mood filters
 - Search by song or artist; artists you search for show up first, and each artist has a page
   with all their NCS releases, most popular first (play, shuffle or save them all)
+- **Artists**: browse every NCS artist – most played first, A–Z, Z–A or recently joined – or
+  search for one (Jim Yosef, Elektronomia, Alan Walker…)
 - Tap ⋮ (or long-press) a song for **all its details**: artists, release date and year, genres,
   moods, versions (regular/instrumental), length, chart place, and the credit text NCS asks you
   to use in videos (copy it in one tap), plus links to ncs.io and the official video

@@ -1,5 +1,6 @@
 package com.jambo199.vividmusic.ui.online
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,12 +12,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.NewReleases
 import androidx.compose.material.icons.rounded.Person
@@ -44,13 +49,18 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jambo199.vividmusic.online.Ncs
 import com.jambo199.vividmusic.online.NcsArtistRef
@@ -72,6 +82,8 @@ fun NcsScreen(viewModel: MainViewModel) {
     val genres by ncs.genres.collectAsState()
     val moods by ncs.moods.collectAsState()
     val saveAll by ncs.saveAll.collectAsState()
+    val showArtists by ncs.showArtists.collectAsState()
+    val artistList by ncs.artistList.collectAsState()
     val state = rememberNcsListState(viewModel, ncs)
     val bottom = LocalBottomPadding.current
     var saveDialog by rememberSaveable { mutableStateOf(false) }
@@ -105,24 +117,37 @@ fun NcsScreen(viewModel: MainViewModel) {
             layout.totalItemsCount > 0 && last >= layout.totalItemsCount - 6
         }
     }
-    LaunchedEffect(nearEnd, listing.tracks.size, listing.loading) {
-        if (nearEnd && listing.pages > 0 && listing.error == null) ncs.loadMore()
+    LaunchedEffect(nearEnd, listing.tracks.size, listing.loading, showArtists) {
+        if (!showArtists && nearEnd && listing.pages > 0 && listing.error == null) ncs.loadMore()
+    }
+    LaunchedEffect(nearEnd, artistList.artists.size, artistList.loading, showArtists) {
+        if (showArtists && nearEnd && artistList.pages > 0 && artistList.error == null) ncs.loadMoreArtists()
     }
 
     LazyColumn(state = listState, contentPadding = PaddingValues(bottom = bottom + 16.dp)) {
         item(key = "search") {
-            OnlineSearchField("Search NCS songs and artists", listing.query) { ncs.search(it) }
-        }
-        if (listing.query.isBlank()) {
-            item(key = "sort") {
-                Row(
-                    Modifier.padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    SortChip("Newest", Icons.Rounded.NewReleases, !listing.popular) { ncs.selectSort(NcsSort.NEWEST) }
-                    SortChip("Most popular", Icons.Rounded.Whatshot, listing.popular) { ncs.selectSort(NcsSort.POPULAR) }
+            // A fresh field whenever the page switches between songs and artists.
+            key(showArtists, if (showArtists) artistList.query else listing.query) {
+                if (showArtists) {
+                    OnlineSearchField("Search NCS artists", artistList.query) { ncs.searchArtists(it) }
+                } else {
+                    OnlineSearchField("Search NCS songs and artists", listing.query) { ncs.search(it) }
                 }
             }
+        }
+        item(key = "sort") {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                item { SortChip("Newest", Icons.Rounded.NewReleases, !showArtists && !listing.popular) { ncs.selectSort(NcsSort.NEWEST) } }
+                item { SortChip("Most popular", Icons.Rounded.Whatshot, !showArtists && listing.popular) { ncs.selectSort(NcsSort.POPULAR) } }
+                item { SortChip("Artists", Icons.Rounded.Groups, showArtists) { ncs.showArtistList() } }
+            }
+        }
+        if (showArtists) {
+            artistItems(artistList, ncs, onOpen = { nav.ncsArtist(it.path) })
+            return@LazyColumn
         }
         if (genres.isNotEmpty()) {
             item(key = "genres") { FilterRow("All genres", genres, listing.genre) { ncs.selectGenre(it) } }
@@ -268,6 +293,95 @@ fun NcsScreen(viewModel: MainViewModel) {
                 state.whenSavingAllowed { ncs.saveEverything(state.libraryPaths, wifiOnly) }
             },
         )
+    }
+}
+
+/** The artist list: how it's ordered, then one row per artist. */
+private fun LazyListScope.artistItems(list: NcsArtistListing, ncs: NcsViewModel, onOpen: (NcsArtistEntry) -> Unit) {
+    item(key = "artist-sort") {
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(NcsArtistSort.entries, key = { it.name }) { sort ->
+                FilterChip(
+                    selected = list.query.isBlank() && list.sort == sort,
+                    onClick = { ncs.sortArtists(sort) },
+                    label = { Text(sort.label) },
+                )
+            }
+        }
+    }
+    item(key = "artist-title") {
+        SectionTitle(
+            title = when {
+                list.query.isNotBlank() -> "Artists matching \"${list.query}\""
+                list.popular -> "Most played artists"
+                else -> "All NCS artists"
+            },
+            subtitle = "NoCopyrightSounds",
+        )
+    }
+    items(list.artists, key = { it.path }) { a -> NcsArtistRow(a) { onOpen(a) } }
+    item(key = "artist-footer") {
+        when {
+            list.loading -> Column {
+                LoadingRow()
+                if (list.popular) Credit("Ranking artists by how much their songs are played…")
+            }
+            list.error != null -> ErrorRow(list.error) { ncs.loadMoreArtists() }
+            list.pages > 0 && list.artists.isEmpty() -> Credit("No NCS artist goes by that name. Try part of it, like \"jim\".")
+            list.pages > 0 && list.popular ->
+                Credit("Artists with songs among the most played NCS songs (ranked by plays on Deezer). For everyone, choose A–Z.")
+            list.pages > 0 && !list.hasMore -> Credit("That's all ${list.artists.size} artists.")
+        }
+    }
+}
+
+@Composable
+private fun NcsArtistRow(artist: NcsArtistEntry, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(start = if (artist.rank > 0) 4.dp else 16.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (artist.rank > 0) {
+            Text(
+                artist.rank.toString(),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = if (artist.rank <= 3) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                modifier = Modifier.width(34.dp),
+            )
+            Spacer(Modifier.width(4.dp))
+        }
+        RemoteImage(
+            artist.image,
+            artist.name,
+            Modifier
+                .size(52.dp)
+                .clip(CircleShape),
+        ) {
+            Icon(Icons.Rounded.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(artist.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (artist.subtitle.isNotBlank()) {
+                Text(
+                    artist.subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
