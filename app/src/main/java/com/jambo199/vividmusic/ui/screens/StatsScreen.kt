@@ -1,5 +1,6 @@
 package com.jambo199.vividmusic.ui.screens
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,9 +48,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.jambo199.vividmusic.data.Achievements
 import com.jambo199.vividmusic.data.ListeningStats
 import com.jambo199.vividmusic.data.UserDataStore
 import com.jambo199.vividmusic.data.formatSize
@@ -59,6 +62,7 @@ import com.jambo199.vividmusic.ui.LocalNav
 import com.jambo199.vividmusic.ui.LocalSongMenu
 import com.jambo199.vividmusic.ui.MainViewModel
 import com.jambo199.vividmusic.ui.components.Artwork
+import com.jambo199.vividmusic.ui.components.BadgeGrid
 import com.jambo199.vividmusic.ui.components.LocalBottomPadding
 import com.jambo199.vividmusic.ui.components.SectionHeader
 import com.jambo199.vividmusic.ui.components.SongRow
@@ -82,6 +86,12 @@ fun StatsScreen(viewModel: MainViewModel) {
     val bottom = LocalBottomPadding.current
     var confirmClear by remember { mutableStateOf(false) }
     val stats = remember(library, data) { ListeningStats.from(library, data) }
+    val context = LocalContext.current
+    val achievements = remember(library, data) {
+        val quiz = context.getSharedPreferences("quiz", Context.MODE_PRIVATE)
+        val quizBest = quiz.all.values.filterIsInstance<Int>().maxOrNull() ?: 0
+        Achievements.from(library, data, quizBest)
+    }
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
@@ -119,6 +129,11 @@ fun StatsScreen(viewModel: MainViewModel) {
                 }
             }
             item(key = "week") { WeekChart(data.dailyMs) }
+            item(key = "badges-title") {
+                val unlocked = achievements.count { it.unlocked }
+                SectionHeader("Badges · $unlocked of ${achievements.size}")
+            }
+            item(key = "badges") { BadgeGrid(achievements, Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) }
 
             if (stats.topSongs.isNotEmpty()) {
                 item(key = "songs-title") { SectionHeader("Most played songs") }

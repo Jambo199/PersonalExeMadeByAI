@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -14,6 +15,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
@@ -91,6 +93,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
@@ -104,6 +107,7 @@ import androidx.core.view.WindowCompat
 import androidx.media3.common.Player
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.jambo199.vividmusic.data.ArtworkStyle
 import com.jambo199.vividmusic.data.OnlineLookup
 import com.jambo199.vividmusic.data.OnlineLyrics
 import com.jambo199.vividmusic.data.PlayerBackground
@@ -117,6 +121,7 @@ import com.jambo199.vividmusic.ui.LocalSongMenu
 import com.jambo199.vividmusic.ui.MainViewModel
 import com.jambo199.vividmusic.ui.components.AddToPlaylistDialog
 import com.jambo199.vividmusic.ui.components.Artwork
+import com.jambo199.vividmusic.ui.components.RingVisualizer
 import com.jambo199.vividmusic.ui.components.Visualizer
 import com.jambo199.vividmusic.ui.components.qualityBadge
 import com.jambo199.vividmusic.ui.components.readTechnicalInfo
@@ -343,6 +348,7 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                                     isPlaying = playback.playWhenReady,
                                     enabled = settings.swipeArtworkToSkip,
                                     visualizer = settings.visualizer,
+                                    vinyl = settings.artworkStyle == ArtworkStyle.VINYL,
                                     beatPulse = settings.beatPulse,
                                     speed = playback.speed,
                                     onNext = { viewModel.player.next() },
@@ -715,6 +721,7 @@ private fun SwipeableArtwork(
     isPlaying: Boolean,
     enabled: Boolean,
     visualizer: VisualizerStyle,
+    vinyl: Boolean,
     beatPulse: Boolean,
     speed: Float,
     onNext: () -> Unit,
@@ -726,6 +733,16 @@ private fun SwipeableArtwork(
     val scale by animateFloatAsState(if (isPlaying) 1f else 0.86f, spring(dampingRatio = 0.6f, stiffness = 300f), label = "artScale")
     val spectrum = rememberSpectrum(enabled = visualizer != VisualizerStyle.OFF || beatPulse, playing = isPlaying, speed = speed)
     val shape = RoundedCornerShape(20.dp)
+    // The record turns while playing and stays where it got to when paused.
+    val spin = remember { Animatable(0f) }
+    LaunchedEffect(isPlaying, vinyl) {
+        if (vinyl && isPlaying) {
+            while (true) {
+                spin.animateTo(spin.value + 360f, tween(6_000, easing = LinearEasing))
+                spin.snapTo(spin.value % 360f)
+            }
+        }
+    }
 
     BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         val side = minOf(maxWidth, maxHeight)
@@ -741,7 +758,7 @@ private fun SwipeableArtwork(
                     rotationZ = offset.value / widthPx * 8f
                     alpha = 1f - (abs(offset.value) / widthPx).coerceIn(0f, 0.6f)
                 }
-                .shadow(24.dp, RoundedCornerShape(20.dp), clip = false)
+                .then(if (vinyl) Modifier else Modifier.shadow(24.dp, shape, clip = false))
                 .then(
                     if (!enabled) Modifier else Modifier.pointerInput(song.key) {
                         detectHorizontalDragGestures(
@@ -770,8 +787,22 @@ private fun SwipeableArtwork(
                     },
                 ),
         ) {
-            Artwork(song = song, modifier = Modifier.fillMaxSize(), shape = shape, iconSize = 96.dp)
-            if (visualizer != VisualizerStyle.OFF) {
+            if (vinyl) {
+                val disc = if (visualizer != VisualizerStyle.OFF) 0.8f else 0.94f
+                if (visualizer != VisualizerStyle.OFF) {
+                    RingVisualizer(spectrum, Color.White.copy(alpha = 0.8f), inner = disc, modifier = Modifier.fillMaxSize())
+                }
+                VinylRecord(
+                    song = song,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .fillMaxSize(disc)
+                        .graphicsLayer { rotationZ = spin.value },
+                )
+            } else {
+                Artwork(song = song, modifier = Modifier.fillMaxSize(), shape = shape, iconSize = 96.dp)
+            }
+            if (!vinyl && visualizer != VisualizerStyle.OFF) {
                 Box(
                     Modifier
                         .align(Alignment.BottomCenter)
@@ -791,5 +822,39 @@ private fun SwipeableArtwork(
                 }
             }
         }
+    }
+}
+
+/** A black record with grooves, the album art as its label and a hole in the middle. */
+@Composable
+private fun VinylRecord(song: Song, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .shadow(20.dp, CircleShape)
+            .clip(CircleShape)
+            .background(Brush.radialGradient(listOf(Color(0xFF2A2A2A), Color(0xFF0E0E0E), Color(0xFF1C1C1C)))),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val outer = size.minDimension / 2
+            val step = 3.dp.toPx()
+            var r = outer * 0.46f
+            while (r < outer * 0.97f) {
+                drawCircle(Color.White.copy(alpha = 0.05f), radius = r, style = Stroke(width = 1f))
+                r += step
+            }
+            // A soft shine across the grooves.
+            drawCircle(
+                Brush.sweepGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.10f), Color.Transparent, Color.White.copy(alpha = 0.10f), Color.Transparent)),
+                radius = outer,
+            )
+        }
+        Artwork(song = song, modifier = Modifier.fillMaxSize(0.42f), shape = CircleShape, iconSize = 48.dp)
+        Box(
+            Modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF0E0E0E)),
+        )
     }
 }

@@ -14,6 +14,9 @@ enum class FolderViewMode { TREE, FLAT }
 
 enum class PlayerBackground(val label: String) { BLUR("Blurred artwork"), GRADIENT("Colour gradient"), PLAIN("Plain") }
 
+/** How the player shows the artwork. */
+enum class ArtworkStyle(val label: String) { SQUARE("Square"), VINYL("Vinyl record") }
+
 /** How the player shows the music moving. */
 enum class VisualizerStyle(val label: String) { OFF("Off"), BARS("Bars"), WAVE("Wave"), MIRROR("Mirror") }
 
@@ -63,6 +66,7 @@ data class Settings(
     val artworkColors: Boolean = true,
     val playerBackground: PlayerBackground = PlayerBackground.BLUR,
     val visualizer: VisualizerStyle = VisualizerStyle.BARS,
+    val artworkStyle: ArtworkStyle = ArtworkStyle.SQUARE,
     /** The artwork gently bounces on the beat. */
     val beatPulse: Boolean = true,
     val reverb: ReverbPreset = ReverbPreset.OFF,
@@ -190,6 +194,7 @@ class SettingsStore(context: Context) {
             artworkColors = prefs.getBoolean("artworkColors", d.artworkColors),
             playerBackground = enumOr(prefs.getString("playerBackground", null), d.playerBackground),
             visualizer = enumOr(prefs.getString("visualizer", null), d.visualizer),
+            artworkStyle = enumOr(prefs.getString("artworkStyle", null), d.artworkStyle),
             beatPulse = prefs.getBoolean("beatPulse", d.beatPulse),
             reverb = enumOr(prefs.getString("reverb", null), d.reverb),
             includeAllAudio = prefs.getBoolean("includeAllAudio", d.includeAllAudio),
@@ -253,6 +258,7 @@ class SettingsStore(context: Context) {
             .putBoolean("artworkColors", s.artworkColors)
             .putString("playerBackground", s.playerBackground.name)
             .putString("visualizer", s.visualizer.name)
+            .putString("artworkStyle", s.artworkStyle.name)
             .putBoolean("beatPulse", s.beatPulse)
             .putString("reverb", s.reverb.name)
             .putBoolean("includeAllAudio", s.includeAllAudio)

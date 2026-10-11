@@ -309,6 +309,15 @@ shortcut settings;  shot 17-settings 3
 shortcut equalizer; shot 18-equalizer 3
 shortcut favorites; shot 19-favourites 3
 shortcut stats;     shot 19b-stats 3
+adb shell input swipe 540 1800 540 600 400
+adb shell input swipe 540 1800 540 600 400
+shot 19c-badges 2
+echo "== Vinyl record player"
+shortcut settings
+tap "Vinyl record" || { adb shell input swipe 540 1700 540 1000 400; sleep 1; tap "Vinyl record"; }
+shortcut player; shot 21b-vinyl 5
+shortcut settings
+tap "Square" || { adb shell input swipe 540 1700 540 1000 400; sleep 1; tap "Square"; }
 
 echo "== Dark mode and landscape"
 adb shell cmd uimode night yes

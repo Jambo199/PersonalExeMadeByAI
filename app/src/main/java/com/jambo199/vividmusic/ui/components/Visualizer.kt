@@ -18,10 +18,14 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
 import com.jambo199.vividmusic.data.VisualizerStyle
 import com.jambo199.vividmusic.playback.Spectrum
 import kotlinx.coroutines.isActive
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /** A visualizer's moving parts: band heights and the beat, eased frame by frame. */
 @Stable
@@ -79,6 +83,36 @@ fun rememberSpectrum(enabled: Boolean, playing: Boolean, speed: Float): Spectrum
         }
     }
     return state
+}
+
+/**
+ * Bars around a circle, for the vinyl record: they start just outside [inner] (a fraction of
+ * the width) and reach out to the edge.
+ */
+@Composable
+fun RingVisualizer(state: SpectrumState, color: Color, inner: Float, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        state.tick // redraw every frame
+        val r0 = size.minDimension * inner / 2 + 3.dp.toPx()
+        val maxLength = size.minDimension / 2 - r0 - 2.dp.toPx()
+        val count = Spectrum.BANDS * 2
+        val stroke = (2 * PI * r0 / count * 0.45).toFloat()
+        for (i in 0 until count) {
+            // The two halves mirror each other, bass at the top.
+            val band = if (i < Spectrum.BANDS) i else count - 1 - i
+            val length = (state.bars[band] * maxLength).coerceAtLeast(1.5.dp.toPx())
+            val angle = i.toDouble() / count * 2 * PI - PI / 2
+            val dx = cos(angle).toFloat()
+            val dy = sin(angle).toFloat()
+            drawLine(
+                color = color,
+                start = Offset(center.x + dx * r0, center.y + dy * r0),
+                end = Offset(center.x + dx * (r0 + length), center.y + dy * (r0 + length)),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round,
+            )
+        }
+    }
 }
 
 /** Draws [state] in [style] using [color]. */

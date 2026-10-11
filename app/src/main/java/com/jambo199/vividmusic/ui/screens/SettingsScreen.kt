@@ -80,6 +80,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.jambo199.vividmusic.BuildConfig
 import com.jambo199.vividmusic.data.ArtistSeparators
+import com.jambo199.vividmusic.data.ArtworkStyle
 import com.jambo199.vividmusic.data.LibraryRepository
 import com.jambo199.vividmusic.data.LibraryTab
 import com.jambo199.vividmusic.data.Normalization
@@ -213,6 +214,23 @@ fun SettingsScreen(viewModel: MainViewModel) {
                             FilterChip(
                                 selected = settings.visualizer == option,
                                 onClick = { viewModel.updateSettings { it.copy(visualizer = option) } },
+                                label = { Text(option.label) },
+                            )
+                        }
+                    }
+                }
+            }
+            item {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text("Player artwork", style = MaterialTheme.typography.bodyLarge)
+                    FlowRow(
+                        Modifier.padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        ArtworkStyle.entries.forEach { option ->
+                            FilterChip(
+                                selected = settings.artworkStyle == option,
+                                onClick = { viewModel.updateSettings { it.copy(artworkStyle = option) } },
                                 label = { Text(option.label) },
                             )
                         }

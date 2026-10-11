@@ -39,6 +39,7 @@ import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Quiz
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Shuffle
@@ -74,6 +75,7 @@ import com.jambo199.vividmusic.data.HomeFeed
 import com.jambo199.vividmusic.data.MainSection
 import com.jambo199.vividmusic.data.SmartPlaylists
 import com.jambo199.vividmusic.data.Song
+import com.jambo199.vividmusic.data.SongOfTheDay
 import com.jambo199.vividmusic.data.UserDataStore
 import com.jambo199.vividmusic.data.formatTotalDuration
 import com.jambo199.vividmusic.data.pluralize
@@ -84,6 +86,7 @@ import com.jambo199.vividmusic.ui.MainViewModel
 import com.jambo199.vividmusic.ui.components.Artwork
 import com.jambo199.vividmusic.ui.components.EmptyState
 import com.jambo199.vividmusic.ui.components.LocalBottomPadding
+import com.jambo199.vividmusic.ui.components.PlayingIndicator
 import com.jambo199.vividmusic.ui.components.SongRow
 import com.jambo199.vividmusic.ui.components.placeholderBrush
 import java.util.Calendar
@@ -127,6 +130,15 @@ fun HomeScreen(viewModel: MainViewModel) {
         }
         item(key = "tiles") {
             ShortcutTiles { nav.playlist(it) }
+        }
+        item(key = "song-of-the-day") {
+            val today = remember { UserDataStore.dayKey(System.currentTimeMillis()) }
+            val song = remember(library, today) { SongOfTheDay.pick(library, today) }
+            if (song != null) {
+                SongOfTheDayCard(song, playing = playback.song?.key == song.key && playback.isPlaying) {
+                    viewModel.play(listOf(song), 0, "Song of the day")
+                }
+            }
         }
 
         if (feed.quickPicks.isNotEmpty()) {
@@ -495,6 +507,33 @@ private fun StatsCard(viewModel: MainViewModel, onOpen: () -> Unit) {
                 )
             }
             Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null)
+        }
+    }
+}
+
+@Composable
+private fun SongOfTheDayCard(song: Song, playing: Boolean, onPlay: () -> Unit) {
+    Surface(
+        onClick = onPlay,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp),
+    ) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Artwork(song, Modifier.size(64.dp), shape = RoundedCornerShape(12.dp))
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Song of the day", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                Text(song.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                Text(song.displayArtist, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onTertiaryContainer)
+            }
+            if (playing) {
+                PlayingIndicator(true, Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onTertiaryContainer)
+            } else {
+                Icon(Icons.Rounded.PlayCircle, contentDescription = "Play", tint = MaterialTheme.colorScheme.onTertiaryContainer, modifier = Modifier.size(40.dp))
+            }
         }
     }
 }
