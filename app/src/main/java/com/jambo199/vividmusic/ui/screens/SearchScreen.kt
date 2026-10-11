@@ -1,5 +1,11 @@
 package com.jambo199.vividmusic.ui.screens
 
+import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -24,6 +30,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.AssistChip
@@ -69,6 +76,22 @@ fun SearchScreen(viewModel: MainViewModel) {
     val keyboard = LocalSoftwareKeyboardController.current
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
+    // "Play Alan Walker", "shuffle my favourites", or just a name to search for.
+    val listen = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (result.resultCode == Activity.RESULT_OK && !spoken.isNullOrBlank()) viewModel.voice(spoken)
+    }
+    val startListening = {
+        keyboard?.hide()
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(RecognizerIntent.EXTRA_PROMPT, "Say a song, artist or album – or \"play…\"")
+        try {
+            listen.launch(intent)
+        } catch (_: ActivityNotFoundException) {
+            viewModel.toast("Voice search isn't available on this phone")
+        }
+    }
 
     Column(Modifier.fillMaxSize()) {
         TextField(
@@ -82,7 +105,7 @@ fun SearchScreen(viewModel: MainViewModel) {
                 if (query.isNotEmpty()) {
                     IconButton(onClick = { viewModel.setQuery("") }) { Icon(Icons.Rounded.Close, contentDescription = "Clear") }
                 } else {
-                    Icon(Icons.Rounded.Search, contentDescription = null)
+                    IconButton(onClick = startListening) { Icon(Icons.Rounded.Mic, contentDescription = "Voice search") }
                 }
             },
             singleLine = true,

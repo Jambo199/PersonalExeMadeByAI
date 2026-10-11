@@ -126,6 +126,7 @@ private fun Centered(content: @Composable () -> Unit) {
 private fun Setup(quiz: QuizViewModel) {
     val source by quiz.source.collectAsState()
     val best by quiz.best.collectAsState()
+    val mode by quiz.mode.collectAsState()
     Column(
         Modifier
             .fillMaxSize()
@@ -146,7 +147,7 @@ private fun Setup(quiz: QuizViewModel) {
         Text("How well do you know your music?", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
         Spacer(Modifier.height(8.dp))
         Text(
-            "${QuizViewModel.ROUNDS} rounds. Hear a few seconds of a song and pick its name. Answer fast and keep a streak going for more points.",
+            "${QuizViewModel.ROUNDS} rounds. Hear a few seconds of a song and pick its name (or who it's by). Answer fast and keep a streak going for more points.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -157,11 +158,17 @@ private fun Setup(quiz: QuizViewModel) {
                 FilterChip(selected = source == s, onClick = { quiz.selectSource(s) }, label = { Text(s.label) })
             }
         }
+        Spacer(Modifier.height(4.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            QuizMode.entries.forEach { m ->
+                FilterChip(selected = mode == m, onClick = { quiz.selectMode(m) }, label = { Text(m.label) })
+            }
+        }
         Spacer(Modifier.height(24.dp))
         Button(onClick = { quiz.start() }, modifier = Modifier.fillMaxWidth().height(56.dp)) {
             Text("Start", style = MaterialTheme.typography.titleMedium)
         }
-        val record = best[source] ?: 0
+        val record = best[QuizViewModel.bestKey(source, mode)] ?: 0
         if (record > 0) {
             Spacer(Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -220,8 +227,8 @@ private fun RoundView(quiz: QuizViewModel, round: QuizState.Round) {
         Spacer(Modifier.height(16.dp))
         Text(
             when {
-                !round.answered -> "Which song is this?"
-                round.chosen == answer.key -> "Right! +${round.gained}"
+                !round.answered -> if (round.question.mode == QuizMode.ARTIST) "Who is this?" else "Which song is this?"
+                round.right -> "Right! +${round.gained}"
                 round.chosen.isNullOrEmpty() -> "Time's up! It was…"
                 else -> "Not quite. It was…"
             },
@@ -229,7 +236,7 @@ private fun RoundView(quiz: QuizViewModel, round: QuizState.Round) {
             fontWeight = FontWeight.Bold,
             color = when {
                 !round.answered -> MaterialTheme.colorScheme.onSurface
-                round.chosen == answer.key -> Correct
+                round.right -> Correct
                 else -> Wrong
             },
         )
@@ -274,7 +281,7 @@ private fun Listening() {
 
 @Composable
 private fun Choice(song: Song, round: QuizState.Round, onClick: () -> Unit) {
-    val isAnswer = song.key == round.question.answer.key
+    val isAnswer = round.question.isRight(song)
     val picked = song.key == round.chosen
     val color = when {
         !round.answered -> MaterialTheme.colorScheme.surfaceContainerHigh
@@ -298,14 +305,18 @@ private fun Choice(song: Song, round: QuizState.Round, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(song.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                song.displayArtist,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            if (round.question.mode == QuizMode.ARTIST) {
+                Text(song.displayArtist, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            } else {
+                Text(song.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    song.displayArtist,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         if (round.answered && (isAnswer || picked)) {
             Icon(

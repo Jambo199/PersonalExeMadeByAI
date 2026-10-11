@@ -124,6 +124,7 @@ import com.jambo199.vividmusic.ui.MainViewModel
 import com.jambo199.vividmusic.ui.components.AddToPlaylistDialog
 import com.jambo199.vividmusic.ui.components.Artwork
 import com.jambo199.vividmusic.ui.components.RingVisualizer
+import com.jambo199.vividmusic.ui.components.ShareSongDialog
 import com.jambo199.vividmusic.ui.components.Visualizer
 import com.jambo199.vividmusic.ui.components.qualityBadge
 import com.jambo199.vividmusic.ui.components.readTechnicalInfo
@@ -157,6 +158,7 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
     var showSpeed by rememberSaveable { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     var addToPlaylist by remember { mutableStateOf(false) }
+    var shareCard by remember { mutableStateOf(false) }
 
     val lyricsPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null && song != null) viewModel.assignLyrics(song, uri)
@@ -300,6 +302,10 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                             DropdownMenuItem(text = { Text("Party mode") }, onClick = {
                                 menuOpen = false
                                 nav.party()
+                            })
+                            DropdownMenuItem(text = { Text("Share as a picture") }, onClick = {
+                                menuOpen = false
+                                shareCard = true
                             })
                             DropdownMenuItem(
                                 text = {
@@ -632,6 +638,7 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
 
     if (showQueue) QueueSheet(viewModel) { showQueue = false }
     if (showSpeed) SpeedDialog(viewModel) { showSpeed = false }
+    if (shareCard) ShareSongDialog(song) { shareCard = false }
     if (addToPlaylist) {
         AddToPlaylistDialog(
             playlists = userData.playlists,

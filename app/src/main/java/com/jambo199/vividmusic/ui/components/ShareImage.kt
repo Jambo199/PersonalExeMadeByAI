@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -111,6 +112,67 @@ fun ShareLyricDialog(song: Song, line: String, onDismiss: () -> Unit) {
             TextButton(onClick = {
                 scope.launch {
                     shareLayer(context, layer, "vivid-lyric.png", "Share lyric")
+                    onDismiss()
+                }
+            }) {
+                Icon(Icons.Rounded.Share, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text("Share")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+/** The song you're listening to as a picture card: big artwork in its own colours. */
+@Composable
+fun ShareSongDialog(song: Song, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val layer = rememberGraphicsLayer()
+    val base = rememberArtworkColor(song) ?: Color(0xFF6A1B9A)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Share what you're playing") },
+        text = {
+            Capturable(layer) {
+                Column(
+                    Modifier
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Brush.verticalGradient(listOf(lerp(base, Color.White, 0.1f), lerp(base, Color.Black, 0.6f))))
+                        .padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text("NOW LISTENING", color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.labelMedium)
+                    Spacer(Modifier.height(14.dp))
+                    Artwork(song, Modifier.size(200.dp), shape = RoundedCornerShape(18.dp), iconSize = 72.dp)
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        song.title,
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        lineHeight = 26.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        song.displayArtist,
+                        color = Color.White.copy(alpha = 0.85f),
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text("Vivid Music", color = Color.White.copy(alpha = 0.6f), style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                scope.launch {
+                    shareLayer(context, layer, "vivid-now-listening.png", "Share song")
                     onDismiss()
                 }
             }) {

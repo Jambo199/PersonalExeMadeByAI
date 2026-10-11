@@ -36,6 +36,7 @@ import com.jambo199.vividmusic.data.SongSource
 import com.jambo199.vividmusic.data.TagEditor
 import com.jambo199.vividmusic.data.TagEdits
 import com.jambo199.vividmusic.data.UserData
+import com.jambo199.vividmusic.data.VoiceCommand
 import com.jambo199.vividmusic.data.albumComparator
 import com.jambo199.vividmusic.data.artistComparator
 import com.jambo199.vividmusic.data.folderSongComparator
@@ -68,6 +69,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONException
 import org.json.JSONObject
 
@@ -233,6 +235,56 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setQuery(q: String) {
         _query.value = q
+    }
+
+    /** Carries out something said into the search bar's microphone ("play Alan Walker"). */
+    fun voice(spoken: String) {
+        when (val command = VoiceCommand.parse(spoken)) {
+            is VoiceCommand.Search -> setQuery(command.query)
+            VoiceCommand.ShuffleAll -> {
+                shuffle(library.value.songs, "All songs")
+                requestOpenPlayer()
+            }
+            VoiceCommand.Favorites -> {
+                val favorites = playlistSongs(SmartPlaylists.FAVORITES, library.value, userData.value)
+                if (favorites.isEmpty()) {
+                    toast("You haven't got any favourites yet")
+                } else {
+                    shuffle(favorites, "Favourites")
+                    requestOpenPlayer()
+                }
+            }
+            is VoiceCommand.Play -> playFound(command.query, shuffled = false)
+            is VoiceCommand.Shuffle -> playFound(command.query, shuffled = true)
+        }
+    }
+
+    /** Plays the best match for [q]: an artist, album or genre of that name, else the songs found. */
+    private fun playFound(q: String, shuffled: Boolean) {
+        setQuery(q)
+        viewModelScope.launch {
+            val found = withTimeoutOrNull(4_000) { searchResults.first { it.query == q } } ?: return@launch
+            val key = searchKey(q)
+            val artist = found.artists.firstOrNull { searchKey(it.name) == key }
+            val album = found.albums.firstOrNull { searchKey(it.title) == key }
+            val genre = found.genres.firstOrNull { searchKey(it.name) == key }
+            val (songs, label) = when {
+                artist != null -> artist.songs to artist.name
+                album != null -> album.songs to album.title
+                genre != null -> genre.songs to genre.name
+                found.songs.isNotEmpty() -> found.songs.sortedByDescending { searchKey(it.title) == key } to "\"$q\""
+                found.artists.isNotEmpty() -> found.artists.first().songs to found.artists.first().name
+                else -> emptyList<Song>() to q
+            }
+            if (songs.isEmpty()) {
+                toast("Couldn't find \"$q\"")
+                return@launch
+            }
+            rememberSearch(q)
+            if (shuffled || genre != null || (artist != null && album == null)) shuffle(songs, label) else play(songs, 0, label)
+            toast("Playing $label")
+            requestOpenPlayer()
+        }
     }
 
     /** Keeps a search you acted on, for the "Recent searches" list. */

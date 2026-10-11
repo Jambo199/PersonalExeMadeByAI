@@ -32,6 +32,8 @@ data class UserData(
     /** The last day ("2026-10-11") counted in [streak]. */
     val streakDay: String = "",
     val bestStreak: Int = 0,
+    /** Listening time by hour of the day (0–23), all time. */
+    val hourMs: List<Long> = emptyList(),
 ) {
     val favoriteSet: Set<String> by lazy { favorites.toSet() }
 
@@ -119,12 +121,14 @@ class UserDataStore(context: Context, private val scope: CoroutineScope) {
         if (ms <= 0) return
         val today = dayKey(now)
         val yesterday = dayKey(now - DAY_MS)
+        val hour = Calendar.getInstance().apply { timeInMillis = now }.get(Calendar.HOUR_OF_DAY)
         val oldest = dayKey(now - (DAYS_KEPT - 1) * DAY_MS)
         mutate { d ->
             val next = d.copy(
                 listenedMs = d.listenedMs + ms,
                 dailyMs = (d.dailyMs + (today to (d.dailyMs[today] ?: 0L) + ms)).filterKeys { it >= oldest },
                 statsSince = d.statsSince.takeIf { it > 0 } ?: now,
+                hourMs = List(24) { h -> d.hourMs.getOrElse(h) { 0L } + if (h == hour) ms else 0L },
             )
             if (next.streakDay == today || (next.dailyMs[today] ?: 0L) < STREAK_MS) {
                 next
@@ -137,7 +141,10 @@ class UserDataStore(context: Context, private val scope: CoroutineScope) {
     }
 
     fun clearHistory() = mutate {
-        it.copy(recent = emptyList(), playCounts = emptyMap(), listenedMs = 0, dailyMs = emptyMap(), statsSince = 0)
+        it.copy(
+            recent = emptyList(), playCounts = emptyMap(), listenedMs = 0, dailyMs = emptyMap(), statsSince = 0,
+            hourMs = emptyList(), streak = 0, streakDay = "",
+        )
     }
 
     /** Drops references to deleted files. */
@@ -216,6 +223,7 @@ class UserDataStore(context: Context, private val scope: CoroutineScope) {
                 streak = root.optInt("streak"),
                 streakDay = root.optString("streakDay"),
                 bestStreak = root.optInt("bestStreak"),
+                hourMs = root.optJSONArray("hourMs")?.let { a -> List(a.length()) { a.optLong(it) } }.orEmpty(),
             )
         }
 
@@ -236,6 +244,7 @@ class UserDataStore(context: Context, private val scope: CoroutineScope) {
             root.put("streak", data.streak)
             root.put("streakDay", data.streakDay)
             root.put("bestStreak", data.bestStreak)
+            root.put("hourMs", JSONArray(data.hourMs))
             return root
         }
 

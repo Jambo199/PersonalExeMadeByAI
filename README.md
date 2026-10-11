@@ -130,8 +130,11 @@ You can also lock the app in the recent-apps screen (pull the card down).
   plus room / hall / plate **reverb** on anything
 - **Karaoke lyrics**: the line being sung fills with colour as it goes; long-press a line to
   share it as a picture card in the song's colours
-- **Guess the song**: hear a few seconds and pick the right title – from your songs or NCS hits,
-  with points for speed and streaks
+- **Guess the song**: hear a few seconds and pick the right title (or **name the artist**) – from
+  your songs or NCS hits, with points for speed and streaks
+- **Voice search**: tap the mic in Search and say a name – or "play Alan Walker", "shuffle
+  synthwave", "play my favourites" to start the music straight away
+- **Share as a picture** (player ⋮ menu): a "now listening" card in the song's colours
 - **Your Wrapped**: a story of your top songs, artists, minutes, favourite genre and day, and your
   listening personality, ready to share
 - **Swipe to discover**: songs you've never played, one card at a time with a preview – swipe

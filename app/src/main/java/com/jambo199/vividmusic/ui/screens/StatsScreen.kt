@@ -1,6 +1,7 @@
 package com.jambo199.vividmusic.ui.screens
 
 import android.content.Context
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -48,11 +49,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jambo199.vividmusic.data.Achievements
+import com.jambo199.vividmusic.data.ListeningClock
 import com.jambo199.vividmusic.data.ListeningStats
 import com.jambo199.vividmusic.data.UserDataStore
 import com.jambo199.vividmusic.data.formatSize
@@ -70,6 +77,9 @@ import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 private const val DAY_MS = 24L * 60 * 60 * 1000
 private val BAR_HEIGHT = 96.dp
@@ -137,6 +147,9 @@ fun StatsScreen(viewModel: MainViewModel) {
                 }
             }
             item(key = "week") { WeekChart(data.dailyMs) }
+            if (ListeningClock.peakHour(data.hourMs) != null) {
+                item(key = "clock") { ListeningClockCard(data.hourMs) }
+            }
             item(key = "badges-title") {
                 val unlocked = achievements.count { it.unlocked }
                 SectionHeader("Badges · $unlocked of ${achievements.size}")
@@ -259,6 +272,62 @@ private fun StatCard(value: String, label: String, modifier: Modifier = Modifier
                 overflow = TextOverflow.Ellipsis,
             )
             Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/** When in the day you listen, as a 24-hour dial, and what that makes you. */
+@Composable
+private fun ListeningClockCard(hourMs: List<Long>) {
+    val peak = ListeningClock.peakHour(hourMs) ?: return
+    val type = ListeningClock.timeOfDay(peak)
+    val primary = MaterialTheme.colorScheme.primary
+    val faint = MaterialTheme.colorScheme.onSurfaceVariant
+    val labels = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(color = faint)
+    Surface(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            // A 24-hour dial: midnight at the top, each bar one hour.
+            Canvas(Modifier.size(132.dp)) {
+                val max = hourMs.maxOrNull()?.coerceAtLeast(1L) ?: 1L
+                val c = center
+                val inner = size.minDimension * 0.2f
+                val outer = size.minDimension / 2 - 12.dp.toPx()
+                drawCircle(faint.copy(alpha = 0.25f), radius = inner, center = c, style = Stroke(1.dp.toPx()))
+                for (h in 0 until 24) {
+                    val a = (h / 24f) * 2 * PI.toFloat() - PI.toFloat() / 2
+                    val dir = Offset(cos(a), sin(a))
+                    val level = hourMs.getOrElse(h) { 0L }.toFloat() / max
+                    drawLine(
+                        if (h == peak) primary else primary.copy(alpha = 0.35f + 0.4f * level),
+                        c + dir * inner,
+                        c + dir * (inner + 3.dp.toPx() + (outer - inner) * level),
+                        strokeWidth = 5.dp.toPx(),
+                        cap = StrokeCap.Round,
+                    )
+                }
+                listOf(0 to "0", 6 to "6", 12 to "12", 18 to "18").forEach { (h, text) ->
+                    val a = (h / 24f) * 2 * PI.toFloat() - PI.toFloat() / 2
+                    val layout = labels.measure(text, labelStyle)
+                    val at = c + Offset(cos(a), sin(a)) * (outer + 6.dp.toPx())
+                    drawText(layout, topLeft = at - Offset(layout.size.width / 2f, layout.size.height / 2f))
+                }
+            }
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Your listening clock", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(4.dp))
+                Text(type.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = primary)
+                Text(type.description, style = MaterialTheme.typography.bodyMedium, color = faint)
+                Spacer(Modifier.height(4.dp))
+                Text("Most often around ${ListeningClock.hourLabel(peak)}", style = MaterialTheme.typography.bodySmall, color = faint)
+            }
         }
     }
 }

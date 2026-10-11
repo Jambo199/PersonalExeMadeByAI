@@ -35,8 +35,18 @@ import kotlin.random.Random
 /** Where the quiz takes its songs from. */
 enum class QuizSource(val label: String) { LIBRARY("My songs"), NCS("NCS hits") }
 
+/** What you have to name. */
+enum class QuizMode(val label: String) { SONG("Name the song"), ARTIST("Name the artist") }
+
 @Immutable
-data class QuizQuestion(val answer: Song, val choices: List<Song>, val startMs: Long)
+data class QuizQuestion(val answer: Song, val choices: List<Song>, val startMs: Long, val mode: QuizMode = QuizMode.SONG) {
+    /** Whether picking [song] is right: the same song, or in artist mode, the same artist. */
+    fun isRight(song: Song?): Boolean = when {
+        song == null -> false
+        mode == QuizMode.ARTIST -> song.displayArtist.equals(answer.displayArtist, ignoreCase = true)
+        else -> song.key == answer.key
+    }
+}
 
 sealed interface QuizState {
     data object Setup : QuizState
@@ -56,6 +66,7 @@ sealed interface QuizState {
         /** The picked song's key once answered ("" when time ran out). */
         val chosen: String? = null,
         val gained: Int = 0,
+        val right: Boolean = false,
     ) : QuizState {
         val answered: Boolean get() = chosen != null
     }
@@ -77,8 +88,14 @@ class QuizViewModel(app: Application) : AndroidViewModel(app) {
     val source: StateFlow<QuizSource> = _source.asStateFlow()
 
     private val prefs = app.getSharedPreferences("quiz", Context.MODE_PRIVATE)
-    private val _best = MutableStateFlow(QuizSource.entries.associateWith { prefs.getInt("best.${it.name}", 0) })
-    val best: StateFlow<Map<QuizSource, Int>> = _best.asStateFlow()
+    private val _mode = MutableStateFlow(QuizMode.SONG)
+    val mode: StateFlow<QuizMode> = _mode.asStateFlow()
+
+    /** Best scores by [bestKey]. */
+    private val _best = MutableStateFlow(
+        QuizSource.entries.flatMap { s -> QuizMode.entries.map { m -> bestKey(s, m) } }.associateWith { prefs.getInt(it, 0) },
+    )
+    val best: StateFlow<Map<String, Int>> = _best.asStateFlow()
 
     private var player: ExoPlayer? = null
     private var pool: List<Song> = emptyList()
@@ -88,6 +105,10 @@ class QuizViewModel(app: Application) : AndroidViewModel(app) {
 
     fun selectSource(source: QuizSource) {
         _source.value = source
+    }
+
+    fun selectMode(mode: QuizMode) {
+        _mode.value = mode
     }
 
     fun start() {
@@ -101,10 +122,15 @@ class QuizViewModel(app: Application) : AndroidViewModel(app) {
             }
             // Different titles only, or two choices could look the same.
             pool = songs.distinctBy { it.title.lowercase() }
-            if (pool.size < 4) {
+            if (_mode.value == QuizMode.ARTIST) pool = pool.filter { it.displayArtist != Song.UNKNOWN_ARTIST }
+            val enough = if (_mode.value == QuizMode.ARTIST) pool.distinctBy { it.displayArtist.lowercase() }.size >= 4 else pool.size >= 4
+            if (!enough) {
                 _state.value = QuizState.Unavailable(
-                    if (_source.value == QuizSource.LIBRARY) "The quiz needs at least 4 different songs. Add some music, or try NCS hits."
-                    else "Not enough NCS songs came through. Try again in a moment.",
+                    when {
+                        _mode.value == QuizMode.ARTIST -> "Name the artist needs songs by at least 4 different artists. Try NCS hits, or name the song instead."
+                        _source.value == QuizSource.LIBRARY -> "The quiz needs at least 4 different songs. Add some music, or try NCS hits."
+                        else -> "Not enough NCS songs came through. Try again in a moment."
+                    },
                 )
                 return@launch
             }
@@ -131,12 +157,21 @@ class QuizViewModel(app: Application) : AndroidViewModel(app) {
         }
         val answer = pool.filter { it.key !in asked }.randomOrNull(random) ?: pool.random(random)
         asked += answer.key
-        val others = pool.filter { it.key != answer.key }.shuffled(random).take(3)
+        val mode = _mode.value
+        val others = if (mode == QuizMode.ARTIST) {
+            // One song for each of three other artists.
+            pool.filter { !it.displayArtist.equals(answer.displayArtist, ignoreCase = true) }
+                .shuffled(random)
+                .distinctBy { it.displayArtist.lowercase() }
+                .take(3)
+        } else {
+            pool.filter { it.key != answer.key }.shuffled(random).take(3)
+        }
         val choices = (others + answer).shuffled(random)
         // Somewhere in the middle, where songs are most recognisable.
         val length = answer.durationMs.takeIf { it > 0 } ?: NCS_GUESS_MS
         val startMs = if (length > CLIP_MS * 3) (length * (0.25 + random.nextDouble() * 0.35)).toLong() else 0L
-        val question = QuizQuestion(answer, choices, startMs)
+        val question = QuizQuestion(answer, choices, startMs, mode)
         play(question)
         _state.value = QuizState.Round(number, total, question, SystemClock.elapsedRealtime(), score, streak, correct)
         timeout?.cancel()
@@ -151,11 +186,12 @@ class QuizViewModel(app: Application) : AndroidViewModel(app) {
         val round = _state.value as? QuizState.Round ?: return
         if (round.answered) return
         timeout?.cancel()
-        val right = song?.key == round.question.answer.key
+        val right = round.question.isRight(song)
         val elapsed = SystemClock.elapsedRealtime() - round.startedAt
         val gained = if (right) 100 + ((ROUND_MS - elapsed).coerceAtLeast(0) / 100).toInt() + round.streak * 25 else 0
         _state.value = round.copy(
             chosen = song?.key ?: "",
+            right = right,
             gained = gained,
             score = round.score + gained,
             streak = if (right) round.streak + 1 else 0,
@@ -181,12 +217,12 @@ class QuizViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun finish(score: Int, correct: Int, total: Int) {
         stop()
-        val source = _source.value
-        val previous = _best.value[source] ?: 0
+        val key = bestKey(_source.value, _mode.value)
+        val previous = _best.value[key] ?: 0
         val newBest = score > previous
         if (newBest) {
-            prefs.edit().putInt("best.${source.name}", score).apply()
-            _best.value = _best.value + (source to score)
+            prefs.edit().putInt(key, score).apply()
+            _best.value = _best.value + (key to score)
         }
         _state.value = QuizState.Finished(score, correct, total, maxOf(score, previous), newBest)
     }
@@ -221,6 +257,10 @@ class QuizViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     companion object {
+        /** Name the song keeps the key it had before there were modes. */
+        fun bestKey(source: QuizSource, mode: QuizMode): String =
+            if (mode == QuizMode.SONG) "best.${source.name}" else "best.${source.name}.${mode.name}"
+
         const val ROUNDS = 10
         const val ROUND_MS = 15_000L
         private const val CLIP_MS = 10_000L

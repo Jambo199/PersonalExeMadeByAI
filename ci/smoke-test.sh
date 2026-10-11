@@ -302,6 +302,9 @@ if tap "Start"; then
   if [ -n "$first_choice" ] && tap "$first_choice"; then shot 48-quiz-answer 2; fi
 fi
 adb shell input keyevent KEYCODE_BACK
+shortcut quiz
+if tap "Name the artist" && tap "Start"; then shot 48b-quiz-artist 2; fi
+adb shell input keyevent KEYCODE_BACK
 shortcut wrapped; shot 49-wrapped 3
 adb shell input tap 900 1400; shot 50-wrapped-minutes 2
 for _ in 1 2 3 4 5 6 7 8; do adb shell input tap 900 1400; sleep 0.5; done
@@ -364,6 +367,11 @@ tap "Aurora" || { adb shell input swipe 540 1700 540 1000 400; sleep 1; tap "Aur
 shortcut player; shot 21c-aurora 5
 shortcut settings
 tap "Blurred artwork" || { adb shell input swipe 540 1700 540 1000 400; sleep 1; tap "Blurred artwork"; }
+
+echo "== Share what's playing"
+shortcut player
+if tap "More" && tap "Share as a picture"; then shot 09c-share-card 2; fi
+adb shell input keyevent KEYCODE_BACK
 
 echo "== Car mode"
 shortcut car; shot 21f-car 3

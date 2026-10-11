@@ -1,8 +1,10 @@
 package com.jambo199.vividmusic
 
 import com.jambo199.vividmusic.data.Decade
+import com.jambo199.vividmusic.data.ListeningClock
 import com.jambo199.vividmusic.data.UserData
 import com.jambo199.vividmusic.data.UserDataStore
+import com.jambo199.vividmusic.data.VoiceCommand
 import com.jambo199.vividmusic.data.Wrapped
 import com.jambo199.vividmusic.playback.MusicAlarm
 import com.jambo199.vividmusic.playback.ShakeDetector
@@ -123,5 +125,29 @@ class FunFeaturesTest {
         assertEquals("80s", Decade(1980, emptyList()).label)
         assertEquals("2000s", Decade(2000, emptyList()).label)
         assertEquals("2020s", Decade(2020, emptyList()).label)
+    }
+
+    @Test
+    fun voiceCommands() {
+        assertEquals(VoiceCommand.Play("Alan Walker"), VoiceCommand.parse("play Alan Walker"))
+        assertEquals(VoiceCommand.Play("Faded"), VoiceCommand.parse("Play me Faded please."))
+        assertEquals(VoiceCommand.Shuffle("synthwave"), VoiceCommand.parse("shuffle synthwave"))
+        assertEquals(VoiceCommand.ShuffleAll, VoiceCommand.parse("Shuffle everything"))
+        assertEquals(VoiceCommand.ShuffleAll, VoiceCommand.parse("shuffle"))
+        assertEquals(VoiceCommand.Favorites, VoiceCommand.parse("play my favourites"))
+        assertEquals(VoiceCommand.Search("Jim Yosef"), VoiceCommand.parse("Jim Yosef"))
+        // "Player" isn't "play er".
+        assertEquals(VoiceCommand.Search("Playground"), VoiceCommand.parse("Playground"))
+    }
+
+    @Test
+    fun listeningClock() {
+        assertEquals(null, ListeningClock.peakHour(List(24) { 1_000L }))
+        val evenings = List(24) { h -> if (h in 21..23) 30 * 60_000L else 0L }
+        assertEquals(22, ListeningClock.peakHour(evenings))
+        assertEquals("Night owl", ListeningClock.timeOfDay(23).title)
+        assertEquals("Early bird", ListeningClock.timeOfDay(7).title)
+        assertEquals("12 am", ListeningClock.hourLabel(0))
+        assertEquals("9 pm", ListeningClock.hourLabel(21))
     }
 }
