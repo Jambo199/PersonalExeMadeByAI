@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,10 +21,12 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -160,6 +163,27 @@ fun SearchScreen(viewModel: MainViewModel) {
                                 viewModel.rememberSearch(query)
                                 nav.album(album.id)
                             }
+                        }
+                    }
+                }
+            }
+            if (results.genres.isNotEmpty()) {
+                item { SectionHeader("Genres") }
+                item {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(results.genres, key = { "g:" + it.name }) { genre ->
+                            AssistChip(
+                                onClick = {
+                                    keyboard?.hide()
+                                    viewModel.rememberSearch(query)
+                                    nav.genre(genre.name)
+                                },
+                                label = { Text("${genre.name} · ${genre.songs.size}") },
+                                leadingIcon = { Icon(Icons.Rounded.Category, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                            )
                         }
                     }
                 }

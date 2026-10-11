@@ -16,6 +16,7 @@ import com.jambo199.vividmusic.data.Album
 import com.jambo199.vividmusic.data.Artist
 import com.jambo199.vividmusic.data.Backup
 import com.jambo199.vividmusic.data.FolderNode
+import com.jambo199.vividmusic.data.Genre
 import com.jambo199.vividmusic.data.HomeFeed
 import com.jambo199.vividmusic.data.HomeFeedBuilder
 import com.jambo199.vividmusic.data.Library
@@ -68,8 +69,9 @@ data class SearchResults(
     val albums: List<Album> = emptyList(),
     val artists: List<Artist> = emptyList(),
     val folders: List<FolderNode> = emptyList(),
+    val genres: List<Genre> = emptyList(),
 ) {
-    val isEmpty: Boolean get() = songs.isEmpty() && albums.isEmpty() && artists.isEmpty() && folders.isEmpty()
+    val isEmpty: Boolean get() = songs.isEmpty() && albums.isEmpty() && artists.isEmpty() && folders.isEmpty() && genres.isEmpty()
 }
 
 /** What the delete flow needs from the UI: either nothing, or a system confirmation dialog. */
@@ -213,6 +215,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 albums = lib.albums.filter { matches(searchKey("${it.title} ${it.artist}")) }.take(50),
                 artists = lib.artists.filter { matches(searchKey(it.name)) }.take(50),
                 folders = lib.folders.values.filter { it.totalSongs > 0 && matches(searchKey(it.name)) }.take(50),
+                genres = lib.genres.filter { matches(searchKey(it.name)) }.take(20),
             )
         }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Lazily, SearchResults())
