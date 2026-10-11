@@ -63,6 +63,7 @@ import com.jambo199.vividmusic.data.pluralize
 import com.jambo199.vividmusic.ui.LocalNav
 import com.jambo199.vividmusic.ui.MainViewModel
 import com.jambo199.vividmusic.ui.components.Artwork
+import com.jambo199.vividmusic.ui.components.CollageArtwork
 import com.jambo199.vividmusic.ui.components.EmptyState
 import com.jambo199.vividmusic.ui.components.LocalBottomPadding
 import com.jambo199.vividmusic.ui.components.SectionHeader
@@ -259,7 +260,7 @@ fun PlaylistsTab(viewModel: MainViewModel) {
             }
         }
         items(userData.playlists, key = { "p${it.id}" }) { p ->
-            val first = p.songKeys.firstNotNullOfOrNull { library.byKey[it] }
+            val songs = remember(p, library) { p.songKeys.take(40).mapNotNull { library.byKey[it] } }
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -267,7 +268,7 @@ fun PlaylistsTab(viewModel: MainViewModel) {
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Artwork(first, Modifier.size(56.dp), RoundedCornerShape(12.dp), placeholderIcon = Icons.AutoMirrored.Rounded.PlaylistPlay)
+                CollageArtwork(songs, Modifier.size(56.dp), RoundedCornerShape(12.dp), placeholderIcon = Icons.AutoMirrored.Rounded.PlaylistPlay)
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
                     Text(p.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)

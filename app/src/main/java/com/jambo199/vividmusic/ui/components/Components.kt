@@ -47,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -114,6 +115,30 @@ fun Artwork(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
+        }
+    }
+}
+
+/** A playlist's cover: four album covers in a grid when it has that many, otherwise one. */
+@Composable
+fun CollageArtwork(
+    songs: List<Song>,
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(12.dp),
+    placeholderIcon: ImageVector = Icons.Rounded.MusicNote,
+) {
+    val covers = remember(songs) { songs.distinctBy { it.albumId }.take(4) }
+    if (covers.size < 4) {
+        Artwork(covers.firstOrNull(), modifier, shape, placeholderIcon)
+        return
+    }
+    Column(modifier.clip(shape)) {
+        covers.chunked(2).forEach { row ->
+            Row(Modifier.weight(1f)) {
+                row.forEach { song ->
+                    Artwork(song, Modifier.weight(1f).fillMaxHeight(), RectangleShape)
+                }
+            }
         }
     }
 }
