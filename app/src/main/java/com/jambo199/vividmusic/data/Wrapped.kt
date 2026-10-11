@@ -17,6 +17,9 @@ data class Wrapped(
     /** Days with any listening. */
     val activeDays: Int,
     val personality: ListeningPersonality,
+    /** The hour of the day you listen most, if there's enough to tell. */
+    val peakHour: Int? = null,
+    val bestStreak: Int = 0,
 ) {
     val minutes: Long get() = listenedMs / 60_000
 
@@ -63,6 +66,8 @@ data class Wrapped(
                 busiestDay = data.dailyMs.filter { it.value > 0 }.maxByOrNull { it.value }?.toPair(),
                 activeDays = data.dailyMs.count { it.value > 0 },
                 personality = personality(plays, counts.size, topSongs.firstOrNull()?.second ?: 0, topArtists.firstOrNull()?.second ?: 0),
+                peakHour = ListeningClock.peakHour(data.hourMs),
+                bestStreak = data.bestStreak,
             )
         }
 

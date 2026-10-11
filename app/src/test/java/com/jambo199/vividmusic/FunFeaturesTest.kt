@@ -2,10 +2,12 @@ package com.jambo199.vividmusic
 
 import com.jambo199.vividmusic.data.Decade
 import com.jambo199.vividmusic.data.ListeningClock
+import com.jambo199.vividmusic.data.Mood
 import com.jambo199.vividmusic.data.UserData
 import com.jambo199.vividmusic.data.UserDataStore
 import com.jambo199.vividmusic.data.VoiceCommand
 import com.jambo199.vividmusic.data.Wrapped
+import com.jambo199.vividmusic.playback.FocusTimer
 import com.jambo199.vividmusic.playback.MusicAlarm
 import com.jambo199.vividmusic.playback.ShakeDetector
 import org.junit.Assert.assertEquals
@@ -149,5 +151,27 @@ class FunFeaturesTest {
         assertEquals("Early bird", ListeningClock.timeOfDay(7).title)
         assertEquals("12 am", ListeningClock.hourLabel(0))
         assertEquals("9 pm", ListeningClock.hourLabel(21))
+    }
+
+    @Test
+    fun moodsMatchGenres() {
+        assertTrue(Mood.CHILL.matches("Lo-Fi Hip Hop"))
+        assertTrue(Mood.ENERGETIC.matches("Drum & Bass"))
+        assertTrue(Mood.PARTY.matches("Deep House"))
+        assertFalse(Mood.CHILL.matches(""))
+        assertFalse(Mood.FOCUS.matches("Dubstep"))
+        assertEquals(listOf("Happy", "Euphoric"), Mood.HAPPY.ncsMatches(listOf("Angry", "Happy", "Euphoric", "Dark")))
+    }
+
+    @Test
+    fun focusRounds() {
+        val plan = FocusTimer.Plan(25, 5, 2)
+        val focus = FocusTimer.Mode.Focus(endsAt = 1_500_000, round = 1, plan = plan, startedAt = 0)
+        val pause = FocusTimer.next(focus, now = 1_500_000)
+        assertEquals(FocusTimer.Mode.Break(1_800_000, 1, plan, 1_500_000), pause)
+        val second = FocusTimer.next(pause, now = 1_800_000)
+        assertEquals(2, (second as FocusTimer.Mode.Focus).round)
+        // The last round's focus ends the session: no break after it.
+        assertEquals(FocusTimer.Mode.Off, FocusTimer.next(second, now = 3_300_000))
     }
 }

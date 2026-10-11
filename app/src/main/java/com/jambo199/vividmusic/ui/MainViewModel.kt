@@ -27,6 +27,7 @@ import com.jambo199.vividmusic.data.LibraryState
 import com.jambo199.vividmusic.data.LibraryTab
 import com.jambo199.vividmusic.data.Lyrics
 import com.jambo199.vividmusic.data.MainSection
+import com.jambo199.vividmusic.data.Mood
 import com.jambo199.vividmusic.data.OnlineLookup
 import com.jambo199.vividmusic.data.Playlist
 import com.jambo199.vividmusic.data.Settings
@@ -43,6 +44,7 @@ import com.jambo199.vividmusic.data.folderSongComparator
 import com.jambo199.vividmusic.data.pluralize
 import com.jambo199.vividmusic.data.searchKey
 import com.jambo199.vividmusic.data.songComparator
+import com.jambo199.vividmusic.online.Ncs
 import com.jambo199.vividmusic.playback.MusicAlarm
 import com.jambo199.vividmusic.playback.PlaybackState
 import com.jambo199.vividmusic.playback.PlayerConnection
@@ -434,6 +436,39 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun playInOrder(songs: List<Song>, source: String = "") = player.playSongs(songs, 0, false, source)
+
+    /**
+     * A mix for [mood]: your songs whose genre suits it, topped up with NCS songs carrying a
+     * matching mood tag when you haven't got many.
+     */
+    fun playMood(mood: Mood) {
+        val label = "${mood.label} mix"
+        val mine = library.value.songs.filter { mood.matches(it.genre) }
+        if (mine.size >= MOOD_MIN_SONGS) {
+            shuffle(mine, label)
+            requestOpenPlayer()
+            return
+        }
+        viewModelScope.launch {
+            toast("Finding ${mood.label.lowercase()} songs on NCS…")
+            val ncs = try {
+                withContext(Dispatchers.IO) {
+                    val moods = Ncs.search().moods
+                    val ids = moods.filter { it.name in mood.ncsMatches(moods.map { m -> m.name }) }.map { it.id }
+                    ids.take(3).flatMap { Ncs.search(mood = it).tracks }.distinctBy { it.key }.map { it.toSong() }
+                }
+            } catch (e: Exception) {
+                emptyList()
+            }
+            val songs = mine + ncs
+            if (songs.isEmpty()) {
+                toast("Couldn't find any ${mood.label.lowercase()} songs right now")
+            } else {
+                shuffle(songs, label)
+                requestOpenPlayer()
+            }
+        }
+    }
 
     fun playNext(songs: List<Song>) {
         player.playNext(songs)
@@ -867,5 +902,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     override fun onCleared() {
         player.disconnect()
         super.onCleared()
+    }
+
+    private companion object {
+        /** Fewer of your own songs than this for a mood, and NCS songs join in. */
+        const val MOOD_MIN_SONGS = 8
     }
 }

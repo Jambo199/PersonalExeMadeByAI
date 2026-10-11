@@ -37,7 +37,13 @@ object MusicAlarm {
     const val ACTION_RING = "com.jambo199.vividmusic.alarm.RING"
     const val ACTION_SNOOZE = "com.jambo199.vividmusic.alarm.SNOOZE"
     const val ACTION_STOP = "com.jambo199.vividmusic.alarm.STOP"
+    const val ACTION_FOCUS_RESUME = "com.jambo199.vividmusic.focus.RESUME"
     const val EXTRA_SNOOZED = "vivid.alarm.snoozed"
+    private const val EXTRA_FOCUS_MIN = "vivid.focus.focus"
+    private const val EXTRA_BREAK_MIN = "vivid.focus.break"
+    private const val EXTRA_ROUNDS = "vivid.focus.rounds"
+    private const val EXTRA_ROUND = "vivid.focus.round"
+    private const val FOCUS_REQUEST = 74
     const val SNOOZE_MINUTES = 9L
 
     /** How long the gentle wake-up takes to reach full volume. */
@@ -172,8 +178,75 @@ object MusicAlarm {
     }
 
     /** Shown for the moment between the alarm going off and the music's own notification. */
-    fun startingNotification(context: Context): Notification =
-        builder(context).setContentTitle("Good morning").setContentText("Starting your music…").setSilent(true).build()
+    fun startingNotification(context: Context, title: String = "Good morning"): Notification =
+        builder(context).setContentTitle(title).setContentText("Starting your music…").setSilent(true).build()
+
+    // region focus timer breaks
+
+    /** Sets an alarm to bring the music back when [pause] is over. */
+    fun scheduleFocusResume(context: Context, pause: FocusTimer.Mode.Break) {
+        val alarms = context.getSystemService(AlarmManager::class.java) ?: return
+        val operation = focusIntent(context, pause.plan, pause.round)
+        try {
+            if (canRingOnTime(context)) alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, pause.endsAt, operation)
+            else alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, pause.endsAt, operation)
+        } catch (_: SecurityException) {
+            alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, pause.endsAt, operation)
+        }
+    }
+
+    fun cancelFocusResume(context: Context) {
+        context.getSystemService(AlarmManager::class.java)?.cancel(focusIntent(context, FocusTimer.PLANS.first(), 0))
+    }
+
+    /** The break is over (or was skipped): the next round starts and the music comes back. */
+    fun resumeFocus(context: Context, plan: FocusTimer.Plan, round: Int) {
+        cancelFocusResume(context)
+        FocusTimer.resumeAfterBreak(plan, round)
+        if (PlaybackService.resumeFocusIfRunning()) return
+        try {
+            ContextCompat.startForegroundService(context, Intent(context, PlaybackService::class.java).setAction(ACTION_FOCUS_RESUME))
+        } catch (_: Exception) {
+            notify(
+                context,
+                builder(context)
+                    .setContentTitle("Break's over")
+                    .setContentText("Tap to bring your music back")
+                    .setContentIntent(openPlayer(context))
+                    .setAutoCancel(true)
+                    .build(),
+            )
+        }
+    }
+
+    /** Skips the rest of the current break. */
+    fun endBreakNow(context: Context) {
+        val pause = FocusTimer.mode.value as? FocusTimer.Mode.Break ?: return
+        resumeFocus(context, pause.plan, pause.round)
+    }
+
+    internal fun onFocusAlarm(context: Context, intent: Intent) {
+        val plan = FocusTimer.Plan(
+            intent.getIntExtra(EXTRA_FOCUS_MIN, 25),
+            intent.getIntExtra(EXTRA_BREAK_MIN, 5),
+            intent.getIntExtra(EXTRA_ROUNDS, 4),
+        )
+        resumeFocus(context, plan, intent.getIntExtra(EXTRA_ROUND, 1))
+    }
+
+    private fun focusIntent(context: Context, plan: FocusTimer.Plan, round: Int): PendingIntent = PendingIntent.getBroadcast(
+        context,
+        FOCUS_REQUEST,
+        Intent(context, AlarmReceiver::class.java)
+            .setAction(ACTION_FOCUS_RESUME)
+            .putExtra(EXTRA_FOCUS_MIN, plan.focusMinutes)
+            .putExtra(EXTRA_BREAK_MIN, plan.breakMinutes)
+            .putExtra(EXTRA_ROUNDS, plan.rounds)
+            .putExtra(EXTRA_ROUND, round),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
+
+    // endregion
 
     /** "Good morning" with Snooze and Stop, while the wake-up music plays. */
     fun showRinging(context: Context, music: AlarmMusic) = notify(
@@ -290,6 +363,7 @@ class AlarmReceiver : BroadcastReceiver() {
                 }
             }
             MusicAlarm.ACTION_SNOOZE -> MusicAlarm.snooze(context)
+            MusicAlarm.ACTION_FOCUS_RESUME -> MusicAlarm.onFocusAlarm(context, intent)
             MusicAlarm.ACTION_STOP -> MusicAlarm.stop(context)
             // Booted, updated, the clock or time zone changed, or exact alarms were allowed.
             else -> MusicAlarm.schedule(context)

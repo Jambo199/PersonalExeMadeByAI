@@ -62,6 +62,7 @@ import com.jambo199.vividmusic.ui.screens.AlbumScreen
 import com.jambo199.vividmusic.ui.screens.ArtistScreen
 import com.jambo199.vividmusic.ui.screens.CarScreen
 import com.jambo199.vividmusic.ui.screens.EqualizerScreen
+import com.jambo199.vividmusic.ui.screens.FocusScreen
 import com.jambo199.vividmusic.ui.screens.FolderScreen
 import com.jambo199.vividmusic.ui.screens.GenreScreen
 import com.jambo199.vividmusic.ui.screens.MainScreen
@@ -148,6 +149,7 @@ fun VividMusicApp(viewModel: MainViewModel) {
             "discover" -> nav.discover()
             "party" -> nav.party()
             "car" -> nav.car()
+            "focus" -> nav.focus()
             "favorites" -> nav.playlist(com.jambo199.vividmusic.data.SmartPlaylists.FAVORITES)
             "queue" -> nav.nowPlaying()
         }
@@ -217,6 +219,7 @@ fun VividMusicApp(viewModel: MainViewModel) {
                     composable(Routes.DISCOVER) { DiscoverScreen(viewModel) }
                     composable(Routes.PARTY) { PartyScreen(viewModel) }
                     composable(Routes.CAR) { CarScreen(viewModel) }
+                    composable(Routes.FOCUS) { FocusScreen(viewModel) }
                     composable(Routes.ALBUM, arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
                         AlbumScreen(viewModel, entry.arguments?.getLong("id") ?: 0L)
                     }

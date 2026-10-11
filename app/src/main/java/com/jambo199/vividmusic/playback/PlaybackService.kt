@@ -184,16 +184,49 @@ class PlaybackService : MediaLibraryService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action != MusicAlarm.ACTION_RING) return super.onStartCommand(intent, flags, startId)
+        val action = intent?.action
+        if (action != MusicAlarm.ACTION_RING && action != MusicAlarm.ACTION_FOCUS_RESUME) {
+            return super.onStartCommand(intent, flags, startId)
+        }
         // Android wants a notification straight away; the music's own one then takes its place.
         ServiceCompat.startForeground(
             this,
             DefaultMediaNotificationProvider.DEFAULT_NOTIFICATION_ID,
-            MusicAlarm.startingNotification(this),
+            MusicAlarm.startingNotification(this, if (action == MusicAlarm.ACTION_RING) "Good morning" else "Break's over"),
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK else 0,
         )
-        ringAlarm()
+        if (action == MusicAlarm.ACTION_RING) ringAlarm() else resumeFocus()
         return START_NOT_STICKY
+    }
+
+    /** After a focus break: the music fades back in where it stopped. */
+    private fun resumeFocus() {
+        if (exo.mediaItemCount == 0) {
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+            return
+        }
+        if (exo.isPlaying) return
+        if (exo.playbackState == Player.STATE_IDLE) exo.prepare()
+        sessionPlayer?.fadeIn(FOCUS_FADE_MS)
+        PlayerEvents.post("Break's over. Back to it!")
+    }
+
+    /** Turns the music down over a few seconds, then pauses. */
+    private suspend fun fadeOutAndPause(ms: Long) {
+        if (!exo.isPlaying) return
+        try {
+            fading = true
+            val start = exo.volume
+            val steps = 30
+            for (i in 1..steps) {
+                exo.volume = start * (1f - i / steps.toFloat())
+                delay(ms / steps)
+            }
+            exo.pause()
+        } finally {
+            fading = false
+            applyNormalization()
+        }
     }
 
     /** The music alarm going off: plays the wake-up music, quietly at first when gentle. */
@@ -385,6 +418,32 @@ class PlaybackService : MediaLibraryService() {
                     }
                     if (exo.currentPosition >= end) exo.seekTo(loop.startMs)
                     delay(80)
+                }
+            }
+        }
+        // Focus timer: when a focus part ends the music fades out for the break; an alarm brings it back.
+        scope.launch {
+            var previous: FocusTimer.Mode = FocusTimer.Mode.Off
+            FocusTimer.mode.collectLatest { mode ->
+                val before = previous
+                previous = mode
+                when (mode) {
+                    is FocusTimer.Mode.Focus -> {
+                        val wait = mode.endsAt - System.currentTimeMillis()
+                        if (wait > 0) delay(wait)
+                        fadeOutAndPause(FOCUS_FADE_MS)
+                        when (val next = FocusTimer.advance()) {
+                            is FocusTimer.Mode.Break -> {
+                                MusicAlarm.scheduleFocusResume(this@PlaybackService, next)
+                                PlayerEvents.post("Break time! The music's back in ${next.plan.breakMinutes} minutes")
+                            }
+                            else -> PlayerEvents.post("Focus session done. Nice work!")
+                        }
+                    }
+                    is FocusTimer.Mode.Break -> Unit
+                    // Stopped: no music coming back later. (A fresh start of the app is Off too,
+                    // and mustn't cancel a break that's still running.)
+                    FocusTimer.Mode.Off -> if (before != FocusTimer.Mode.Off) MusicAlarm.cancelFocusResume(this@PlaybackService)
                 }
             }
         }
@@ -878,10 +937,18 @@ class PlaybackService : MediaLibraryService() {
             instance?.endAlarm()
         }
 
+        /** Brings the music back after a focus break. Returns false if the service isn't running. */
+        fun resumeFocusIfRunning(): Boolean {
+            val service = instance ?: return false
+            service.resumeFocus()
+            return true
+        }
+
         private const val BROWSE_ROOT = "vivid:root"
         private const val RECENT_ROOT = "vivid:recent"
         private const val FADE_MS = 8_000L
         private const val PLAY_PAUSE_FADE_MS = 220L
+        private const val FOCUS_FADE_MS = 4_000L
         private const val MAX_SKIPS = 6
         private val LYRICS_KEYS = setOf("LYRICS", "UNSYNCEDLYRICS", "SYNCEDLYRICS", "USLT")
         const val ACTION_FAVORITE = "vivid.favorite"

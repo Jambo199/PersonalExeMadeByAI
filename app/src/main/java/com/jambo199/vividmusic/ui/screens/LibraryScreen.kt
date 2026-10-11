@@ -40,6 +40,7 @@ import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.Equalizer
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.HourglassTop
 import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MoreVert
@@ -142,6 +143,14 @@ fun MainScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                         onClick = {
                             menuOpen = false
                             onSleepTimer()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Focus timer") },
+                        leadingIcon = { Icon(Icons.Rounded.HourglassTop, null) },
+                        onClick = {
+                            menuOpen = false
+                            nav.focus()
                         },
                     )
                     DropdownMenuItem(

@@ -373,6 +373,15 @@ shortcut player
 if tap "More" && tap "Share as a picture"; then shot 09c-share-card 2; fi
 adb shell input keyevent KEYCODE_BACK
 
+echo "== Focus timer and moods"
+shortcut focus; shot 21g-focus 2
+if tap "Start focusing"; then shot 21h-focus-running 3; tap "Stop the session"; fi
+adb shell input keyevent KEYCODE_BACK
+shortcut home
+adb shell input swipe 540 1500 540 900 300; sleep 1
+if tap "Chill"; then sleep 4; echo "-- after picking a mood: $(adb shell dumpsys media_session | grep -m1 -oE 'description=[^,]*')"; shot 21i-mood 3; fi
+adb shell input keyevent KEYCODE_BACK
+
 echo "== Car mode"
 shortcut car; shot 21f-car 3
 adb shell input swipe 900 1200 200 1200 250; sleep 2

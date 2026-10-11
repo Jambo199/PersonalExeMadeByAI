@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.jambo199.vividmusic.data.ListeningClock
 import com.jambo199.vividmusic.data.Wrapped
 import com.jambo199.vividmusic.data.formatTotalDuration
 import com.jambo199.vividmusic.ui.LocalNav
@@ -153,6 +154,7 @@ private fun pagesFor(w: Wrapped): List<@Composable (Wrapped) -> Unit> = buildLis
     if (w.topSongs.size > 1) add { TopFivePage(it) }
     if (w.topArtists.isNotEmpty()) add { TopArtistPage(it) }
     if (w.topGenre != null || w.busiestDay != null) add { GenreAndDayPage(it) }
+    if (w.peakHour != null || w.bestStreak >= 2) add { ClockPage(it) }
     add { PersonalityPage(it) }
     add { SummaryPage(it) }
 }
@@ -286,6 +288,24 @@ private fun GenreAndDayPage(w: Wrapped) {
         val date = runCatching { SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(day) }.getOrNull()
         Line(date?.let { SimpleDateFormat("EEEE d MMMM", Locale.getDefault()).format(it) } ?: day, strong = true)
         Line("${formatTotalDuration(ms)} of music in one day")
+    }
+}
+
+@Composable
+private fun ClockPage(w: Wrapped) {
+    w.peakHour?.let { hour ->
+        val type = ListeningClock.timeOfDay(hour)
+        Kicker("When you listen")
+        Big(type.title)
+        Spacer(Modifier.height(8.dp))
+        Line(type.description)
+        Line("Most often around ${ListeningClock.hourLabel(hour)}")
+        Spacer(Modifier.height(36.dp))
+    }
+    if (w.bestStreak >= 2) {
+        Kicker("Your longest streak")
+        Big("${w.bestStreak} days")
+        Line("in a row with music")
     }
 }
 

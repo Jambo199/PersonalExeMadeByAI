@@ -142,6 +142,12 @@ You can also lock the app in the recent-apps screen (pull the card down).
 - **Listening streaks**: days in a row with music, shown on Home and the stats page
 - **Badges** to unlock (Century, Marathon, On fire, Explorer, Golden ears…) on the stats page
 - **Song of the day** and three **daily mixes** on Home, made from the genres and artists you play
+- **What's your mood?** on Home: Chill, Energetic, Happy, Focus, Party or Mellow – a mix from your
+  songs' genres, topped up with NCS songs of that mood when you haven't got many
+- **Focus timer** (overflow menu): rounds of music with quiet breaks (25/5, 50/10 or 15/3 minutes);
+  the music fades out for each break and comes back by itself
+- **Listening clock** on the stats page (and in Wrapped): early bird, daytime groover, evening
+  listener or night owl
 - **Double-tap the artwork** to love a song, with a heart that pops up
 - **Confetti** when you unlock a badge or beat your best quiz score
 - **Car mode** (overflow menu): huge buttons on a dark screen that stays on, swipe anywhere to skip

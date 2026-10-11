@@ -32,19 +32,25 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Celebration
+import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FiberNew
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Insights
-import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.PlayCircle
+import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.Quiz
-import androidx.compose.material.icons.rounded.Style
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.SentimentVerySatisfied
 import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material.icons.rounded.Spa
+import androidx.compose.material.icons.rounded.Style
 import androidx.compose.material.icons.rounded.Whatshot
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
@@ -77,6 +83,7 @@ import com.jambo199.vividmusic.data.Decade
 import com.jambo199.vividmusic.data.Genre
 import com.jambo199.vividmusic.data.HomeFeed
 import com.jambo199.vividmusic.data.MainSection
+import com.jambo199.vividmusic.data.Mood
 import com.jambo199.vividmusic.data.SmartPlaylists
 import com.jambo199.vividmusic.data.Song
 import com.jambo199.vividmusic.data.SongOfTheDay
@@ -141,6 +148,18 @@ fun HomeScreen(viewModel: MainViewModel) {
             if (song != null) {
                 SongOfTheDayCard(song, playing = playback.song?.key == song.key && playback.isPlaying) {
                     viewModel.play(listOf(song), 0, "Song of the day")
+                }
+            }
+        }
+
+        if (library.songs.isNotEmpty()) {
+            item(key = "moods-title") { HomeHeader("What's your mood?", "A mix to match") }
+            item(key = "moods") {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(Mood.entries, key = { it.name }) { mood -> MoodPill(mood) { viewModel.playMood(mood) } }
                 }
             }
         }
@@ -560,6 +579,31 @@ private fun StatsCard(viewModel: MainViewModel, onOpen: () -> Unit) {
             }
             Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null)
         }
+    }
+}
+
+/** A mood as a bright pill with its own icon. */
+@Composable
+private fun MoodPill(mood: Mood, onClick: () -> Unit) {
+    val (icon, colors) = when (mood) {
+        Mood.CHILL -> Icons.Rounded.Spa to listOf(Color(0xFF00897B), Color(0xFF4DB6AC))
+        Mood.ENERGETIC -> Icons.Rounded.Bolt to listOf(Color(0xFFE65100), Color(0xFFFFA726))
+        Mood.HAPPY -> Icons.Rounded.SentimentVerySatisfied to listOf(Color(0xFFF9A825), Color(0xFFFFEE58))
+        Mood.FOCUS -> Icons.Rounded.Psychology to listOf(Color(0xFF283593), Color(0xFF5C6BC0))
+        Mood.PARTY -> Icons.Rounded.Celebration to listOf(Color(0xFFC2185B), Color(0xFFBA68C8))
+        Mood.MELLOW -> Icons.Rounded.Cloud to listOf(Color(0xFF455A64), Color(0xFF90A4AE))
+    }
+    Row(
+        Modifier
+            .clip(RoundedCornerShape(50))
+            .background(Brush.horizontalGradient(colors))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(mood.label, color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
     }
 }
 
