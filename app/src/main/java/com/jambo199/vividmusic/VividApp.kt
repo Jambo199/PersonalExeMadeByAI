@@ -13,6 +13,7 @@ import com.jambo199.vividmusic.data.SettingsStore
 import com.jambo199.vividmusic.data.SongArtworkFetcher
 import com.jambo199.vividmusic.data.SongArtworkKeyer
 import com.jambo199.vividmusic.data.UserDataStore
+import com.jambo199.vividmusic.online.NcsReleases
 import com.jambo199.vividmusic.online.OnlineStore
 import com.jambo199.vividmusic.playback.MusicAlarm
 import com.jambo199.vividmusic.playback.QueueStore
@@ -52,6 +53,10 @@ class VividApp : Application(), ImageLoaderFactory {
         super.onCreate()
         AppGraph.init(this)
         AppGraph.library.refreshAll()
+        // Checks for new NCS songs in the background, if wanted.
+        AppGraph.scope.launch {
+            AppGraph.settings.state.map { it.ncsAlerts }.distinctUntilChanged().collect { NcsReleases.schedule(this@VividApp, it) }
+        }
         // Keeps the music alarm set with Android whenever its time or days change.
         AppGraph.scope.launch {
             AppGraph.settings.state

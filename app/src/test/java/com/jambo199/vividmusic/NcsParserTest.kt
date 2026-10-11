@@ -4,6 +4,7 @@ import com.jambo199.vividmusic.online.ChartArtist
 import com.jambo199.vividmusic.online.ChartEntry
 import com.jambo199.vividmusic.online.ChartProgress
 import com.jambo199.vividmusic.online.Ncs
+import com.jambo199.vividmusic.online.NcsReleases
 import com.jambo199.vividmusic.online.NcsArtistItem
 import com.jambo199.vividmusic.online.NcsArtistRef
 import com.jambo199.vividmusic.online.NcsChart
@@ -208,5 +209,13 @@ class NcsParserTest {
     fun chartKeepsArtistPictures() {
         val json = """{"data":[{"title":"Sky High","duration":236,"artist":{"name":"Elektronomia","picture_medium":"https://cdn/elek.jpg"}}]}"""
         assertEquals("https://cdn/elek.jpg", NcsChart.parse(json).entries.single().artistPicture)
+    }
+
+    @Test
+    fun newReleasesAreTheUnseenOnes() {
+        assertEquals(listOf("9", "8"), NcsReleases.fresh(listOf("9", "8", "7", "6"), setOf("7", "6", "5")))
+        assertEquals(emptyList<String>(), NcsReleases.fresh(listOf("7"), setOf("7")))
+        assertEquals("A – X", NcsReleases.summary(listOf("A – X")))
+        assertEquals("A – X and 2 more", NcsReleases.summary(listOf("A – X", "B – Y", "C – Z")))
     }
 }

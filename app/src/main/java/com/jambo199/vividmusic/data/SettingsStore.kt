@@ -131,6 +131,8 @@ data class Settings(
      */
     val sessionLyrics: Boolean = true,
     val autoCheckUpdates: Boolean = true,
+    /** A notification when NCS puts out new songs. */
+    val ncsAlerts: Boolean = true,
     /** Wake up to music: rings at [alarmHour]:[alarmMinute]. */
     val alarmEnabled: Boolean = false,
     val alarmHour: Int = 7,
@@ -258,6 +260,7 @@ class SettingsStore(context: Context) {
             karaokeLyrics = prefs.getBoolean("karaokeLyrics", d.karaokeLyrics),
             sessionLyrics = prefs.getBoolean("sessionLyrics", d.sessionLyrics),
             autoCheckUpdates = prefs.getBoolean("autoCheckUpdates", d.autoCheckUpdates),
+            ncsAlerts = prefs.getBoolean("ncsAlerts", d.ncsAlerts),
             alarmEnabled = prefs.getBoolean("alarmEnabled", d.alarmEnabled),
             alarmHour = prefs.getInt("alarmHour", d.alarmHour),
             alarmMinute = prefs.getInt("alarmMinute", d.alarmMinute),
@@ -329,6 +332,7 @@ class SettingsStore(context: Context) {
             .putBoolean("karaokeLyrics", s.karaokeLyrics)
             .putBoolean("sessionLyrics", s.sessionLyrics)
             .putBoolean("autoCheckUpdates", s.autoCheckUpdates)
+            .putBoolean("ncsAlerts", s.ncsAlerts)
             .putBoolean("alarmEnabled", s.alarmEnabled)
             .putInt("alarmHour", s.alarmHour)
             .putInt("alarmMinute", s.alarmMinute)

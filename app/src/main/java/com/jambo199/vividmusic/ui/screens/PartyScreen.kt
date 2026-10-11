@@ -65,6 +65,8 @@ import com.jambo199.vividmusic.playback.Spectrum
 import com.jambo199.vividmusic.ui.LocalNav
 import com.jambo199.vividmusic.ui.MainViewModel
 import com.jambo199.vividmusic.ui.components.Artwork
+import com.jambo199.vividmusic.ui.components.BeatEffects
+import com.jambo199.vividmusic.ui.components.rememberHasFlashlight
 import com.jambo199.vividmusic.ui.components.rememberSpectrum
 import com.jambo199.vividmusic.ui.theme.rememberArtworkColor
 import kotlinx.coroutines.delay
@@ -110,6 +112,10 @@ fun PartyScreen(viewModel: MainViewModel) {
     val palette = remember(base) { partyColors(base) }
     val show = remember { PartyShow() }
     var strobe by rememberSaveable { mutableStateOf(false) }
+    var flash by rememberSaveable { mutableStateOf(false) }
+    var buzz by rememberSaveable { mutableStateOf(false) }
+    val hasFlashlight = rememberHasFlashlight()
+    BeatEffects(spectrum, flash = flash, buzz = buzz)
     var controls by remember { mutableStateOf(true) }
 
     // Full screen, and the screen stays on for the whole party.
@@ -127,7 +133,7 @@ fun PartyScreen(viewModel: MainViewModel) {
     }
     LaunchedEffect(Unit) { AppGraph.counters.add(FunCounters.PARTY) }
     // The controls tuck themselves away after a few seconds.
-    LaunchedEffect(controls) {
+    LaunchedEffect(controls, strobe, flash, buzz) {
         if (controls) {
             delay(8_000)
             controls = false
@@ -275,6 +281,22 @@ fun PartyScreen(viewModel: MainViewModel) {
                         label = { Text(if (strobe) "Strobe on · flashing lights" else "Strobe (flashing lights)") },
                         colors = FilterChipDefaults.filterChipColors(labelColor = Color.White),
                     )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (hasFlashlight) {
+                            FilterChip(
+                                selected = flash,
+                                onClick = { flash = !flash },
+                                label = { Text("Flashlight to the beat") },
+                                colors = FilterChipDefaults.filterChipColors(labelColor = Color.White),
+                            )
+                        }
+                        FilterChip(
+                            selected = buzz,
+                            onClick = { buzz = !buzz },
+                            label = { Text("Feel the beat") },
+                            colors = FilterChipDefaults.filterChipColors(labelColor = Color.White),
+                        )
+                    }
                 }
             }
         }

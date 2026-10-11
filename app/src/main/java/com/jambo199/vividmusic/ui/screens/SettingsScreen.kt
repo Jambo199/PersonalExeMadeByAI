@@ -47,6 +47,7 @@ import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Restore
+import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
@@ -540,6 +541,16 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 SwitchRow(null, "Check automatically", "Look for a new version each time the app opens", settings.autoCheckUpdates) { v ->
                     viewModel.updateSettings { it.copy(autoCheckUpdates = v) }
                 }
+            }
+
+            item { SectionHeader("NCS") }
+            item {
+                SwitchRow(
+                    Icons.Rounded.NotificationsActive,
+                    "New NCS releases",
+                    "A notification when NoCopyrightSounds puts out new songs (checked twice a day)",
+                    settings.ncsAlerts,
+                ) { v -> viewModel.updateSettings { it.copy(ncsAlerts = v) } }
             }
 
             item { SectionHeader("Backup") }

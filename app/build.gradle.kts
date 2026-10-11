@@ -100,6 +100,8 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.guava)
+    // Checking ncs.io for new releases in the background.
+    implementation(libs.androidx.work.runtime)
 
     testImplementation(libs.junit)
     // The real org.json, so parser tests don't hit Android's stubs.

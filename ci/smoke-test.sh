@@ -355,6 +355,7 @@ if tap "Wake up to music"; then
 fi
 adb shell input keyevent KEYCODE_BACK
 
+echo "-- background work: $(adb shell dumpsys jobscheduler 2>/dev/null | grep -m2 -oE 'vividmusic/androidx.work[^ ]*' | tr '\n' ' ')"
 echo "== Other screens"
 shortcut settings;  shot 17-settings 3
 shortcut equalizer; shot 18-equalizer 3
@@ -407,6 +408,8 @@ shortcut party; sleep 2
 tap "Got it"   # Android's one-time "Viewing full screen" hint
 shot 21d-party 1
 adb shell input tap 540 1000; sleep 1; adb shell input tap 540 1000; shot 21e-party-lights 2
+tap "Feel the beat" && tap "Flashlight to the beat"; sleep 3
+echo "-- torch after party mode: $(adb shell dumpsys media.camera 2>/dev/null | grep -m1 -iE 'torch' | tr -s ' ')"
 adb shell input keyevent KEYCODE_BACK
 
 echo "== Dark mode and landscape"

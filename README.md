@@ -70,6 +70,8 @@ You can also lock the app in the recent-apps screen (pull the card down).
   and play offline. Save one song, the list you're looking at, or every NCS song (Wi-Fi only if
   you like); songs you already have are skipped, so running it again picks up new releases
 - Saved songs play from the phone even when you start them from the NCS page
+- **New release alerts**: a notification when NCS puts out new songs (checked twice a day; turn it
+  off in Settings › NCS)
 
 **Library**
 - Songs, Albums, Artists and Playlists tabs, all with album-art thumbnails – reorder or hide tabs in Settings
@@ -126,7 +128,8 @@ You can also lock the app in the recent-apps screen (pull the card down).
 - **Vinyl record** player: the artwork spins on a record while music plays
 - **Aurora** player background: soft clouds of the artwork's colours drifting while music plays
 - **Party mode** (player ⋮ menu): the whole screen becomes a light show to the beat – sweeping
-  beams, a ring of bars and colours that change on every beat (strobe flashes only if you turn them on)
+  beams, a ring of bars and colours that change on every beat (strobe flashes only if you turn them on),
+  plus the phone's **flashlight flashing to the beat** and a buzz on every beat if you like
 - **Sound presets**: Nightcore, Slowed, Slowed + reverb, Chipmunk, Deep voice and Concert hall,
   plus room / hall / plate **reverb** on anything
 - **Karaoke lyrics**: the line being sung fills with colour as it goes; long-press a line to
