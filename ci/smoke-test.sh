@@ -185,6 +185,10 @@ if tap "Speed"; then
   adb shell input keyevent KEYCODE_BACK
 fi
 adb shell dumpsys media_session | grep -E "state=PlaybackState|description=" | head -6
+echo "-- music notification progress (should move between the two):"
+adb shell dumpsys notification --noredact | grep -A60 "pkg=$PKG" | grep -m2 -E "android.progress(Max)?="
+sleep 4
+adb shell dumpsys notification --noredact | grep -A60 "pkg=$PKG" | grep -m2 -E "android.progress(Max)?="
 adb shell input keyevent KEYCODE_MEDIA_PAUSE
 sleep 1
 echo "after pause (state=2 means paused):"
