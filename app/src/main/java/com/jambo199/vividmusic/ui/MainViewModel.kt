@@ -30,6 +30,8 @@ import com.jambo199.vividmusic.data.Settings
 import com.jambo199.vividmusic.data.SmartPlaylists
 import com.jambo199.vividmusic.data.Song
 import com.jambo199.vividmusic.data.SongSource
+import com.jambo199.vividmusic.data.TagEditor
+import com.jambo199.vividmusic.data.TagEdits
 import com.jambo199.vividmusic.data.UserData
 import com.jambo199.vividmusic.data.albumComparator
 import com.jambo199.vividmusic.data.artistComparator
@@ -689,6 +691,53 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             onResult(DeleteRequest.Done(removedKeys.size, failed))
         }
     }
+
+    // region tag editor
+
+    private var pendingTagEdit: Pair<Song, TagEdits>? = null
+
+    /**
+     * Saves [edits] into [song]'s file. On Android 11+ the system first asks for permission to
+     * change the file ([onPermission] gets the dialog to show; then call [onTagPermission]).
+     */
+    fun editTags(song: Song, edits: TagEdits, onPermission: (IntentSender) -> Unit) {
+        if (playback.value.song?.key == song.key) {
+            toast("Play something else first – the song that's playing can't be changed")
+            return
+        }
+        val context = getApplication<Application>()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && song.source == SongSource.MEDIA_STORE) {
+            pendingTagEdit = song to edits
+            onPermission(MediaStore.createWriteRequest(context.contentResolver, listOf(song.uri)).intentSender)
+            return
+        }
+        writeTags(song, edits, onPermission)
+    }
+
+    fun onTagPermission(granted: Boolean, onPermission: (IntentSender) -> Unit) {
+        val (song, edits) = pendingTagEdit ?: return
+        pendingTagEdit = null
+        if (granted) writeTags(song, edits, onPermission) else toast("Tags not changed")
+    }
+
+    private fun writeTags(song: Song, edits: TagEdits, onPermission: (IntentSender) -> Unit) {
+        val context = getApplication<Application>()
+        viewModelScope.launch {
+            when (val result = withContext(Dispatchers.IO) { TagEditor.write(context, song, edits) }) {
+                TagEditor.Result.Done -> {
+                    toast("Tags saved")
+                    if (song.source == SongSource.FOLDER) AppGraph.library.refreshAll()
+                }
+                is TagEditor.Result.NeedsPermission -> {
+                    pendingTagEdit = song to edits
+                    onPermission(result.intentSender)
+                }
+                is TagEditor.Result.Failed -> toast(result.message)
+            }
+        }
+    }
+
+    // endregion
 
     /** Called with the result of the system delete dialog. */
     fun onDeleteConfirmed(confirmed: Boolean, onResult: (DeleteRequest) -> Unit) {

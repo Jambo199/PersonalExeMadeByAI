@@ -3,6 +3,7 @@ package com.jambo199.vividmusic.ui.components
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.IntentSender
 import android.media.MediaMetadataRetriever
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -30,6 +32,7 @@ import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Folder
@@ -51,7 +54,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,11 +66,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jambo199.vividmusic.data.Playlist
 import com.jambo199.vividmusic.data.Song
 import com.jambo199.vividmusic.data.SongSource
+import com.jambo199.vividmusic.data.TagEditor
+import com.jambo199.vividmusic.data.TagEdits
 import com.jambo199.vividmusic.data.formatDuration
 import com.jambo199.vividmusic.data.formatSize
 import com.jambo199.vividmusic.data.pluralize
@@ -92,6 +97,13 @@ fun SongMenuHost(state: SongMenuState, viewModel: MainViewModel) {
     val library by viewModel.library.collectAsState()
 
     var details by remember { mutableStateOf<Song?>(null) }
+    var editing by remember { mutableStateOf<Song?>(null) }
+    // Android's "allow changing this file?" dialog for the tag editor.
+    var askTagPermission: (IntentSender) -> Unit = {}
+    val tagPermission = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        viewModel.onTagPermission(result.resultCode == Activity.RESULT_OK) { askTagPermission(it) }
+    }
+    askTagPermission = { sender -> tagPermission.launch(IntentSenderRequest.Builder(sender).build()) }
     var confirmDelete by remember { mutableStateOf<List<Song>?>(null) }
     // Declared before the launcher so the launcher's callback can report follow-up prompts.
     var launchDelete: (DeleteRequest) -> Unit = {}
@@ -162,6 +174,9 @@ fun SongMenuHost(state: SongMenuState, viewModel: MainViewModel) {
                         MenuRow(Icons.Rounded.Share, "Share") { act { shareSongs(context, songs) } }
                         if (single != null) {
                             MenuRow(Icons.Rounded.Info, "Details") { act { details = single } }
+                            if (TagEditor.canEdit(single)) {
+                                MenuRow(Icons.Rounded.Edit, "Edit tags") { act { editing = single } }
+                            }
                         }
                     } else if (single != null) {
                         MenuRow(Icons.Rounded.Share, "Share link") { act { shareLink(context, single) } }
@@ -193,6 +208,17 @@ fun SongMenuHost(state: SongMenuState, viewModel: MainViewModel) {
     }
 
     details?.let { song -> SongDetailsDialog(song) { details = null } }
+
+    editing?.let { song ->
+        EditTagsDialog(
+            song = song,
+            onDismiss = { editing = null },
+            onSave = { edits ->
+                editing = null
+                viewModel.editTags(song, edits) { askTagPermission(it) }
+            },
+        )
+    }
 
     confirmDelete?.let { songs ->
         AlertDialog(
@@ -417,4 +443,56 @@ private fun shareLink(context: Context, song: Song) {
     val text = "${song.title} – ${song.displayArtist}\n${song.path.ifBlank { song.uri.toString() }}"
     val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
     context.startActivity(Intent.createChooser(send, "Share"))
+}
+
+/** Title, artist, album and the rest, saved into the file itself. */
+@Composable
+private fun EditTagsDialog(song: Song, onDismiss: () -> Unit, onSave: (TagEdits) -> Unit) {
+    val start = remember(song.key) { TagEdits.of(song) }
+    var title by rememberSaveable { mutableStateOf(start.title) }
+    var artist by rememberSaveable { mutableStateOf(start.artist) }
+    var album by rememberSaveable { mutableStateOf(start.album) }
+    var albumArtist by rememberSaveable { mutableStateOf(start.albumArtist) }
+    var genre by rememberSaveable { mutableStateOf(start.genre) }
+    var year by rememberSaveable { mutableStateOf(start.year) }
+    var track by rememberSaveable { mutableStateOf(start.track) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit tags") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(song.fileName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(title, { title = it }, label = { Text("Title") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(artist, { artist = it }, label = { Text("Artist") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(album, { album = it }, label = { Text("Album") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(albumArtist, { albumArtist = it }, label = { Text("Album artist") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(genre, { genre = it }, label = { Text("Genre") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        year,
+                        { v -> year = v.filter(Char::isDigit).take(4) },
+                        label = { Text("Year") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                        track,
+                        { v -> track = v.filter(Char::isDigit).take(3) },
+                        label = { Text("Track") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(TagEdits(title, artist, album, albumArtist, genre, year, track)) },
+                enabled = title.isNotBlank(),
+            ) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
