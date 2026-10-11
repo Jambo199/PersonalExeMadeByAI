@@ -89,7 +89,6 @@ import com.jambo199.vividmusic.data.PlayerBackground
 import com.jambo199.vividmusic.data.ThemeMode
 import com.jambo199.vividmusic.data.VisualizerStyle
 import com.jambo199.vividmusic.ui.LocalNav
-import com.jambo199.vividmusic.playback.LiveUpdate
 import com.jambo199.vividmusic.ui.MainViewModel
 import com.jambo199.vividmusic.ui.components.LocalBottomPadding
 import com.jambo199.vividmusic.ui.components.SectionHeader
@@ -488,34 +487,6 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     settings.sessionLyrics,
                 ) { v ->
                     viewModel.updateSettings { it.copy(sessionLyrics = v) }
-                }
-            }
-            item {
-                SwitchRow(
-                    null,
-                    "Show on the Dynamic Island (Live Update)",
-                    if (LiveUpdate.supported) {
-                        "While music plays, the song also shows as an Android Live Update: the status-bar chip, and the island on phones " +
-                            "that put Live Updates there (vivo Origin Island on OriginOS 6). Adds a second notification while playing."
-                    } else {
-                        "Needs Android 16 or later; this phone has Android ${Build.VERSION.RELEASE}. On older OriginOS, vivo's island only " +
-                            "shows music from apps on vivo's own list."
-                    },
-                    settings.liveUpdate && LiveUpdate.supported,
-                ) { v ->
-                    if (LiveUpdate.supported) viewModel.updateSettings { it.copy(liveUpdate = v) }
-                }
-            }
-            if (LiveUpdate.supported && settings.liveUpdate && LiveUpdate.allowed(context) == false) {
-                item {
-                    SettingRow(
-                        Icons.Rounded.NotificationsActive,
-                        "Allow Live Updates for Vivid Music",
-                        "They're switched off for this app in Android's settings",
-                    ) {
-                        runCatching { context.startActivity(LiveUpdate.settingsIntent(context)) }
-                            .onFailure { runCatching { context.startActivity(Intent(AndroidSettings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(AndroidSettings.EXTRA_APP_PACKAGE, context.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
-                    }
                 }
             }
             item {

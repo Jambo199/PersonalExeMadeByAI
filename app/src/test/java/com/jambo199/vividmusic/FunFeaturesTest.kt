@@ -10,8 +10,8 @@ import com.jambo199.vividmusic.data.UserDataStore
 import com.jambo199.vividmusic.data.VoiceCommand
 import com.jambo199.vividmusic.data.Wrapped
 import com.jambo199.vividmusic.playback.FocusTimer
-import com.jambo199.vividmusic.playback.LiveUpdate
 import com.jambo199.vividmusic.playback.MusicAlarm
+import com.jambo199.vividmusic.playback.ProgressNotificationProvider
 import com.jambo199.vividmusic.playback.ShakeDetector
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -191,9 +191,10 @@ class FunFeaturesTest {
     }
 
     @Test
-    fun liveUpdateChipStaysShort() {
-        assertEquals("Faded", LiveUpdate.chipText("Faded", null))
-        assertEquals("Hello there", LiveUpdate.chipText("Some Song", "Hello there"))
-        assertEquals("A very long s…", LiveUpdate.chipText("A very long song title indeed", " "))
+    fun notificationProgress() {
+        assertEquals(0, ProgressNotificationProvider.progressOf(0, 180_000))
+        assertEquals(500, ProgressNotificationProvider.progressOf(90_000, 180_000))
+        assertEquals(1000, ProgressNotificationProvider.progressOf(200_000, 180_000))
+        assertEquals(0, ProgressNotificationProvider.progressOf(5_000, 0))
     }
 }

@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.view.KeyEvent
 import androidx.annotation.OptIn
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -99,7 +100,6 @@ class PlaybackService : MediaLibraryService() {
     private var autoAdvanced = false
     private var saveQueueJob: Job? = null
     private val playingNow = MutableStateFlow(false)
-    private val liveUpdate by lazy { LiveUpdate(this) }
     private var shake: ShakeDetector? = null
     private var saveStateJob: Job? = null
 
@@ -175,10 +175,17 @@ class PlaybackService : MediaLibraryService() {
             .build()
 
         setMediaNotificationProvider(
-            DefaultMediaNotificationProvider.Builder(this).build().apply {
-                setSmallIcon(R.drawable.ic_notification)
-            },
+            ProgressNotificationProvider(
+                DefaultMediaNotificationProvider.Builder(this).build().apply {
+                    setSmallIcon(R.drawable.ic_notification)
+                },
+            ),
         )
+        // The separate "Live Update" notification from an earlier version is gone.
+        NotificationManagerCompat.from(this).run {
+            cancel(OLD_LIVE_UPDATE_ID)
+            deleteNotificationChannel(OLD_LIVE_UPDATE_CHANNEL)
+        }
 
         restoreQueue()
         AudioEffects.attach(this, exo.audioSessionId, settings.eq)
@@ -311,7 +318,6 @@ class PlaybackService : MediaLibraryService() {
         AudioEffects.release(this)
         AudioEffects.releaseReverb()
         shake?.stop()
-        liveUpdate.hide()
         session?.run {
             player.release()
             release()
@@ -418,40 +424,13 @@ class PlaybackService : MediaLibraryService() {
                 }
             }
         }
-        // Android 16+: the playing song as a Live Update, for the status-bar chip and islands
-        // that show Live Updates (vivo's Origin Island on OriginOS 6).
+        // Keeps the progress bar on the music notification moving while music plays.
         scope.launch {
-            combine(playingNow, AppGraph.settings.state.map { it.liveUpdate }.distinctUntilChanged()) { playing, on ->
-                playing && on && LiveUpdate.supported
-            }.distinctUntilChanged().collectLatest { active ->
-                if (!active) {
-                    // Not straight away: a moment of buffering or a song change shouldn't make it flicker.
-                    delay(3_000)
-                    liveUpdate.hide()
-                    return@collectLatest
-                }
-                var artFor: String? = null
-                var art: android.graphics.Bitmap? = null
-                while (isActive) {
-                    val song = currentSong()
-                    if (song != null) {
-                        if (song.key != artFor) {
-                            artFor = song.key
-                            art = withContext(Dispatchers.IO) { runCatching { AppGraph.artwork.load(song, 256) }.getOrNull() }
-                        }
-                        val line = sessionPlayer?.currentLyricLine
-                        val duration = exo.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: song.durationMs
-                        liveUpdate.show(
-                            title = song.title,
-                            text = line ?: song.displayArtist,
-                            chip = LiveUpdate.chipText(song.title, line),
-                            artwork = art,
-                            positionMs = exo.currentPosition,
-                            durationMs = duration,
-                            speed = exo.playbackParameters.speed,
-                        )
-                    }
-                    delay(1_000)
+            playingNow.collectLatest { playing ->
+                val s = session ?: return@collectLatest
+                while (playing && isActive) {
+                    delay(NOTIFICATION_PROGRESS_MS)
+                    onUpdateNotification(s, true)
                 }
             }
         }
@@ -999,6 +978,9 @@ class PlaybackService : MediaLibraryService() {
         private const val FADE_MS = 8_000L
         private const val PLAY_PAUSE_FADE_MS = 220L
         private const val FOCUS_FADE_MS = 4_000L
+        private const val NOTIFICATION_PROGRESS_MS = 3_000L
+        private const val OLD_LIVE_UPDATE_ID = 2004
+        private const val OLD_LIVE_UPDATE_CHANNEL = "live_update"
         private const val MAX_SKIPS = 6
         private val LYRICS_KEYS = setOf("LYRICS", "UNSYNCEDLYRICS", "SYNCEDLYRICS", "USLT")
         const val ACTION_FAVORITE = "vivid.favorite"

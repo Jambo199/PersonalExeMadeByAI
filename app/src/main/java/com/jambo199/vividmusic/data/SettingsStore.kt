@@ -130,8 +130,6 @@ data class Settings(
      * Dynamic Island-style pop-ups and car screens.
      */
     val sessionLyrics: Boolean = true,
-    /** Android 16+: the playing song as a Live Update (status-bar chip, vivo's Origin Island). */
-    val liveUpdate: Boolean = true,
     val autoCheckUpdates: Boolean = true,
     /** A notification when NCS puts out new songs. */
     val ncsAlerts: Boolean = true,
@@ -261,7 +259,6 @@ class SettingsStore(context: Context) {
             onlineLyrics = prefs.getBoolean("onlineLyrics", d.onlineLyrics),
             karaokeLyrics = prefs.getBoolean("karaokeLyrics", d.karaokeLyrics),
             sessionLyrics = prefs.getBoolean("sessionLyrics", d.sessionLyrics),
-            liveUpdate = prefs.getBoolean("liveUpdate", d.liveUpdate),
             autoCheckUpdates = prefs.getBoolean("autoCheckUpdates", d.autoCheckUpdates),
             ncsAlerts = prefs.getBoolean("ncsAlerts", d.ncsAlerts),
             alarmEnabled = prefs.getBoolean("alarmEnabled", d.alarmEnabled),
@@ -334,7 +331,6 @@ class SettingsStore(context: Context) {
             .putBoolean("onlineLyrics", s.onlineLyrics)
             .putBoolean("karaokeLyrics", s.karaokeLyrics)
             .putBoolean("sessionLyrics", s.sessionLyrics)
-            .putBoolean("liveUpdate", s.liveUpdate)
             .putBoolean("autoCheckUpdates", s.autoCheckUpdates)
             .putBoolean("ncsAlerts", s.ncsAlerts)
             .putBoolean("alarmEnabled", s.alarmEnabled)
