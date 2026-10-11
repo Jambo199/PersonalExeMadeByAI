@@ -30,14 +30,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Alarm
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Celebration
 import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FiberNew
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.HourglassTop
 import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.LocalFireDepartment
@@ -278,6 +281,18 @@ fun HomeScreen(viewModel: MainViewModel) {
                 Icons.Rounded.Style,
                 listOf(Color(0xFFE91E63), Color(0xFFFF9800)),
             ) { nav.discover() }
+        }
+        item(key = "extras-title") { HomeHeader("More to try", "Tucked away in the menus") }
+        item(key = "extras") {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                item { ExtraTile("Party mode", Icons.Rounded.Celebration, listOf(Color(0xFF6A1B9A), Color(0xFFE040FB))) { nav.party() } }
+                item { ExtraTile("Focus timer", Icons.Rounded.HourglassTop, listOf(Color(0xFFC62828), Color(0xFFFF7043))) { nav.focus() } }
+                item { ExtraTile("Music alarm", Icons.Rounded.Alarm, listOf(Color(0xFFEF6C00), Color(0xFFFFCA28))) { nav.alarm() } }
+                item { ExtraTile("Car mode", Icons.Rounded.DirectionsCar, listOf(Color(0xFF263238), Color(0xFF607D8B))) { nav.car() } }
+            }
         }
     }
 }
@@ -579,6 +594,24 @@ private fun StatsCard(viewModel: MainViewModel, onOpen: () -> Unit) {
             }
             Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null)
         }
+    }
+}
+
+/** A small square tile leading to one of the extras. */
+@Composable
+private fun ExtraTile(label: String, icon: ImageVector, colors: List<Color>, onClick: () -> Unit) {
+    Column(
+        Modifier
+            .width(104.dp)
+            .height(96.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Brush.linearGradient(colors))
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+        Text(label, color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
     }
 }
 

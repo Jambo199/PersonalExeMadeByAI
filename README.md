@@ -123,7 +123,7 @@ You can also lock the app in the recent-apps screen (pull the card down).
 - Drag-to-reorder queue, remove songs, save the queue as a playlist
 - Audio quality badge (format, sample rate / bitrate)
 
-**Fun stuff**
+**Fun stuff** (the extras are also one tap away in Home's "More to try" row)
 - **Live visualizer** over the artwork (bars, wave or mirror), and artwork that **bounces to the beat**
 - **Vinyl record** player: the artwork spins on a record while music plays
 - **Aurora** player background: soft clouds of the artwork's colours drifting while music plays
