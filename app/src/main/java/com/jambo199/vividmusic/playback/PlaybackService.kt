@@ -1,6 +1,7 @@
 package com.jambo199.vividmusic.playback
 
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.SystemClock
@@ -17,7 +18,11 @@ import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.audio.TeeAudioProcessor
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.extractor.metadata.id3.BinaryFrame
 import androidx.media3.extractor.metadata.id3.InternalFrame
@@ -99,7 +104,20 @@ class PlaybackService : MediaLibraryService() {
             .setAllowCrossProtocolRedirects(true)
             .setConnectTimeoutMs(15_000)
             .setReadTimeoutMs(20_000)
-        exo = ExoPlayer.Builder(this)
+        // Lets the visualizer see the music as it's played (after our processors, Android's
+        // chain still adds silence skipping and speed/pitch).
+        val renderers = object : DefaultRenderersFactory(this) {
+            override fun buildAudioSink(
+                context: Context,
+                enableFloatOutput: Boolean,
+                enableAudioTrackPlaybackParams: Boolean,
+            ): AudioSink = DefaultAudioSink.Builder(context)
+                .setEnableFloatOutput(enableFloatOutput)
+                .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                .setAudioProcessors(arrayOf(TeeAudioProcessor(Spectrum.sink)))
+                .build()
+        }
+        exo = ExoPlayer.Builder(this, renderers)
             .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(this, http)))
             .setAudioAttributes(
                 AudioAttributes.Builder()
@@ -192,6 +210,7 @@ class PlaybackService : MediaLibraryService() {
         AppGraph.positions.flush()
         AppGraph.userData.flush()
         AudioEffects.release(this)
+        AudioEffects.releaseReverb()
         session?.run {
             player.release()
             release()
@@ -212,6 +231,11 @@ class PlaybackService : MediaLibraryService() {
         }
         scope.launch {
             AppGraph.settings.state.map { it.eq }.distinctUntilChanged().collect { AudioEffects.apply(it) }
+        }
+        scope.launch {
+            AppGraph.settings.state.map { it.reverb }.distinctUntilChanged().collect { r ->
+                if (!AudioEffects.setReverb(exo, r.preset)) PlayerEvents.post("Reverb isn't available on this phone")
+            }
         }
         scope.launch {
             AppGraph.settings.state.map { Triple(it.normalization, it.replayGainPreamp, it.replayGainUntagged) }
@@ -427,6 +451,7 @@ class PlaybackService : MediaLibraryService() {
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            Spectrum.onPlaying(isPlaying)
             if (isPlaying) {
                 consecutiveErrors = 0
             } else {

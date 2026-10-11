@@ -85,6 +85,7 @@ import com.jambo199.vividmusic.data.LibraryTab
 import com.jambo199.vividmusic.data.Normalization
 import com.jambo199.vividmusic.data.PlayerBackground
 import com.jambo199.vividmusic.data.ThemeMode
+import com.jambo199.vividmusic.data.VisualizerStyle
 import com.jambo199.vividmusic.ui.LocalNav
 import com.jambo199.vividmusic.ui.MainViewModel
 import com.jambo199.vividmusic.ui.components.LocalBottomPadding
@@ -194,6 +195,33 @@ fun SettingsScreen(viewModel: MainViewModel) {
                                 )
                             }
                     }
+                }
+            }
+            item {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text("Visualizer", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Moves with the music across the bottom of the artwork",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FlowRow(
+                        Modifier.padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        VisualizerStyle.entries.forEach { option ->
+                            FilterChip(
+                                selected = settings.visualizer == option,
+                                onClick = { viewModel.updateSettings { it.copy(visualizer = option) } },
+                                label = { Text(option.label) },
+                            )
+                        }
+                    }
+                }
+            }
+            item {
+                SwitchRow(null, "Artwork bounces to the beat", "The album art pulses gently with the bass", settings.beatPulse) { v ->
+                    viewModel.updateSettings { it.copy(beatPulse = v) }
                 }
             }
             item {

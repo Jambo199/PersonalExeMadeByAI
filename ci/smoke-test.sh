@@ -177,6 +177,13 @@ shortcut playlists; shot 08-playlists 3
 echo "== Playback"
 shortcut shuffle;   shot 09-player 6
 shot 10-player-later 4
+if tap "Speed"; then
+  shot 10b-sound-presets 2
+  tap "Slowed + reverb" && sleep 3
+  adb logcat -d | grep -E "Reverb unavailable|AudioEffects" | tail -3
+  tap "Normal"
+  adb shell input keyevent KEYCODE_BACK
+fi
 adb shell dumpsys media_session | grep -E "state=PlaybackState|description=" | head -6
 adb shell input keyevent KEYCODE_MEDIA_PAUSE
 sleep 1

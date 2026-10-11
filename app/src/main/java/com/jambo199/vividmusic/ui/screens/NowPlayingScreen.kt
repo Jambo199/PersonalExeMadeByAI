@@ -108,6 +108,7 @@ import com.jambo199.vividmusic.data.OnlineLookup
 import com.jambo199.vividmusic.data.OnlineLyrics
 import com.jambo199.vividmusic.data.PlayerBackground
 import com.jambo199.vividmusic.data.Song
+import com.jambo199.vividmusic.data.VisualizerStyle
 import com.jambo199.vividmusic.data.formatDuration
 import com.jambo199.vividmusic.playback.AbRepeat
 import com.jambo199.vividmusic.playback.SleepTimer
@@ -116,8 +117,10 @@ import com.jambo199.vividmusic.ui.LocalSongMenu
 import com.jambo199.vividmusic.ui.MainViewModel
 import com.jambo199.vividmusic.ui.components.AddToPlaylistDialog
 import com.jambo199.vividmusic.ui.components.Artwork
+import com.jambo199.vividmusic.ui.components.Visualizer
 import com.jambo199.vividmusic.ui.components.qualityBadge
 import com.jambo199.vividmusic.ui.components.readTechnicalInfo
+import com.jambo199.vividmusic.ui.components.rememberSpectrum
 import com.jambo199.vividmusic.ui.theme.rememberArtworkColor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -339,6 +342,9 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                                     song = song,
                                     isPlaying = playback.playWhenReady,
                                     enabled = settings.swipeArtworkToSkip,
+                                    visualizer = settings.visualizer,
+                                    beatPulse = settings.beatPulse,
+                                    speed = playback.speed,
                                     onNext = { viewModel.player.next() },
                                     onPrevious = { viewModel.player.previous() },
                                 )
@@ -699,12 +705,18 @@ private fun ExtraButton(
     }
 }
 
-/** Big album art; drag sideways to skip songs. Shrinks a little while paused. */
+/**
+ * Big album art; drag sideways to skip songs. Shrinks a little while paused, can bounce on the
+ * beat, and shows the [visualizer] across its lower part.
+ */
 @Composable
 private fun SwipeableArtwork(
     song: Song,
     isPlaying: Boolean,
     enabled: Boolean,
+    visualizer: VisualizerStyle,
+    beatPulse: Boolean,
+    speed: Float,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
 ) {
@@ -712,17 +724,19 @@ private fun SwipeableArtwork(
     val offset = remember { Animatable(0f) }
     LaunchedEffect(song.key) { offset.snapTo(0f) }
     val scale by animateFloatAsState(if (isPlaying) 1f else 0.86f, spring(dampingRatio = 0.6f, stiffness = 300f), label = "artScale")
+    val spectrum = rememberSpectrum(enabled = visualizer != VisualizerStyle.OFF || beatPulse, playing = isPlaying, speed = speed)
+    val shape = RoundedCornerShape(20.dp)
 
     BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         val side = minOf(maxWidth, maxHeight)
         val widthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
-        Artwork(
-            song = song,
+        Box(
             modifier = Modifier
                 .size(side)
                 .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
+                    val pulse = if (beatPulse) 1f + 0.035f * spectrum.beat else 1f
+                    scaleX = scale * pulse
+                    scaleY = scale * pulse
                     translationX = offset.value
                     rotationZ = offset.value / widthPx * 8f
                     alpha = 1f - (abs(offset.value) / widthPx).coerceIn(0f, 0.6f)
@@ -755,8 +769,27 @@ private fun SwipeableArtwork(
                         )
                     },
                 ),
-            shape = RoundedCornerShape(20.dp),
-            iconSize = 96.dp,
-        )
+        ) {
+            Artwork(song = song, modifier = Modifier.fillMaxSize(), shape = shape, iconSize = 96.dp)
+            if (visualizer != VisualizerStyle.OFF) {
+                Box(
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.4f)
+                        .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
+                        .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.55f)))),
+                ) {
+                    Visualizer(
+                        state = spectrum,
+                        style = visualizer,
+                        color = Color.White.copy(alpha = 0.85f),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                    )
+                }
+            }
+        }
     }
 }

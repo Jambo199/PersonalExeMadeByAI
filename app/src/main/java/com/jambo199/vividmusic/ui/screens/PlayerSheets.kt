@@ -22,7 +22,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.TravelExplore
@@ -64,6 +66,7 @@ import com.jambo199.vividmusic.data.LyricLine
 import com.jambo199.vividmusic.data.Lyrics
 import com.jambo199.vividmusic.data.OnlineLookup
 import com.jambo199.vividmusic.data.OnlineLyrics
+import com.jambo199.vividmusic.data.ReverbPreset
 import com.jambo199.vividmusic.data.formatDuration
 import com.jambo199.vividmusic.data.formatTotalDuration
 import com.jambo199.vividmusic.data.pluralize
@@ -320,6 +323,17 @@ private fun LyricRow(line: LyricLine, active: Boolean, passed: Boolean, contentC
 
 // endregion
 
+/** One-tap sound styles: speed, pitch and reverb together. */
+enum class SoundPreset(val label: String, val speed: Float, val pitch: Float, val reverb: ReverbPreset) {
+    NORMAL("Normal", 1f, 1f, ReverbPreset.OFF),
+    NIGHTCORE("Nightcore", 1.25f, 1.25f, ReverbPreset.OFF),
+    SLOWED("Slowed", 0.85f, 0.85f, ReverbPreset.OFF),
+    SLOWED_REVERB("Slowed + reverb", 0.85f, 0.85f, ReverbPreset.HALL),
+    CHIPMUNK("Chipmunk", 1f, 1.6f, ReverbPreset.OFF),
+    DEEP("Deep voice", 1f, 0.7f, ReverbPreset.OFF),
+    CONCERT("Concert hall", 1f, 1f, ReverbPreset.HALL),
+}
+
 // region sleep timer & speed
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -401,14 +415,34 @@ fun SleepTimerDialog(viewModel: MainViewModel, onDismiss: () -> Unit) {
 @Composable
 fun SpeedDialog(viewModel: MainViewModel, onDismiss: () -> Unit) {
     val playback by viewModel.playback.collectAsState()
+    val settings by viewModel.settings.collectAsState()
     var speed by remember { mutableFloatStateOf(playback.speed) }
     var pitch by remember { mutableFloatStateOf(playback.pitch) }
     fun applySpeed() = viewModel.player.setSpeed(speed, pitch)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Playback speed") },
+        title = { Text("Speed & sound") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("Sound presets", style = MaterialTheme.typography.labelLarge)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SoundPreset.entries.forEach { p ->
+                        FilterChip(
+                            selected = speed == p.speed && pitch == p.pitch && settings.reverb == p.reverb,
+                            onClick = {
+                                speed = p.speed
+                                pitch = p.pitch
+                                applySpeed()
+                                viewModel.updateSettings { it.copy(reverb = p.reverb) }
+                            },
+                            label = { Text(p.label) },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
                 Text("Speed: ${"%.2f".format(speed)}×", style = MaterialTheme.typography.labelLarge)
                 Slider(
                     value = speed,
@@ -436,6 +470,17 @@ fun SpeedDialog(viewModel: MainViewModel, onDismiss: () -> Unit) {
                     onValueChangeFinished = { applySpeed() },
                     valueRange = 0.5f..2f,
                 )
+                Spacer(Modifier.height(4.dp))
+                Text("Reverb", style = MaterialTheme.typography.labelLarge)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ReverbPreset.entries.forEach { r ->
+                        FilterChip(
+                            selected = settings.reverb == r,
+                            onClick = { viewModel.updateSettings { it.copy(reverb = r) } },
+                            label = { Text(r.label) },
+                        )
+                    }
+                }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
@@ -444,6 +489,7 @@ fun SpeedDialog(viewModel: MainViewModel, onDismiss: () -> Unit) {
                 speed = 1f
                 pitch = 1f
                 applySpeed()
+                viewModel.updateSettings { it.copy(reverb = ReverbPreset.OFF) }
             }) { Text("Reset") }
         },
     )

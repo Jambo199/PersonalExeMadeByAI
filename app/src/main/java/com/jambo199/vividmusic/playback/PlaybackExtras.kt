@@ -6,9 +6,14 @@ import android.media.audiofx.AudioEffect
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
 import android.media.audiofx.LoudnessEnhancer
+import android.media.audiofx.PresetReverb
 import android.media.audiofx.Virtualizer
 import android.os.SystemClock
 import android.util.Log
+import androidx.annotation.OptIn
+import androidx.media3.common.AuxEffectInfo
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
 import com.jambo199.vividmusic.data.EqSettings
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -101,6 +106,7 @@ object AbRepeat {
 }
 
 /** Equalizer, bass boost, virtualizer and loudness attached to the player's audio session. */
+@OptIn(UnstableApi::class)
 object AudioEffects {
     data class Info(
         val bandCount: Int,
@@ -125,6 +131,40 @@ object AudioEffects {
     private var loudness: LoudnessEnhancer? = null
     var sessionId: Int = 0
         private set
+    private var reverb: PresetReverb? = null
+
+    /** Frees the reverb (it isn't tied to the player's audio session, so outlives [release]). */
+    @Synchronized
+    fun releaseReverb() {
+        try {
+            reverb?.release()
+        } catch (_: Throwable) {
+        }
+        reverb = null
+    }
+
+    /**
+     * Reverb on everything [player] plays ([preset] 0 for none). Returns false when this phone
+     * has no reverb.
+     */
+    @Synchronized
+    fun setReverb(player: ExoPlayer, preset: Short): Boolean {
+        if (preset.toInt() == 0) {
+            player.clearAuxEffectInfo()
+            releaseReverb()
+            return true
+        }
+        return try {
+            val r = reverb ?: PresetReverb(1, 0).also { reverb = it }
+            r.preset = preset
+            r.enabled = true
+            player.setAuxEffectInfo(AuxEffectInfo(r.id, 1f))
+            true
+        } catch (t: Throwable) {
+            Log.w(TAG, "Reverb unavailable", t)
+            false
+        }
+    }
 
     @Synchronized
     fun attach(context: Context, audioSessionId: Int, settings: EqSettings) {

@@ -14,6 +14,17 @@ enum class FolderViewMode { TREE, FLAT }
 
 enum class PlayerBackground(val label: String) { BLUR("Blurred artwork"), GRADIENT("Colour gradient"), PLAIN("Plain") }
 
+/** How the player shows the music moving. */
+enum class VisualizerStyle(val label: String) { OFF("Off"), BARS("Bars"), WAVE("Wave"), MIRROR("Mirror") }
+
+/** Reverb on everything played; [preset] is Android's PresetReverb number. */
+enum class ReverbPreset(val label: String, val preset: Short) {
+    OFF("Off", 0),
+    ROOM("Room", 2),
+    HALL("Hall", 5),
+    PLATE("Plate", 6),
+}
+
 /** The tabs on the Library page; which show, and their order, is a setting. */
 enum class LibraryTab(val label: String) { SONGS("Songs"), ALBUMS("Albums"), ARTISTS("Artists"), PLAYLISTS("Playlists") }
 
@@ -51,6 +62,10 @@ data class Settings(
     /** Take the app's colours from the playing song's artwork. */
     val artworkColors: Boolean = true,
     val playerBackground: PlayerBackground = PlayerBackground.BLUR,
+    val visualizer: VisualizerStyle = VisualizerStyle.BARS,
+    /** The artwork gently bounces on the beat. */
+    val beatPulse: Boolean = true,
+    val reverb: ReverbPreset = ReverbPreset.OFF,
     val includeAllAudio: Boolean = false,
     val minDurationSec: Int = 10,
     val excludedFolders: Set<String> = emptySet(),
@@ -172,6 +187,9 @@ class SettingsStore(context: Context) {
             accentIndex = prefs.getInt("accentIndex", d.accentIndex),
             artworkColors = prefs.getBoolean("artworkColors", d.artworkColors),
             playerBackground = enumOr(prefs.getString("playerBackground", null), d.playerBackground),
+            visualizer = enumOr(prefs.getString("visualizer", null), d.visualizer),
+            beatPulse = prefs.getBoolean("beatPulse", d.beatPulse),
+            reverb = enumOr(prefs.getString("reverb", null), d.reverb),
             includeAllAudio = prefs.getBoolean("includeAllAudio", d.includeAllAudio),
             minDurationSec = prefs.getInt("minDurationSec", d.minDurationSec),
             excludedFolders = prefs.getStringSet("excludedFolders", null)?.toSet() ?: d.excludedFolders,
@@ -231,6 +249,9 @@ class SettingsStore(context: Context) {
             .putInt("accentIndex", s.accentIndex)
             .putBoolean("artworkColors", s.artworkColors)
             .putString("playerBackground", s.playerBackground.name)
+            .putString("visualizer", s.visualizer.name)
+            .putBoolean("beatPulse", s.beatPulse)
+            .putString("reverb", s.reverb.name)
             .putBoolean("includeAllAudio", s.includeAllAudio)
             .putInt("minDurationSec", s.minDurationSec)
             .putStringSet("excludedFolders", s.excludedFolders)
