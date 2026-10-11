@@ -18,6 +18,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Probe ncs.io (temporary)
+        continue-on-error: true
+        run: bash ci/probe-ncs.sh
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
