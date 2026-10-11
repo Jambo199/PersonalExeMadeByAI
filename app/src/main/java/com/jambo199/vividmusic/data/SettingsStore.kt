@@ -57,6 +57,7 @@ data class Settings(
     val libraryTab: Int = 0,
     val skipSilence: Boolean = false,
     val normalization: Normalization = Normalization.OFF,
+    val fadePlayPause: Boolean = true,
     val stopOnTaskRemoved: Boolean = false,
     val keepScreenOn: Boolean = false,
     val rememberSpeed: Boolean = true,
@@ -157,6 +158,7 @@ class SettingsStore(context: Context) {
             libraryTab = prefs.getInt("libraryTab", d.libraryTab),
             skipSilence = prefs.getBoolean("skipSilence", d.skipSilence),
             normalization = enumOr(prefs.getString("normalization", null), d.normalization),
+            fadePlayPause = prefs.getBoolean("fadePlayPause", d.fadePlayPause),
             stopOnTaskRemoved = prefs.getBoolean("stopOnTaskRemoved", d.stopOnTaskRemoved),
             keepScreenOn = prefs.getBoolean("keepScreenOn", d.keepScreenOn),
             rememberSpeed = prefs.getBoolean("rememberSpeed", d.rememberSpeed),
@@ -204,6 +206,7 @@ class SettingsStore(context: Context) {
             .putInt("libraryTab", s.libraryTab)
             .putBoolean("skipSilence", s.skipSilence)
             .putString("normalization", s.normalization.name)
+            .putBoolean("fadePlayPause", s.fadePlayPause)
             .putBoolean("stopOnTaskRemoved", s.stopOnTaskRemoved)
             .putBoolean("keepScreenOn", s.keepScreenOn)
             .putBoolean("rememberSpeed", s.rememberSpeed)

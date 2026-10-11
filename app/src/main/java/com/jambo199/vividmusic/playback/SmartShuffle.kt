@@ -1,12 +1,15 @@
 package com.jambo199.vividmusic.playback
 
+import android.os.Handler
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ShuffleOrder
+import java.util.concurrent.CopyOnWriteArraySet
 import kotlin.random.Random
 
 /**
@@ -100,9 +103,112 @@ class SmartShuffleOrder private constructor(
     }
 }
 
-/** Wraps ExoPlayer so shuffle always starts from the song that's playing. */
+/**
+ * The player the media session sees: shuffle always starts from the song that's playing, plus a
+ * short volume fade when you press play or pause (from the app, notification, headset or widget)
+ * so music doesn't start or stop with a click. Pauses Android makes itself (headphones
+ * unplugged, a call) stay instant.
+ */
 @OptIn(UnstableApi::class)
-class ShuffleAwarePlayer(private val exo: ExoPlayer) : ForwardingPlayer(exo) {
+class ShuffleAwarePlayer(
+    private val exo: ExoPlayer,
+    /** Fade length in ms, 0 for none. */
+    private val fadeMs: () -> Long = { 0L },
+    /** Volume to fade up to (below 1 when volume normalisation turns a song down). */
+    private val targetVolume: () -> Float = { 1f },
+) : ForwardingPlayer(exo) {
+    private val handler = Handler(exo.applicationLooper)
+    private var fade = 0
+
+    /** True while a fade is moving the volume, so others don't set it underneath. */
+    val isFading: Boolean get() = fadingNow
+    private var fadingNow = false
+
+    /**
+     * Fading out before a pause: the session (and so the app, notification and widget) is told
+     * "paused" straight away, so the play button doesn't flip back and forth.
+     */
+    private var pausing = false
+    private val listeners = CopyOnWriteArraySet<Player.Listener>()
+
+    override fun addListener(listener: Player.Listener) {
+        super.addListener(listener)
+        listeners += listener
+    }
+
+    override fun removeListener(listener: Player.Listener) {
+        super.removeListener(listener)
+        listeners -= listener
+    }
+
+    override fun getPlayWhenReady(): Boolean = !pausing && super.getPlayWhenReady()
+
+    override fun isPlaying(): Boolean = !pausing && super.isPlaying()
+
+    private fun setPausing(value: Boolean) {
+        if (pausing == value) return
+        pausing = value
+        val playing = !value
+        val audible = playing && exo.isPlaying
+        listeners.forEach {
+            it.onPlayWhenReadyChanged(playing, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
+            it.onIsPlayingChanged(audible)
+        }
+    }
+
+    override fun play() {
+        val ms = fadeMs()
+        val id = ++fade
+        setPausing(false)
+        when {
+            ms <= 0 -> {
+                fadingNow = false
+                exo.volume = targetVolume()
+                super.play()
+            }
+            // Pressed play again while it was fading out: come back up from where it got to.
+            exo.isPlaying -> ramp(id, exo.volume, targetVolume(), ms) {}
+            else -> {
+                exo.volume = 0f
+                super.play()
+                ramp(id, 0f, targetVolume(), ms) {}
+            }
+        }
+    }
+
+    override fun pause() {
+        val ms = fadeMs()
+        val id = ++fade
+        if (ms <= 0 || !exo.isPlaying) {
+            fadingNow = false
+            pausing = false
+            super.pause()
+            exo.volume = targetVolume()
+            return
+        }
+        setPausing(true)
+        ramp(id, exo.volume, 0f, ms) {
+            // Pause for real first, so lifting "pausing" doesn't report playing again.
+            exo.pause()
+            pausing = false
+            exo.volume = targetVolume()
+        }
+    }
+
+    private fun ramp(id: Int, from: Float, to: Float, ms: Long, done: () -> Unit) {
+        fadingNow = true
+        val steps = 10
+        for (i in 1..steps) {
+            handler.postDelayed({
+                if (id != fade) return@postDelayed
+                exo.volume = from + (to - from) * i / steps
+                if (i == steps) {
+                    fadingNow = false
+                    done()
+                }
+            }, ms * i / steps)
+        }
+    }
 
     override fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) {
         if (shuffleModeEnabled && !exo.shuffleModeEnabled) reshuffleFromCurrent()

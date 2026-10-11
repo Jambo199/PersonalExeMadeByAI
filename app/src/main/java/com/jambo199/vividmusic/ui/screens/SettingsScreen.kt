@@ -281,6 +281,11 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 }
             }
             item {
+                SwitchRow(null, "Fade on play and pause", "A quick fade instead of an abrupt start or stop", settings.fadePlayPause) { v ->
+                    viewModel.updateSettings { it.copy(fadePlayPause = v) }
+                }
+            }
+            item {
                 SwitchRow(null, "Remember playback speed", "Keep speed and pitch between songs and restarts", settings.rememberSpeed) { v ->
                     viewModel.updateSettings { it.copy(rememberSpeed = v) }
                 }

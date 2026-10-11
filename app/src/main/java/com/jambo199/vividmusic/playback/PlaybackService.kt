@@ -65,6 +65,7 @@ class PlaybackService : MediaLibraryService() {
     private var consecutiveErrors = 0
     private var countedCurrent = false
     private var replayGain = ReplayGain()
+    private var sessionPlayer: ShuffleAwarePlayer? = null
     private var fading = false
     private var unsavedListeningMs = 0L
     private var saveQueueJob: Job? = null
@@ -103,7 +104,12 @@ class PlaybackService : MediaLibraryService() {
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        session = MediaLibrarySession.Builder(this, ShuffleAwarePlayer(exo), SessionCallback())
+        sessionPlayer = ShuffleAwarePlayer(
+            exo,
+            fadeMs = { if (AppGraph.settings.current.fadePlayPause) PLAY_PAUSE_FADE_MS else 0L },
+            targetVolume = { replayGain.volume(AppGraph.settings.current.normalization) },
+        )
+        session = MediaLibrarySession.Builder(this, sessionPlayer!!, SessionCallback())
             .setSessionActivity(openPlayer)
             .setBitmapLoader(ServiceBitmapLoader())
             .build()
@@ -340,7 +346,7 @@ class PlaybackService : MediaLibraryService() {
 
     /** Sets the volume for the song's ReplayGain tags (unless the sleep timer is fading out). */
     private fun applyNormalization() {
-        if (!::exo.isInitialized || fading) return
+        if (!::exo.isInitialized || fading || sessionPlayer?.isFading == true) return
         exo.volume = replayGain.volume(AppGraph.settings.current.normalization)
     }
 
@@ -605,6 +611,7 @@ class PlaybackService : MediaLibraryService() {
         private const val BROWSE_ROOT = "vivid:root"
         private const val RECENT_ROOT = "vivid:recent"
         private const val FADE_MS = 8_000L
+        private const val PLAY_PAUSE_FADE_MS = 220L
         private const val MAX_SKIPS = 6
         private val LYRICS_KEYS = setOf("LYRICS", "UNSYNCEDLYRICS", "SYNCEDLYRICS", "USLT")
         const val ACTION_FAVORITE = "vivid.favorite"
