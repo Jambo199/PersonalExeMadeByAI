@@ -166,6 +166,7 @@ class PlaybackService : MediaLibraryService() {
             exo,
             fadeMs = { if (AppGraph.settings.current.fadePlayPause) PLAY_PAUSE_FADE_MS else 0L },
             targetVolume = { normalizedVolume() },
+            spreadArtists = { AppGraph.settings.current.spreadArtists },
         )
         session = MediaLibrarySession.Builder(this, sessionPlayer!!, SessionCallback())
             .setSessionActivity(openPlayer)

@@ -424,6 +424,11 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 }
             }
             item {
+                SwitchRow(null, "Spread out artists when shuffling", "Songs by the same artist rarely play back to back", settings.spreadArtists) { v ->
+                    viewModel.updateSettings { it.copy(spreadArtists = v) }
+                }
+            }
+            item {
                 SwitchRow(null, "Pause on repeat", "With repeat one on, stop at the end of the song instead of playing it again", settings.pauseOnRepeat) { v ->
                     viewModel.updateSettings { it.copy(pauseOnRepeat = v) }
                 }

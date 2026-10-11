@@ -81,6 +81,8 @@ import com.jambo199.vividmusic.ui.components.SongRow
 import com.jambo199.vividmusic.ui.components.rememberReorderState
 import com.jambo199.vividmusic.ui.components.reorderItem
 import kotlinx.coroutines.delay
+import androidx.compose.material3.OutlinedTextField
+import com.jambo199.vividmusic.AppGraph
 
 // region queue
 
@@ -217,7 +219,17 @@ fun LyricsView(
                 onSearchOnline(false)
             }
         }
-        NoLyrics(lookup, contentColor, onSearchOnline, modifier)
+        var pasting by remember { mutableStateOf(false) }
+        NoLyrics(lookup, contentColor, onSearchOnline, modifier, onPaste = { pasting = true })
+        if (pasting) {
+            PasteLyricsDialog(
+                onDismiss = { pasting = false },
+                onSave = { text ->
+                    AppGraph.lyrics.saveOwn(songKey, text)
+                    pasting = false
+                },
+            )
+        }
         return
     }
     val credit: @Composable () -> Unit = {
@@ -291,6 +303,7 @@ private fun NoLyrics(
     contentColor: Color,
     onSearchOnline: (force: Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    onPaste: () -> Unit = {},
 ) {
     val buttonColors = ButtonDefaults.outlinedButtonColors(contentColor = contentColor)
     val border = BorderStroke(1.dp, contentColor.copy(alpha = 0.5f))
@@ -325,7 +338,42 @@ private fun NoLyrics(
             }
             else -> Unit
         }
+        if (lookup.state != OnlineLookup.State.SEARCHING) {
+            TextButton(onClick = onPaste, colors = ButtonDefaults.textButtonColors(contentColor = contentColor)) {
+                Text("Paste the lyrics yourself")
+            }
+        }
     }
+}
+
+/** A box to paste lyrics into (plain words, or LRC with times); plain ones can be synced after. */
+@Composable
+private fun PasteLyricsDialog(onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var text by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add lyrics") },
+        text = {
+            Column {
+                Text(
+                    "Paste the words (or an LRC with times). Plain words can then be synced: open the lyrics and tap \"Sync these lyrics yourself\".",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    placeholder = { Text("Lyrics") },
+                    minLines = 6,
+                    maxLines = 12,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(text.trim()) }, enabled = text.isNotBlank()) { Text("Save") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)

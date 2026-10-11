@@ -184,7 +184,7 @@ fun LyricsSyncScreen(viewModel: MainViewModel) {
             } else {
                 FilledTonalButton(
                     onClick = {
-                        AppGraph.lyrics.saveSynced(song.key, LrcWriter.write(song.title, song.displayArtist, lines, times.toList()))
+                        AppGraph.lyrics.saveOwn(song.key, LrcWriter.write(song.title, song.displayArtist, lines, times.toList()))
                         viewModel.toast("Synced lyrics saved")
                         nav.back()
                     },

@@ -96,7 +96,8 @@ You can also lock the app in the recent-apps screen (pull the card down).
   lyrics (also on the lock screen and car screens; turn it off in Settings)
 - Shows up in Android's quick-settings media player, which can resume your last song even after the app was closed
 - Favourite button in the notification
-- Smart shuffle: the current song keeps playing, *Play next* really plays next even when shuffled
+- Smart shuffle: the current song keeps playing, *Play next* really plays next even when shuffled,
+  and songs by the same artist are spread out instead of bunching up (can be turned off)
 - Repeat all / one, gapless playback, skip silence
 - Playback speed and pitch
 - Sleep timer (minutes or end of song) with a gentle fade-out
@@ -130,6 +131,7 @@ You can also lock the app in the recent-apps screen (pull the card down).
   plus room / hall / plate **reverb** on anything
 - **Karaoke lyrics**: the line being sung fills with colour as it goes; long-press a line to
   share it as a picture card in the song's colours
+- **Add lyrics** to songs that have none by pasting them in
 - **Sync lyrics yourself**: songs with plain lyrics get a "Sync these lyrics yourself" button –
   tap along as each line starts and they're saved as a synced .lrc for that song
 - **Guess the song**: hear a few seconds and pick the right title (or **name the artist**) – from

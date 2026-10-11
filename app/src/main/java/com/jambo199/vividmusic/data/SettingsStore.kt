@@ -106,6 +106,8 @@ data class Settings(
     val fadePlayPause: Boolean = true,
     /** Seconds to fade out the end of a song and fade in the next, 0 for off. */
     val songFadeSec: Int = 0,
+    /** Shuffle keeps songs by the same artist apart. */
+    val spreadArtists: Boolean = true,
     /** With "repeat one", stop after each play instead of looping (Auxio's "pause on repeat"). */
     val pauseOnRepeat: Boolean = false,
     /** Carry on audiobooks, mixes and other long tracks where they were left. */
@@ -242,6 +244,7 @@ class SettingsStore(context: Context) {
             fadePlayPause = prefs.getBoolean("fadePlayPause", d.fadePlayPause),
             songFadeSec = prefs.getInt("songFadeSec", d.songFadeSec),
             pauseOnRepeat = prefs.getBoolean("pauseOnRepeat", d.pauseOnRepeat),
+            spreadArtists = prefs.getBoolean("spreadArtists", d.spreadArtists),
             rememberPositions = prefs.getBoolean("rememberPositions", d.rememberPositions),
             stopOnTaskRemoved = prefs.getBoolean("stopOnTaskRemoved", d.stopOnTaskRemoved),
             keepScreenOn = prefs.getBoolean("keepScreenOn", d.keepScreenOn),
@@ -312,6 +315,7 @@ class SettingsStore(context: Context) {
             .putBoolean("fadePlayPause", s.fadePlayPause)
             .putInt("songFadeSec", s.songFadeSec)
             .putBoolean("pauseOnRepeat", s.pauseOnRepeat)
+            .putBoolean("spreadArtists", s.spreadArtists)
             .putBoolean("rememberPositions", s.rememberPositions)
             .putBoolean("stopOnTaskRemoved", s.stopOnTaskRemoved)
             .putBoolean("keepScreenOn", s.keepScreenOn)

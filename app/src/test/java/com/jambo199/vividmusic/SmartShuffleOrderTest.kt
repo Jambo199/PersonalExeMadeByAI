@@ -2,8 +2,10 @@ package com.jambo199.vividmusic
 
 import androidx.media3.common.C
 import androidx.media3.exoplayer.source.ShuffleOrder
+import com.jambo199.vividmusic.playback.BalancedShuffle
 import com.jambo199.vividmusic.playback.SmartShuffleOrder
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.random.Random
 
@@ -76,5 +78,34 @@ class SmartShuffleOrderTest {
         assertEquals(C.INDEX_UNSET, cleared.firstIndex)
         val refilled = cleared.cloneAndInsert(0, 12)
         assertConsistent(refilled)
+    }
+
+    @Test
+    fun balancedShuffleKeepsArtistsApart() {
+        // Half the songs by one artist, the rest by three others.
+        val artists = List(20) { "A" } + List(7) { "B" } + List(7) { "C" } + List(6) { "D" }
+        repeat(20) { seed ->
+            val order = BalancedShuffle.order(first = 25, artists = artists, random = Random(seed))
+            assertEquals(25, order.first())
+            assertEquals((0 until 40).toSet(), order.toSet())
+            assertEquals(40, order.size)
+            // Spread evenly, "A" can't be avoided entirely, but long runs of it can.
+            var longestRun = 0
+            var run = 0
+            var last = ""
+            for (i in order) {
+                run = if (artists[i] == last) run + 1 else 1
+                last = artists[i]
+                longestRun = maxOf(longestRun, run)
+            }
+            assertTrue("run of $longestRun with seed $seed", longestRun <= 4)
+        }
+    }
+
+    @Test
+    fun balancedShuffleWithoutArtistsIsStillAShuffle() {
+        val order = BalancedShuffle.order(first = 0, artists = List(10) { "" }, random = Random(1))
+        assertEquals((0 until 10).toList(), order.sorted())
+        assertEquals(0, order.first())
     }
 }

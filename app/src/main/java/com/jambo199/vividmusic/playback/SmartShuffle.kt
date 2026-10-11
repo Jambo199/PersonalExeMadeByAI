@@ -94,6 +94,13 @@ class SmartShuffleOrder private constructor(
     override fun cloneAndClear(): ShuffleOrder = SmartShuffleOrder(IntArray(0), random)
 
     companion object {
+        /**
+         * A random order that starts with [first] and keeps each artist's songs spread out, so
+         * the same artist rarely comes up twice in a row. [artists] has one entry per item.
+         */
+        fun balanced(first: Int, artists: List<String>, random: Random = Random(System.nanoTime())): SmartShuffleOrder =
+            SmartShuffleOrder(BalancedShuffle.order(first, artists, random).toIntArray(), random)
+
         /** A fresh random order that starts with [first]. */
         fun startingWith(first: Int, length: Int, random: Random = Random(System.nanoTime())): SmartShuffleOrder {
             if (length <= 0) return SmartShuffleOrder(IntArray(0), random)
@@ -101,6 +108,39 @@ class SmartShuffleOrder private constructor(
             val order = if (first in 0 until length) listOf(first) + rest else rest
             return SmartShuffleOrder(order.toIntArray(), random)
         }
+    }
+}
+
+/**
+ * Shuffling that spreads artists out: each artist's songs are placed evenly along the queue,
+ * from a random starting point and with a little jitter, then everything is sorted by place.
+ * Songs without an artist count as their own.
+ */
+object BalancedShuffle {
+    fun order(first: Int, artists: List<String>, random: Random): List<Int> {
+        val n = artists.size
+        if (n == 0) return emptyList()
+        val groups = HashMap<String, MutableList<Int>>()
+        artists.forEachIndexed { i, a ->
+            val key = a.trim().lowercase().ifEmpty { "\u0000$i" }
+            groups.getOrPut(key) { ArrayList() } += i
+        }
+        val placed = ArrayList<Pair<Double, Int>>(n)
+        for (songs in groups.values) {
+            songs.shuffle(random)
+            val gap = 1.0 / songs.size
+            val start = random.nextDouble() * gap
+            songs.forEachIndexed { k, index ->
+                val jitter = (random.nextDouble() - 0.5) * gap * 0.2
+                placed += (start + k * gap + jitter) to index
+            }
+        }
+        val order = placed.sortedBy { it.first }.map { it.second }.toMutableList()
+        if (first in 0 until n) {
+            order.remove(first)
+            order.add(0, first)
+        }
+        return order
     }
 }
 
@@ -117,6 +157,8 @@ class ShuffleAwarePlayer(
     private val fadeMs: () -> Long = { 0L },
     /** Volume to fade up to (below 1 when volume normalisation turns a song down). */
     private val targetVolume: () -> Float = { 1f },
+    /** Keep songs by the same artist apart when shuffling. */
+    private val spreadArtists: () -> Boolean = { false },
 ) : ForwardingPlayer(exo) {
     private val handler = Handler(exo.applicationLooper)
     private var fade = 0
@@ -271,6 +313,13 @@ class ShuffleAwarePlayer(
     private fun reshuffleFromCurrent() {
         val count = exo.mediaItemCount
         if (count == 0) return
-        exo.setShuffleOrder(SmartShuffleOrder.startingWith(exo.currentMediaItemIndex, count))
+        val first = exo.currentMediaItemIndex
+        exo.setShuffleOrder(
+            if (spreadArtists()) {
+                SmartShuffleOrder.balanced(first, List(count) { exo.getMediaItemAt(it).mediaMetadata.artist?.toString().orEmpty() })
+            } else {
+                SmartShuffleOrder.startingWith(first, count)
+            },
+        )
     }
 }

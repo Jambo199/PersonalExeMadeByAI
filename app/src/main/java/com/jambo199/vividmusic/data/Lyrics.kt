@@ -188,10 +188,13 @@ class LyricsRepository(
         if (songKey == currentKey) reload()
     }
 
-    /** Keeps lyrics you timed yourself as an .lrc file in the app's storage, linked to the song. */
-    fun saveSynced(songKey: String, lrc: String) {
+    /**
+     * Keeps lyrics you added yourself (pasted, or timed by hand as LRC) in the app's storage,
+     * linked to the song.
+     */
+    fun saveOwn(songKey: String, lrc: String) {
         val dir = File(context.filesDir, "lyrics").apply { mkdirs() }
-        val file = File(dir, "synced_${songKey.hashCode().toUInt()}.lrc")
+        val file = File(dir, "own_${songKey.hashCode().toUInt()}.lrc")
         file.writeText(lrc)
         assign(songKey, Uri.fromFile(file))
     }
