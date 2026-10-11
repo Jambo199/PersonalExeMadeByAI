@@ -153,6 +153,8 @@ shot 10-player-later 4
 adb shell dumpsys media_session | grep -E "state=PlaybackState|description=" | head -6
 adb shell input keyevent KEYCODE_MEDIA_PAUSE
 sleep 1
+echo "after pause (state=2 means paused):"
+adb shell dumpsys media_session | grep -m1 -oE "state=PlaybackState \{state=[0-9]+" || true
 tap "Lyrics" && shot 11-lyrics 2
 tap "Lyrics"
 tap "Queue" && shot 12-queue 3
