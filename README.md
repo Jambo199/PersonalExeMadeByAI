@@ -57,8 +57,13 @@ You can also lock the app in the recent-apps screen (pull the card down).
 - A bottom bar to switch between Home, Library, Folders and NCS (a side rail in landscape)
 
 **NCS (NoCopyrightSounds)**
-- Every NCS release, newest first, straight from [ncs.io](https://ncs.io): search by song or
-  artist, and filter by genre or mood
+- Every NCS release straight from [ncs.io](https://ncs.io), **newest** or **most popular** first
+  (ranked by plays on Deezer's charts), with genre and mood filters
+- Search by song or artist; artists you search for show up first, and each artist has a page
+  with all their NCS releases, most popular first (play, shuffle or save them all)
+- Tap ⋮ (or long-press) a song for **all its details**: artists, release date and year, genres,
+  moods, versions (regular/instrumental), length, chart place, and the credit text NCS asks you
+  to use in videos (copy it in one tap), plus links to ncs.io and the official video
 - Tap to stream (no ads, no account), or **save** songs into Music › NCS so they join your library
   and play offline. Save one song, the list you're looking at, or every NCS song (Wi-Fi only if
   you like); songs you already have are skipped, so running it again picks up new releases
@@ -163,8 +168,8 @@ Kotlin sources live in `app/src/main/java/com/jambo199/vividmusic/`.
 | `data/HomeFeed.kt` | Quick picks and the other Home rows |
 | `data/Stats.kt` | Numbers for the listening stats screen |
 | `data/Backup.kt` | Backup file and restoring it |
-| `online/` | NCS (ncs.io) client, downloads |
-| `ui/online/` | The NCS page |
+| `online/` | NCS (ncs.io) client, most-played chart, downloads |
+| `ui/online/` | The NCS page, artist pages and song info |
 | `playback/PlaybackService.kt` | Media3 ExoPlayer + media session (notification, headset, resume) |
 | `playback/SmartShuffle.kt` | Shuffle order that respects the current song and "Play next" |
 | `playback/PlaybackExtras.kt` | Sleep timer and equalizer/effects |

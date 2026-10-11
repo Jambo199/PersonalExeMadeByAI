@@ -1,6 +1,11 @@
 package com.jambo199.vividmusic
 
+import com.jambo199.vividmusic.online.ChartEntry
+import com.jambo199.vividmusic.online.ChartProgress
 import com.jambo199.vividmusic.online.Ncs
+import com.jambo199.vividmusic.online.NcsArtistRef
+import com.jambo199.vividmusic.online.NcsChart
+import com.jambo199.vividmusic.online.NcsTrack
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -10,11 +15,11 @@ import org.junit.Test
 /** The ncs.io music search, cut down from a real page. */
 class NcsParserTest {
     private fun row(tid: String, title: String, artists: String, file: String, slug: String, date: String) = """
-        <tr>     <td style="width:80px;"><a class="player-play" data-url="https://ncsmusic.s3.eu-west-1.amazonaws.com/tracks/000/002/198/$file.mp3" data-artist="<a href='/artist/1276/x' style='color:#191d24;'>x</a>" data-artistraw="$artists" data-track="$title" data-cover="https://ncsmusic.s3.eu-west-1.amazonaws.com/tracks/000/002/198/100x100/$file.png" data-preview="0" data-tid="$tid" data-versions="Regular" data-genre="Drum &amp; Bass"><i class="far fa-play-circle"></i></a></td>
+        <tr>     <td style="width:80px;"><a class="player-play" data-url="https://ncsmusic.s3.eu-west-1.amazonaws.com/tracks/000/002/198/$file.mp3" data-artist="<a href='/artist/1276/gabriawll' style='color:#191d24;'>gabriawll</a>, <a href='/artist/1512/ada-petcu' style='color:#191d24;'>Ada Petcu</a>" data-artistraw="$artists" data-track="$title" data-cover="https://ncsmusic.s3.eu-west-1.amazonaws.com/tracks/000/002/198/100x100/$file.png" data-preview="0" data-tid="$tid" data-versions="Regular, Instrumental" data-genre="Drum &amp; Bass"><i class="far fa-play-circle"></i></a></td>
         <td style="width:40px;"><span class="genre" style="background:#fff605" title="House"></span></td>
         <td style="width:74px;"><a href="/$slug">              <img src="https://ncsmusic.s3.eu-west-1.amazonaws.com/tracks/000/002/198/100x100/$file.png" alt="$title">          </a></td>
         <td style="width:25%;">         <a href="/$slug">             <p>$title</p></a></td>
-        <td style="width:15%;"><a class="tag" href="/music-search?genre=10">House</a></td>
+        <td style="width:15%;"><a class="tag" style="background-color:#fff605" href="/music-search?genre=10">House</a><a class="tag" style="background-color:#d49613" href="/music-search?mood=32">powerful</a><a class="tag" href="/music-search?mood=6">energetic</a></td>
         <td style="width:15%;">$date</td>
         <td style="width:15%;">Regular</td>
         <td style="width:15%;"><a class="panel-btn btn black" data-panel="#download" data-tid="$tid"><i class="far fa-arrow-to-bottom"></i>Download</a></td>     </tr>
@@ -47,6 +52,87 @@ class NcsParserTest {
         assertEquals("Don't Stop", result.tracks[1].title)
         assertEquals("Zack & Co", result.tracks[1].artists)
         assertEquals("NCS/Zack & Co - Don't Stop.mp3", result.tracks[1].downloadPath)
+        assertEquals(listOf("Drum & Bass", "House"), first.genres)
+        assertEquals(listOf("Powerful", "Energetic"), first.moods)
+        assertEquals("Regular, Instrumental", first.versions)
+        assertEquals(2026, first.year)
+        assertEquals(
+            listOf(NcsArtistRef("gabriawll", "/artist/1276/gabriawll"), NcsArtistRef("Ada Petcu", "/artist/1512/ada-petcu")),
+            first.artistLinks,
+        )
+    }
+
+    @Test
+    fun artistPage() {
+        val html = """
+            <div class="img" style="background-image: url('https://ncsmusic.s3.eu-west-1.amazonaws.com/artists/000/000/013/325x325/1680848518_PmrrHgs9Ro_x.png')"></div>
+            <div class="col-lg-6"> <div class="info"> <h5>Alan Walker</h5> <span class="tags">House, Melodic Dubstep, </span> <p></p> </div> </div>
+            <h5>Popular Tracks</h5><table><thead><tr><th>Title</th></tr></thead><tbody>
+            ${row("af3e020d", "Dreamer", "Alan Walker", "dreamer-1680825645", "dreamer", "7 Apr 2023")}
+            </tbody></table>
+        """
+        val artist = Ncs.parseArtist(html, "/artist/13/alan-walker")
+        assertEquals("Alan Walker", artist.name)
+        assertEquals("House, Melodic Dubstep", artist.tags)
+        assertEquals("https://ncsmusic.s3.eu-west-1.amazonaws.com/artists/000/000/013/325x325/1680848518_PmrrHgs9Ro_x.png", artist.image)
+        assertEquals(listOf("Dreamer"), artist.tracks.map { it.title })
+    }
+
+    @Test
+    fun trackPageCredit() {
+        val html = """<div class="attribution"><p class="p-copy" id="panel-copy2">Song: Gabriawll - Desire ft Ada Petcu<br /> Music provided by NoCopyrightSounds<br /> Free Download/Stream: http://ncs.io/g_desire<br /> Watch: https://ncs.lnk.to/g_desireAT/youtube</p></div>"""
+        val details = Ncs.parseDetails(html)
+        assertEquals(
+            "Song: Gabriawll - Desire ft Ada Petcu\nMusic provided by NoCopyrightSounds\nFree Download/Stream: http://ncs.io/g_desire\nWatch: https://ncs.lnk.to/g_desireAT/youtube",
+            details.credit,
+        )
+        assertEquals("https://ncs.lnk.to/g_desireAT/youtube", details.video)
+        assertEquals("", Ncs.parseDetails("<html></html>").credit)
+    }
+
+    @Test
+    fun matchingOtherServicesNames() {
+        assertEquals("Heroes Tonight", Ncs.baseTitle("Heroes Tonight (feat. Johnning)"))
+        assertEquals("Royalty", Ncs.baseTitle("Royalty feat. Neoni"))
+        assertEquals("Sky High (Carpe Remix)", Ncs.baseTitle("Sky High (Carpe Remix)"))
+        val track = Ncs.parse(page, 1).tracks[0] // "Desire" by gabriawll, Ada Petcu
+        assertTrue(Ncs.matches(track, "Desire", "Ada Petcu"))
+        assertTrue(Ncs.matches(track, "Desire (feat. Ada Petcu)", "gabriawll"))
+        assertFalse(Ncs.matches(track, "Desire (Slowed)", "gabriawll"))
+        assertFalse(Ncs.matches(track, "Desire", "Someone Else"))
+        // Only whole words of the artist names count.
+        assertFalse(Ncs.matches(track, "Desire", "Petc"))
+    }
+
+    @Test
+    fun deezerChart() {
+        val json = """{"data":[{"id":1,"title":"Cradles","duration":209,"rank":456128,"artist":{"name":"Sub Urban"}},
+            {"id":2,"title":"On & On","duration":207,"artist":{"name":" Cartoon"}}],"total":300,"next":"https://api.deezer.com/search?index=25"}"""
+        val page = NcsChart.parse(json)
+        assertEquals(listOf(ChartEntry("Cradles", "Sub Urban", 209_000), ChartEntry("On & On", "Cartoon", 207_000)), page.entries)
+        assertTrue(page.hasMore)
+        assertFalse(NcsChart.parse("""{"data":[],"total":300}""").hasMore)
+        try {
+            NcsChart.parse("""{"error":{"type":"Exception","message":"Quota limit exceeded","code":4}}""")
+            throw AssertionError("expected an error")
+        } catch (e: java.io.IOException) {
+            assertEquals("Quota limit exceeded", e.message)
+        }
+    }
+
+    @Test
+    fun keepsTracksBetweenRuns() {
+        val track = Ncs.parse(page, 1).tracks[0].copy(durationMs = 209_000, rank = 3)
+        assertEquals(track, NcsTrack.fromJson(track.toJson()))
+        val file = java.io.File.createTempFile("chart", ".json")
+        try {
+            file.writeText(ChartProgress(listOf(track), nextIndex = 25, hasMore = true, savedAt = 1_000).toJson())
+            assertEquals(listOf(track), ChartProgress.load(file, now = 2_000)?.tracks)
+            // Older than three days: fetched again.
+            assertNull(ChartProgress.load(file, now = 1_000 + ChartProgress.MAX_AGE_MS + 1))
+        } finally {
+            file.delete()
+        }
     }
 
     @Test

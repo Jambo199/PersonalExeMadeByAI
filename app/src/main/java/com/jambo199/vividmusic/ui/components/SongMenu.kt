@@ -77,11 +77,14 @@ import com.jambo199.vividmusic.data.TagEdits
 import com.jambo199.vividmusic.data.formatDuration
 import com.jambo199.vividmusic.data.formatSize
 import com.jambo199.vividmusic.data.pluralize
+import com.jambo199.vividmusic.online.NcsSeen
+import com.jambo199.vividmusic.online.NcsTrack
 import com.jambo199.vividmusic.ui.DeleteRequest
 import com.jambo199.vividmusic.ui.LocalNav
 import com.jambo199.vividmusic.ui.MainViewModel
 import com.jambo199.vividmusic.ui.SongMenuRequest
 import com.jambo199.vividmusic.ui.SongMenuState
+import com.jambo199.vividmusic.ui.online.NcsInfoSheet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.DateFormat
@@ -98,6 +101,7 @@ fun SongMenuHost(state: SongMenuState, viewModel: MainViewModel) {
 
     var details by remember { mutableStateOf<Song?>(null) }
     var editing by remember { mutableStateOf<Song?>(null) }
+    var ncsInfo by remember { mutableStateOf<NcsTrack?>(null) }
     // Android's "allow changing this file?" dialog for the tag editor.
     var askTagPermission: (IntentSender) -> Unit = {}
     val tagPermission = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
@@ -181,6 +185,9 @@ fun SongMenuHost(state: SongMenuState, viewModel: MainViewModel) {
                             }
                         }
                     } else if (single != null) {
+                        if (single.key.startsWith(Song.NCS_PREFIX)) {
+                            MenuRow(Icons.Rounded.Info, "Song info") { act { ncsInfo = NcsSeen[single.key] ?: NcsTrack.fromSong(single) } }
+                        }
                         MenuRow(Icons.Rounded.Share, "Share link") { act { shareLink(context, single) } }
                     }
                     val deletable = songs.filter { it.source == SongSource.MEDIA_STORE || it.source == SongSource.FOLDER }
@@ -210,6 +217,8 @@ fun SongMenuHost(state: SongMenuState, viewModel: MainViewModel) {
     }
 
     details?.let { song -> SongDetailsDialog(song) { details = null } }
+
+    ncsInfo?.let { track -> NcsInfoSheet(track, viewModel) { ncsInfo = null } }
 
     editing?.let { song ->
         EditTagsDialog(

@@ -21,6 +21,7 @@ object Routes {
     const val FOLDER = "folder/{key}"
     const val PLAYLIST = "playlist/{id}"
     const val GENRE = "genre/{name}"
+    const val NCS_ARTIST = "ncs_artist/{path}"
 }
 
 @Stable
@@ -30,6 +31,7 @@ class NavActions(private val nav: NavHostController) {
     fun folder(key: String) = nav.navigate("folder/${Uri.encode(key)}")
     fun playlist(id: Long) = nav.navigate("playlist/$id") { launchSingleTop = true }
     fun genre(name: String) = nav.navigate("genre/${Uri.encode(name)}") { launchSingleTop = true }
+    fun ncsArtist(path: String) = nav.navigate("ncs_artist/${Uri.encode(path)}") { launchSingleTop = true }
     fun nowPlaying() = nav.navigate(Routes.NOW_PLAYING) { launchSingleTop = true }
     fun search() = nav.navigate(Routes.SEARCH) { launchSingleTop = true }
     fun settings() = nav.navigate(Routes.SETTINGS) { launchSingleTop = true }

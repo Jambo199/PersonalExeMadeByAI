@@ -6,22 +6,40 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.jambo199.vividmusic.AppGraph
+import com.jambo199.vividmusic.data.writeTextAtomically
+import com.jambo199.vividmusic.online.ChartProgress
 import com.jambo199.vividmusic.online.Downloads
+import com.jambo199.vividmusic.online.Load
 import com.jambo199.vividmusic.online.Ncs
+import com.jambo199.vividmusic.online.NcsArtist
+import com.jambo199.vividmusic.online.NcsChart
 import com.jambo199.vividmusic.online.NcsFilter
+import com.jambo199.vividmusic.online.NcsSeen
 import com.jambo199.vividmusic.online.NcsTrack
+import com.jambo199.vividmusic.online.NcsTrackDetails
 import com.jambo199.vividmusic.online.OnlineData
 import com.jambo199.vividmusic.online.friendlyMessage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.File
+
+/** How the NCS page orders songs. */
+enum class NcsSort(val label: String) { NEWEST("Newest"), POPULAR("Most popular") }
 
 /** What the NCS page lists: a search and/or genre or mood, loaded a page at a time. */
 @Immutable
@@ -29,6 +47,7 @@ data class NcsListing(
     val query: String = "",
     val genre: NcsFilter? = null,
     val mood: NcsFilter? = null,
+    val sort: NcsSort = NcsSort.NEWEST,
     val tracks: List<NcsTrack> = emptyList(),
     val pages: Int = 0,
     val hasMore: Boolean = true,
@@ -37,7 +56,16 @@ data class NcsListing(
 ) {
     val filtered: Boolean get() = query.isNotBlank() || genre != null || mood != null
 
-    fun sameSearch(other: NcsListing) = query == other.query && genre == other.genre && mood == other.mood
+    /** The most-played chart; a typed search always shows ncs.io's own results. */
+    val popular: Boolean get() = sort == NcsSort.POPULAR && query.isBlank()
+
+    fun sameSearch(other: NcsListing) =
+        query == other.query && genre == other.genre && mood == other.mood && sort == other.sort
+
+    /** Whether [t] fits the chosen genre and mood (for the chart, which ncs.io can't narrow). */
+    fun accepts(t: NcsTrack): Boolean =
+        (genre == null || t.genres.any { it.equals(genre.name, ignoreCase = true) }) &&
+            (mood == null || t.moods.any { it.equals(mood.name, ignoreCase = true) })
 }
 
 /** Progress of "save every song". */
@@ -60,6 +88,8 @@ class NcsViewModel(app: Application) : AndroidViewModel(app) {
     fun start() {
         val l = _listing.value
         if (l.pages == 0 && !l.loading && l.error == null) loadMore()
+        // The filter menus come with ncs.io's own pages; fetch them when starting on the chart.
+        if (_genres.value.isEmpty() && l.popular) loadFilters()
     }
 
     fun search(query: String) = restart(_listing.value.copy(query = query.trim()))
@@ -68,11 +98,14 @@ class NcsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun selectMood(mood: NcsFilter?) = restart(_listing.value.copy(mood = mood))
 
+    fun selectSort(sort: NcsSort) = restart(_listing.value.copy(sort = sort))
+
     private fun restart(wanted: NcsListing) {
         if (wanted.sameSearch(_listing.value) && _listing.value.pages > 0) return
         loadJob?.cancel()
-        _listing.value = NcsListing(query = wanted.query, genre = wanted.genre, mood = wanted.mood)
-        loadMore()
+        _listing.value = NcsListing(query = wanted.query, genre = wanted.genre, mood = wanted.mood, sort = wanted.sort)
+        if (_listing.value.popular && chart.tracks.isNotEmpty()) showChart() else loadMore()
+        if (_genres.value.isEmpty() && _listing.value.popular) loadFilters()
     }
 
     /** Loads the next page, or tries the last one again after an error. */
@@ -81,6 +114,13 @@ class NcsViewModel(app: Application) : AndroidViewModel(app) {
         if (l.loading || !l.hasMore) return
         _listing.value = l.copy(loading = true, error = null)
         loadJob = viewModelScope.launch {
+            if (l.popular) {
+                val result = runCatching { loadChartPage() }
+                if (!_listing.value.sameSearch(l)) return@launch
+                result.onSuccess { showChart() }
+                    .onFailure { e -> _listing.value = _listing.value.copy(loading = false, error = e.friendlyMessage()) }
+                return@launch
+            }
             val result = withContext(Dispatchers.IO) {
                 runCatching { Ncs.search(l.query, l.genre?.id, l.mood?.id, l.pages + 1) }
             }
@@ -89,6 +129,7 @@ class NcsViewModel(app: Application) : AndroidViewModel(app) {
             result.onSuccess { page ->
                 if (page.genres.isNotEmpty()) _genres.value = page.genres
                 if (page.moods.isNotEmpty()) _moods.value = page.moods
+                NcsSeen.add(page.tracks)
                 val seen = now.tracks.mapTo(HashSet()) { it.id }
                 val fresh = page.tracks.filter { seen.add(it.id) }
                 _listing.value = now.copy(
@@ -102,6 +143,121 @@ class NcsViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+
+    private var filtersJob: Job? = null
+
+    private fun loadFilters() {
+        if (filtersJob?.isActive == true) return
+        filtersJob = viewModelScope.launch {
+            withContext(Dispatchers.IO) { runCatching { Ncs.search() } }.onSuccess { page ->
+                if (page.genres.isNotEmpty()) _genres.value = page.genres
+                if (page.moods.isNotEmpty()) _moods.value = page.moods
+            }
+        }
+    }
+
+    // region most played
+
+    private val chartFile = File(app.cacheDir, "ncs_chart.json")
+    private val chartLock = Mutex()
+    private var chart = ChartProgress()
+    private var chartRead = false
+
+    /** The chart so far, narrowed to the chosen genre and mood. */
+    private fun showChart() {
+        val l = _listing.value
+        val tracks = chart.tracks.filter { l.accepts(it) }
+        _listing.value = l.copy(
+            tracks = tracks,
+            pages = maxOf(1, chart.nextIndex / CHART_PAGE),
+            hasMore = chart.hasMore,
+            loading = false,
+            error = null,
+        )
+    }
+
+    /** Matches the next places in the chart to their releases on ncs.io. */
+    private suspend fun loadChartPage(): Unit = chartLock.withLock {
+        withContext(Dispatchers.IO) {
+            if (!chartRead) {
+                chartRead = true
+                val saved = ChartProgress.load(chartFile, System.currentTimeMillis())
+                if (saved != null) {
+                    chart = saved
+                    NcsSeen.add(saved.tracks)
+                    return@withContext
+                }
+            }
+            if (!chart.hasMore) return@withContext
+            val page = NcsChart.page(chart.nextIndex, CHART_PAGE)
+            val gate = Semaphore(4)
+            val found = coroutineScope {
+                page.entries.map { e ->
+                    async { gate.withPermit { Ncs.find(e.title, e.artist)?.copy(durationMs = e.durationMs) } }
+                }.awaitAll()
+            }
+            val seen = chart.tracks.mapTo(HashSet()) { it.id }
+            var place = chart.tracks.size
+            val fresh = found.filterNotNull().filter { seen.add(it.id) }.map { it.copy(rank = ++place) }
+            NcsSeen.add(fresh)
+            chart = ChartProgress(
+                tracks = chart.tracks + fresh,
+                nextIndex = chart.nextIndex + page.entries.size,
+                hasMore = page.hasMore,
+                savedAt = chart.savedAt.takeIf { it > 0 } ?: System.currentTimeMillis(),
+            )
+            chartFile.writeTextAtomically(chart.toJson())
+            Unit
+        }
+    }
+
+    // endregion
+
+    // region artists and song details
+
+    private val artists = HashMap<String, MutableStateFlow<Load<NcsArtist>>>()
+
+    /** An NCS artist's page, most popular songs first. */
+    fun artist(path: String, retry: Boolean = false): StateFlow<Load<NcsArtist>> {
+        val flow = artists.getOrPut(path) { MutableStateFlow(Load.Failed("")) }
+        if (flow.value is Load.Failed || (retry && flow.value !is Load.Loading)) {
+            flow.value = Load.Loading
+            viewModelScope.launch {
+                flow.value = withContext(Dispatchers.IO) {
+                    try {
+                        val a = Ncs.artist(path)
+                        NcsSeen.add(a.tracks)
+                        Load.Ready(a)
+                    } catch (e: Exception) {
+                        Load.Failed(e.friendlyMessage())
+                    }
+                }
+            }
+        }
+        return flow
+    }
+
+    private val details = HashMap<String, MutableStateFlow<Load<NcsTrackDetails>>>()
+
+    /** The credit text and video link from a song's page on ncs.io. */
+    fun details(page: String): StateFlow<Load<NcsTrackDetails>> {
+        val flow = details.getOrPut(page) { MutableStateFlow(Load.Failed("")) }
+        if (flow.value is Load.Failed) {
+            flow.value = Load.Loading
+            viewModelScope.launch {
+                flow.value = withContext(Dispatchers.IO) {
+                    try {
+                        Load.Ready(Ncs.details(page))
+                    } catch (e: Exception) {
+                        Load.Failed(e.friendlyMessage())
+                    }
+                }
+            }
+        }
+        return flow
+    }
+
+    // endregion
 
     // region saving
 
@@ -147,6 +303,10 @@ class NcsViewModel(app: Application) : AndroidViewModel(app) {
     fun saveEverything(libraryPaths: Set<String>, wifiOnly: Boolean) {
         if (saveAllJob?.isActive == true) return
         val search = _listing.value
+        if (search.popular) {
+            saveChart(search, libraryPaths, wifiOnly)
+            return
+        }
         saveAllJob = viewModelScope.launch {
             var page = 1
             var queued = 0
@@ -166,6 +326,28 @@ class NcsViewModel(app: Application) : AndroidViewModel(app) {
                 delay(PAGE_PAUSE_MS) // go easy on ncs.io
             }
             _saveAll.value = NcsSaveAll(page, queued, running = false)
+        }
+    }
+
+    /** Matches the rest of the chart, then saves all of it (in the chosen genre and mood). */
+    private fun saveChart(search: NcsListing, libraryPaths: Set<String>, wifiOnly: Boolean) {
+        saveAllJob = viewModelScope.launch {
+            var pages = 0
+            _saveAll.value = NcsSaveAll(0, 0, running = true)
+            try {
+                do {
+                    loadChartPage()
+                    pages++
+                    if (_listing.value.sameSearch(search)) showChart()
+                    _saveAll.value = NcsSaveAll(pages, 0, running = true)
+                } while (chart.hasMore && isActive)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                _saveAll.value = NcsSaveAll(pages, 0, running = false, error = e.friendlyMessage())
+                return@launch
+            }
+            val queued = save(chart.tracks.filter { search.accepts(it) }, libraryPaths, quiet = true, wifiOnly = wifiOnly)
+            _saveAll.value = NcsSaveAll(pages, queued, running = false)
         }
     }
 
@@ -212,5 +394,8 @@ class NcsViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         private const val PAGE_PAUSE_MS = 400L
+
+        /** Chart places matched per page (each needs a look-up on ncs.io). */
+        private const val CHART_PAGE = 25
     }
 }

@@ -228,6 +228,23 @@ if tap "Save to phone"; then
 fi
 tap "Save" && shot 36-ncs-save-dialog 2
 adb shell input keyevent KEYCODE_BACK
+echo "== NCS most popular, song info and artist pages"
+shortcut ncs
+if tap "Most popular"; then shot 37-ncs-popular 30; fi
+if tap "Song info"; then
+  shot 38-ncs-info 6
+  first_artist=$(text_after "Artists")
+  echo "first artist in the song info: $first_artist"
+  if [ -n "$first_artist" ] && tap "$first_artist"; then shot 39-ncs-artist 10; fi
+fi
+shortcut ncs
+tap "Newest"
+if tap "Search NCS songs and artists"; then
+  adb shell input text "alan%swalker"
+  adb shell input keyevent KEYCODE_ENTER
+  shot 40-ncs-search-artist 10
+  if tap "Alan Walker"; then shot 41-ncs-alan-walker 10; fi
+fi
 adb logcat -d | grep -E "NcsViewModel|ExoPlayerImplInternal.*rror|DownloadManager" | tail -5
 
 echo "== Other screens"
