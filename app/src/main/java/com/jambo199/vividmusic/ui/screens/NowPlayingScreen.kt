@@ -62,12 +62,14 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -217,12 +219,15 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                 .safeDrawingPadding(),
             contentAlignment = Alignment.Center,
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Rounded.MusicNote, contentDescription = null, modifier = Modifier.size(64.dp))
-                Spacer(Modifier.height(12.dp))
-                Text("Nothing is playing", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(12.dp))
-                IconButton(onClick = { nav.back() }) { Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Close") }
+            // The blurred-background setting forces a dark background even in the light theme.
+            CompositionLocalProvider(LocalContentColor provides controlColor) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Rounded.MusicNote, contentDescription = null, modifier = Modifier.size(64.dp))
+                    Spacer(Modifier.height(12.dp))
+                    Text("Nothing is playing", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(12.dp))
+                    IconButton(onClick = { nav.back() }) { Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Close") }
+                }
             }
         }
         return

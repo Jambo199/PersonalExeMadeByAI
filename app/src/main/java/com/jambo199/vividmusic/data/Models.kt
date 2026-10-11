@@ -142,11 +142,12 @@ data class Library(
     val genres: List<Genre> by lazy {
         val groups = LinkedHashMap<String, Pair<String, MutableList<Song>>>()
         for (song in songs) {
-            for (raw in song.genre.split(';', '\u0000')) {
-                val name = raw.trim()
-                if (name.isEmpty() || name.equals("<unknown>", ignoreCase = true)) continue
-                groups.getOrPut(name.lowercase()) { name to ArrayList() }.second += song
-            }
+            song.genre.split(';', '\u0000')
+                .map { it.trim() }
+                .filter { it.isNotEmpty() && !it.equals("<unknown>", ignoreCase = true) }
+                // "Rock; rock" must not list the song twice.
+                .distinctBy { it.lowercase() }
+                .forEach { name -> groups.getOrPut(name.lowercase()) { name to ArrayList() }.second += song }
         }
         val order = compareBy<Song>({ sortKey(it.displayArtist) }, { sortKey(it.displayAlbum) }, { it.trackNumber }, { sortKey(it.title) })
         groups.values.map { (name, list) -> Genre(name, list.sortedWith(order)) }.sortedByDescending { it.songs.size }

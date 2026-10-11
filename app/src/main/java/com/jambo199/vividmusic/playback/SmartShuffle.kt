@@ -167,11 +167,11 @@ class ShuffleAwarePlayer(
                 super.play()
             }
             // Pressed play again while it was fading out: come back up from where it got to.
-            exo.isPlaying -> ramp(id, exo.volume, targetVolume(), ms) {}
+            exo.isPlaying -> ramp(id, exo.volume, targetVolume, ms) {}
             else -> {
                 exo.volume = 0f
                 super.play()
-                ramp(id, 0f, targetVolume(), ms) {}
+                ramp(id, 0f, targetVolume, ms) {}
             }
         }
     }
@@ -187,7 +187,7 @@ class ShuffleAwarePlayer(
             return
         }
         setPausing(true)
-        ramp(id, exo.volume, 0f, ms) {
+        ramp(id, exo.volume, { 0f }, ms) {
             // Pause for real first, so lifting "pausing" doesn't report playing again.
             exo.pause()
             pausing = false
@@ -195,13 +195,17 @@ class ShuffleAwarePlayer(
         }
     }
 
-    private fun ramp(id: Int, from: Float, to: Float, ms: Long, done: () -> Unit) {
+    /**
+     * Moves the volume from [from] to [to] in steps. [to] is read at every step because a new
+     * song's ReplayGain tags can arrive during the fade.
+     */
+    private fun ramp(id: Int, from: Float, to: () -> Float, ms: Long, done: () -> Unit) {
         fadingNow = true
         val steps = 10
         for (i in 1..steps) {
             handler.postDelayed({
                 if (id != fade) return@postDelayed
-                exo.volume = from + (to - from) * i / steps
+                exo.volume = from + (to() - from) * i / steps
                 if (i == steps) {
                     fadingNow = false
                     done()
