@@ -67,6 +67,8 @@ data class Settings(
     /** Look up lyrics on LRCLIB when you open the lyrics of a song that has none. */
     val onlineLyrics: Boolean = true,
     val autoCheckUpdates: Boolean = true,
+    /** Most recent first. */
+    val searchHistory: List<String> = emptyList(),
     val eq: EqSettings = EqSettings(),
 )
 
@@ -164,6 +166,7 @@ class SettingsStore(context: Context) {
             showLyricsWhenAvailable = prefs.getBoolean("showLyricsWhenAvailable", d.showLyricsWhenAvailable),
             onlineLyrics = prefs.getBoolean("onlineLyrics", d.onlineLyrics),
             autoCheckUpdates = prefs.getBoolean("autoCheckUpdates", d.autoCheckUpdates),
+            searchHistory = readList("searchHistory"),
             eq = EqSettings(
                 enabled = prefs.getBoolean("eq.enabled", false),
                 preset = prefs.getInt("eq.preset", -1),
@@ -210,6 +213,7 @@ class SettingsStore(context: Context) {
             .putBoolean("showLyricsWhenAvailable", s.showLyricsWhenAvailable)
             .putBoolean("onlineLyrics", s.onlineLyrics)
             .putBoolean("autoCheckUpdates", s.autoCheckUpdates)
+            .putString("searchHistory", JSONArray(s.searchHistory).toString())
             .putBoolean("eq.enabled", s.eq.enabled)
             .putInt("eq.preset", s.eq.preset)
             .putString("eq.bands", s.eq.bandLevels.joinToString(","))

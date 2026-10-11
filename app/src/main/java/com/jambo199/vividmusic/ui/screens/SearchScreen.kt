@@ -1,8 +1,11 @@
 package com.jambo199.vividmusic.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -18,12 +21,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -31,6 +36,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -51,6 +57,7 @@ import com.jambo199.vividmusic.ui.components.SongRow
 @Composable
 fun SearchScreen(viewModel: MainViewModel) {
     val query by viewModel.query.collectAsState()
+    val settings by viewModel.settings.collectAsState()
     val results by viewModel.searchResults.collectAsState()
     val playback by viewModel.playback.collectAsState()
     val nav = LocalNav.current
@@ -77,7 +84,10 @@ fun SearchScreen(viewModel: MainViewModel) {
             },
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
+            keyboardActions = KeyboardActions(onSearch = {
+                keyboard?.hide()
+                viewModel.rememberSearch(query)
+            }),
             shape = RoundedCornerShape(28.dp),
             colors = TextFieldDefaults.colors(
                 focusedIndicatorColor = Color.Transparent,
@@ -91,7 +101,34 @@ fun SearchScreen(viewModel: MainViewModel) {
         )
 
         if (query.isBlank()) {
-            EmptyState(Icons.Rounded.Search, "Search your music", "Type a song, artist, album or folder name.")
+            val history = settings.searchHistory
+            if (history.isEmpty()) {
+                EmptyState(Icons.Rounded.Search, "Search your music", "Type a song, artist, album or folder name.")
+            } else {
+                LazyColumn(contentPadding = PaddingValues(bottom = LocalBottomPadding.current + 8.dp)) {
+                    item {
+                        SectionHeader("Recent searches") {
+                            TextButton(onClick = { viewModel.clearSearchHistory() }) { Text("Clear") }
+                        }
+                    }
+                    items(history, key = { "h:$it" }) { past ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.setQuery(past) }
+                                .padding(start = 16.dp, end = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(Icons.Rounded.History, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.width(16.dp))
+                            Text(past, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f), maxLines = 1)
+                            IconButton(onClick = { viewModel.forgetSearch(past) }) {
+                                Icon(Icons.Rounded.Close, contentDescription = "Remove $past", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+            }
             return@Column
         }
         if (results.isEmpty && results.query == query) {
@@ -105,6 +142,7 @@ fun SearchScreen(viewModel: MainViewModel) {
                 items(results.artists.take(8), key = { "ar:" + it.name }) { artist ->
                     ArtistRow(artist) {
                         keyboard?.hide()
+                        viewModel.rememberSearch(query)
                         nav.artist(artist.name)
                     }
                 }
@@ -119,6 +157,7 @@ fun SearchScreen(viewModel: MainViewModel) {
                         items(results.albums, key = { it.id }) { album ->
                             AlbumCard(album, Modifier.width(140.dp)) {
                                 keyboard?.hide()
+                                viewModel.rememberSearch(query)
                                 nav.album(album.id)
                             }
                         }
@@ -130,6 +169,7 @@ fun SearchScreen(viewModel: MainViewModel) {
                 items(results.folders.take(10), key = { "f:" + it.key }) { folder ->
                     FolderRow(folder, subtitle = folder.displayPath.substringBeforeLast('/')) {
                         keyboard?.hide()
+                        viewModel.rememberSearch(query)
                         nav.folder(folder.key)
                     }
                 }
@@ -144,6 +184,7 @@ fun SearchScreen(viewModel: MainViewModel) {
                         selected = selection.isSelected(song),
                         onClick = {
                             keyboard?.hide()
+                            viewModel.rememberSearch(query)
                             if (selection.active) selection.toggle(song)
                             else viewModel.play(results.songs, index, "Search · $query")
                         },

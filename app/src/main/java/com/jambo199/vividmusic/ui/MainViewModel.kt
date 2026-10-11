@@ -221,6 +221,19 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _query.value = q
     }
 
+    /** Keeps a search you acted on, for the "Recent searches" list. */
+    fun rememberSearch(q: String) {
+        val text = q.trim()
+        if (text.length < 2) return
+        updateSettings { s ->
+            s.copy(searchHistory = (listOf(text) + s.searchHistory.filterNot { it.equals(text, ignoreCase = true) }).take(12))
+        }
+    }
+
+    fun forgetSearch(q: String) = updateSettings { s -> s.copy(searchHistory = s.searchHistory - q) }
+
+    fun clearSearchHistory() = updateSettings { it.copy(searchHistory = emptyList()) }
+
     // endregion
 
     init {
