@@ -66,6 +66,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
@@ -175,10 +176,13 @@ class PlaybackService : MediaLibraryService() {
             .build()
 
         setMediaNotificationProvider(
-            ProgressNotificationProvider(
-                DefaultMediaNotificationProvider.Builder(this).build().apply {
-                    setSmallIcon(R.drawable.ic_notification)
-                },
+            CardNotificationProvider(
+                this,
+                ProgressNotificationProvider(
+                    DefaultMediaNotificationProvider.Builder(this).build().apply {
+                        setSmallIcon(R.drawable.ic_notification)
+                    },
+                ),
             ),
         )
         // The separate "Live Update" notification from an earlier version is gone.
@@ -422,6 +426,12 @@ class PlaybackService : MediaLibraryService() {
                     }
                     delay(wait)
                 }
+            }
+        }
+        // Switching the notification's look shows the new one straight away.
+        scope.launch {
+            AppGraph.settings.state.map { it.notificationStyle }.distinctUntilChanged().drop(1).collect {
+                session?.let { s -> onUpdateNotification(s, exo.isPlaying) }
             }
         }
         // Keeps the progress bar on the music notification moving while music plays.

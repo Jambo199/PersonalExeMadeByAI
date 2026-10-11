@@ -93,12 +93,14 @@ You can also lock the app in the recent-apps screen (pull the card down).
 
 **Playback**
 - Background playback with notification, lock-screen and Bluetooth/headset controls
-- One music notification with a **progress bar** that moves as the song plays (also on phones like
-  vivo that draw their own music card), and the **line being sung** in place of the artist for songs
-  with synced lyrics (lock screen, car screens…). Note: vivo's island only shows music from apps on
-  vivo's own list, so sideloaded players can't appear there
-- Shows up in Android's quick-settings media player, which can resume your last song even after the app was closed
-- Favourite button in the notification
+- One music notification: a card with the artwork, a **progress bar** that moves as the song plays
+  and the time played, plus previous / play-pause / next. It shows on every phone, including vivo,
+  whose own music card has no progress bar. Prefer the phone's media player (with the favourite
+  button, and Android's quick-settings player that can resume your last song even after the app
+  was closed)? Settings › Playback › Music notification
+- The **line being sung** in place of the artist for songs with synced lyrics (notification, lock
+  screen, car screens…). Note: vivo's island only shows music from apps on vivo's own list, so
+  sideloaded players can't appear there
 - Smart shuffle: the current song keeps playing, *Play next* really plays next even when shuffled,
   and songs by the same artist are spread out instead of bunching up (can be turned off)
 - Repeat all / one, gapless playback, skip silence

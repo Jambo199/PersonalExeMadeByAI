@@ -31,6 +31,12 @@ shot() {
   adb exec-out screencap -p > "$OUT/$1.png" && echo "📸 $1"
   if dump; then echo "   texts: $(python3 "$HERE/ui.py" /tmp/ui.xml --texts)"; fi
 }
+shade_shot() { # the notification shade (shot() would close it)
+  adb shell cmd statusbar expand-notifications
+  sleep "${2:-3}"
+  adb exec-out screencap -p > "$OUT/$1.png" && echo "📸 $1"
+  adb shell cmd statusbar collapse
+}
 launch() { adb shell am start -W -n "$PKG/.MainActivity" "$@" > /dev/null; }
 shortcut() { launch --es vivid.shortcut "$1"; }
 tap() { # tap on the element labelled $1 ($2 = "top" picks the highest match on screen)
@@ -185,10 +191,10 @@ if tap "Speed"; then
   adb shell input keyevent KEYCODE_BACK
 fi
 adb shell dumpsys media_session | grep -E "state=PlaybackState|description=" | head -6
-echo "-- music notification progress (should move between the two):"
-adb shell dumpsys notification --noredact | grep -A60 "pkg=$PKG" | grep -m2 -E "android.progress(Max)?="
+echo "-- music notification (channel now_playing; progress should move between the two):"
+adb shell dumpsys notification --noredact | grep -A60 "pkg=$PKG" | grep -m3 -oE "channel=[a-z_]+|android.progress(Max)?=[^ ]+"
 sleep 4
-adb shell dumpsys notification --noredact | grep -A60 "pkg=$PKG" | grep -m2 -E "android.progress(Max)?="
+adb shell dumpsys notification --noredact | grep -A60 "pkg=$PKG" | grep -m3 -oE "channel=[a-z_]+|android.progress(Max)?=[^ ]+"
 adb shell input keyevent KEYCODE_MEDIA_PAUSE
 sleep 1
 echo "after pause (state=2 means paused):"
@@ -198,9 +204,7 @@ tap "Lyrics"
 tap "Queue" && shot 12-queue 3
 adb shell input keyevent KEYCODE_BACK
 adb shell input keyevent KEYCODE_MEDIA_PLAY
-adb shell cmd statusbar expand-notifications
-shot 13-notification 3
-adb shell cmd statusbar collapse
+shade_shot 13-notification
 adb shell input keyevent KEYCODE_BACK
 shot 14-mini-player 3
 shortcut home; shot 14b-home-after-listening 3
@@ -221,9 +225,7 @@ shot 15-search 3
 tap "Sing Along" && sleep 2 && shortcut player && sleep 2 && tap "Lyrics" && shot 16-synced-lyrics 5
 echo "lyric line shown to the lock screen / Dynamic Island (as the artist):"
 adb shell dumpsys media_session | grep -m2 "description=" || true
-adb shell cmd statusbar expand-notifications
-shot 16c-notification-lyrics 3
-adb shell cmd statusbar collapse
+shade_shot 16c-notification-lyrics
 if longtap "These lyrics are synced"; then
   shot 16d-share-lyric 2
   tap "Cancel"
@@ -381,6 +383,29 @@ tap "Aurora" || { adb shell input swipe 540 1700 540 1000 400; sleep 1; tap "Aur
 shortcut player; shot 21c-aurora 5
 shortcut settings
 tap "Artwork colour" || { adb shell input swipe 540 1700 540 1000 400; sleep 1; tap "Artwork colour"; }
+
+echo "== Notification style"
+scroll_tap() { # swipe down the page until $1 shows, then tap it
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if dump && xy=$(python3 "$HERE/ui.py" /tmp/ui.xml "$1" exact); then
+      adb shell input tap $xy; echo "👆 $1 at $xy"; return 0
+    fi
+    adb shell input swipe 540 1700 540 900 400; sleep 1
+  done
+  echo "⚠️  could not find '$1' on screen"; return 1
+}
+adb shell input keyevent KEYCODE_MEDIA_PLAY
+shortcut settings
+if scroll_tap "Phone's media player"; then
+  sleep 2
+  echo "-- system style (channel should be the media one):"
+  adb shell dumpsys notification --noredact | grep -A60 "pkg=$PKG" | grep -m1 -oE "channel=[a-z_]+"
+  shade_shot 13b-notification-system
+  scroll_tap "Card with progress bar"
+  sleep 2
+  echo "-- back to the card:"
+  adb shell dumpsys notification --noredact | grep -A60 "pkg=$PKG" | grep -m1 -oE "channel=[a-z_]+"
+fi
 
 echo "== Share what's playing"
 shortcut player

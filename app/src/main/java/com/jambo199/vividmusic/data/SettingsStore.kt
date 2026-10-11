@@ -42,6 +42,12 @@ enum class AlarmMusic(val label: String) {
     DAILY_MIX("Daily mix"),
 }
 
+/** What the music notification looks like. */
+enum class NotificationStyle(val label: String, val detail: String) {
+    CARD("Card with progress bar", "Artwork, a progress bar and controls, on any phone"),
+    SYSTEM("Phone's media player", "Android's own media controls, also in quick settings"),
+}
+
 /** The tabs on the Library page; which show, and their order, is a setting. */
 enum class LibraryTab(val label: String) { SONGS("Songs"), ALBUMS("Albums"), ARTISTS("Artists"), PLAYLISTS("Playlists") }
 
@@ -139,6 +145,7 @@ data class Settings(
     val autoCheckUpdates: Boolean = true,
     /** A notification when NCS puts out new songs. */
     val ncsAlerts: Boolean = true,
+    val notificationStyle: NotificationStyle = NotificationStyle.CARD,
     /** Wake up to music: rings at [alarmHour]:[alarmMinute]. */
     val alarmEnabled: Boolean = false,
     val alarmHour: Int = 7,
@@ -274,6 +281,7 @@ class SettingsStore(context: Context) {
             sessionLyrics = prefs.getBoolean("sessionLyrics", d.sessionLyrics),
             autoCheckUpdates = prefs.getBoolean("autoCheckUpdates", d.autoCheckUpdates),
             ncsAlerts = prefs.getBoolean("ncsAlerts", d.ncsAlerts),
+            notificationStyle = enumOr(prefs.getString("notificationStyle", null), d.notificationStyle),
             alarmEnabled = prefs.getBoolean("alarmEnabled", d.alarmEnabled),
             alarmHour = prefs.getInt("alarmHour", d.alarmHour),
             alarmMinute = prefs.getInt("alarmMinute", d.alarmMinute),
@@ -346,6 +354,7 @@ class SettingsStore(context: Context) {
             .putBoolean("sessionLyrics", s.sessionLyrics)
             .putBoolean("autoCheckUpdates", s.autoCheckUpdates)
             .putBoolean("ncsAlerts", s.ncsAlerts)
+            .putString("notificationStyle", s.notificationStyle.name)
             .putBoolean("alarmEnabled", s.alarmEnabled)
             .putInt("alarmHour", s.alarmHour)
             .putInt("alarmMinute", s.alarmMinute)

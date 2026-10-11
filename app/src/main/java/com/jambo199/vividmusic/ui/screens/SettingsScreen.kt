@@ -85,6 +85,7 @@ import com.jambo199.vividmusic.data.ArtworkStyle
 import com.jambo199.vividmusic.data.LibraryRepository
 import com.jambo199.vividmusic.data.LibraryTab
 import com.jambo199.vividmusic.data.Normalization
+import com.jambo199.vividmusic.data.NotificationStyle
 import com.jambo199.vividmusic.data.PlayerBackground
 import com.jambo199.vividmusic.data.ThemeMode
 import com.jambo199.vividmusic.data.VisualizerStyle
@@ -477,6 +478,25 @@ fun SettingsScreen(viewModel: MainViewModel) {
             item {
                 SwitchRow(null, "Karaoke lyrics", "The line being sung fills with colour as it goes. Long-press a line to share it as a picture.", settings.karaokeLyrics) { v ->
                     viewModel.updateSettings { it.copy(karaokeLyrics = v) }
+                }
+            }
+            item {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text("Music notification", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        settings.notificationStyle.detail,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        NotificationStyle.entries.forEach { option ->
+                            FilterChip(
+                                selected = settings.notificationStyle == option,
+                                onClick = { viewModel.updateSettings { it.copy(notificationStyle = option) } },
+                                label = { Text(option.label) },
+                            )
+                        }
+                    }
                 }
             }
             item {
