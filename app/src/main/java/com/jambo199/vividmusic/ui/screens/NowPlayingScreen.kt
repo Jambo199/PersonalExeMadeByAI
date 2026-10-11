@@ -110,6 +110,7 @@ import com.jambo199.vividmusic.data.OnlineLyrics
 import com.jambo199.vividmusic.data.PlayerBackground
 import com.jambo199.vividmusic.data.Song
 import com.jambo199.vividmusic.data.formatDuration
+import com.jambo199.vividmusic.playback.AbRepeat
 import com.jambo199.vividmusic.playback.SleepTimer
 import com.jambo199.vividmusic.ui.LocalNav
 import com.jambo199.vividmusic.ui.LocalSongMenu
@@ -133,6 +134,7 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
     val userData by viewModel.userData.collectAsState()
     val lyrics by viewModel.lyrics.collectAsState()
     val lyricsLookup by viewModel.lyricsLookup.collectAsState()
+    val abLoop by AbRepeat.loop.collectAsState()
     val sleep by viewModel.sleepTimer.collectAsState()
     val source by viewModel.queueSource.collectAsState()
     val nav = LocalNav.current
@@ -282,6 +284,23 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                                 menuOpen = false
                                 nav.equalizer()
                             })
+                            if (!song.isRadio) {
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            when {
+                                                abLoop?.key != song.key -> "A-B repeat: set start"
+                                                abLoop?.endMs == null -> "A-B repeat: set end"
+                                                else -> "Turn off A-B repeat"
+                                            },
+                                        )
+                                    },
+                                    onClick = {
+                                        menuOpen = false
+                                        viewModel.toast(AbRepeat.step(song.key, viewModel.player.position()))
+                                    },
+                                )
+                            }
                             DropdownMenuItem(text = { Text("Link lyrics file (.lrc)…") }, onClick = {
                                 menuOpen = false
                                 lyricsPicker.launch(arrayOf("*/*"))
@@ -407,17 +426,34 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                                 val shown = if (dragging) (dragValue * duration).toLong() else position
                                 Text(formatDuration(shown), style = MaterialTheme.typography.labelMedium, color = controlColor.copy(alpha = 0.75f))
                                 Spacer(Modifier.weight(1f))
-                                qualityBadge(tech, song)?.let { badge ->
+                                val loop = abLoop?.takeIf { it.key == song.key }
+                                if (loop != null) {
+                                    // Tap to stop looping.
                                     Surface(
+                                        onClick = { AbRepeat.clear() },
                                         shape = RoundedCornerShape(6.dp),
-                                        color = controlColor.copy(alpha = 0.1f),
+                                        color = sliderColor,
                                     ) {
                                         Text(
-                                            badge,
+                                            "A-B " + formatDuration(loop.startMs) + (loop.endMs?.let { "–" + formatDuration(it) } ?: "…") + "  ✕",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = controlColor.copy(alpha = 0.8f),
+                                            color = if (sliderColor.luminance() > 0.5f) Color.Black else Color.White,
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                         )
+                                    }
+                                } else {
+                                    qualityBadge(tech, song)?.let { badge ->
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = controlColor.copy(alpha = 0.1f),
+                                        ) {
+                                            Text(
+                                                badge,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = controlColor.copy(alpha = 0.8f),
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            )
+                                        }
                                     }
                                 }
                                 Spacer(Modifier.weight(1f))

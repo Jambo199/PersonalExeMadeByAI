@@ -64,6 +64,8 @@ data class Settings(
     /** Applied to songs without ReplayGain tags, in dB. */
     val replayGainUntagged: Float = 0f,
     val fadePlayPause: Boolean = true,
+    /** Seconds to fade out the end of a song and fade in the next, 0 for off. */
+    val songFadeSec: Int = 0,
     /** Carry on podcasts, audiobooks and other long tracks where they were left. */
     val rememberPositions: Boolean = true,
     val stopOnTaskRemoved: Boolean = false,
@@ -170,6 +172,7 @@ class SettingsStore(context: Context) {
             replayGainPreamp = prefs.getFloat("replayGainPreamp", d.replayGainPreamp),
             replayGainUntagged = prefs.getFloat("replayGainUntagged", d.replayGainUntagged),
             fadePlayPause = prefs.getBoolean("fadePlayPause", d.fadePlayPause),
+            songFadeSec = prefs.getInt("songFadeSec", d.songFadeSec),
             rememberPositions = prefs.getBoolean("rememberPositions", d.rememberPositions),
             stopOnTaskRemoved = prefs.getBoolean("stopOnTaskRemoved", d.stopOnTaskRemoved),
             keepScreenOn = prefs.getBoolean("keepScreenOn", d.keepScreenOn),
@@ -222,6 +225,7 @@ class SettingsStore(context: Context) {
             .putFloat("replayGainPreamp", s.replayGainPreamp)
             .putFloat("replayGainUntagged", s.replayGainUntagged)
             .putBoolean("fadePlayPause", s.fadePlayPause)
+            .putInt("songFadeSec", s.songFadeSec)
             .putBoolean("rememberPositions", s.rememberPositions)
             .putBoolean("stopOnTaskRemoved", s.stopOnTaskRemoved)
             .putBoolean("keepScreenOn", s.keepScreenOn)

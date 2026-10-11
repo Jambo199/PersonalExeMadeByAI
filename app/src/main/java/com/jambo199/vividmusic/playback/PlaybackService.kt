@@ -81,6 +81,10 @@ class PlaybackService : MediaLibraryService() {
     private var positionKey: String? = null
     private var positionMs = 0L
     private var positionTicks = 0
+
+    /** Volume multiplier from fading between songs, and whether this song started by itself. */
+    private var songFade = 1f
+    private var autoAdvanced = false
     private var saveQueueJob: Job? = null
     private var saveStateJob: Job? = null
 
@@ -217,6 +221,45 @@ class PlaybackService : MediaLibraryService() {
         scope.launch {
             AppGraph.userData.state.map { it.favoriteSet }.distinctUntilChanged().collect { updateCustomLayout() }
         }
+        // "Fade between songs": the end of a song fades out and the next one fades in.
+        scope.launch {
+            while (isActive) {
+                val fadeMs = AppGraph.settings.current.songFadeSec * 1000L
+                var factor = 1f
+                var near = false
+                if (fadeMs > 0 && exo.isPlaying && !fading && sessionPlayer?.isFading != true) {
+                    val pos = exo.currentPosition
+                    val dur = exo.duration
+                    if (autoAdvanced && pos < fadeMs) factor = minOf(factor, pos.toFloat() / fadeMs)
+                    val next = exo.hasNextMediaItem() || exo.repeatMode == Player.REPEAT_MODE_ONE
+                    if (dur != C.TIME_UNSET && dur > fadeMs * 3 && next) {
+                        val left = dur - pos
+                        if (left < fadeMs) factor = minOf(factor, left.toFloat() / fadeMs)
+                        near = left < fadeMs + 1_500
+                    }
+                    near = near || (autoAdvanced && pos < fadeMs + 500)
+                }
+                factor = factor.coerceIn(0f, 1f)
+                if (factor != songFade) {
+                    songFade = factor
+                    if (!fading && sessionPlayer?.isFading != true) exo.volume = normalizedVolume() * factor
+                }
+                delay(if (near || factor < 1f) 50 else 500)
+            }
+        }
+        scope.launch {
+            AbRepeat.loop.collectLatest { loop ->
+                val end = loop?.endMs ?: return@collectLatest
+                while (isActive) {
+                    if (exo.currentMediaItem?.mediaId != loop.key) {
+                        AbRepeat.clear()
+                        break
+                    }
+                    if (exo.currentPosition >= end) exo.seekTo(loop.startMs)
+                    delay(80)
+                }
+            }
+        }
         scope.launch {
             SleepTimer.mode.collectLatest { mode ->
                 exo.pauseAtEndOfMediaItems = mode is SleepTimer.Mode.EndOfSong
@@ -273,6 +316,8 @@ class PlaybackService : MediaLibraryService() {
     // region online streams and remembered positions
 
     private fun onItemChanged(item: MediaItem?, reason: Int) {
+        autoAdvanced = reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO || reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
+        AbRepeat.loop.value?.let { if (it.key != item?.mediaId) AbRepeat.clear() }
         // Leaving a long track or episode: keep its place, or forget it if it played to the end.
         positionKey?.let { key ->
             if (key != item?.mediaId) {
@@ -450,7 +495,7 @@ class PlaybackService : MediaLibraryService() {
     /** Sets the volume for the song's ReplayGain tags (unless the sleep timer is fading out). */
     private fun applyNormalization() {
         if (!::exo.isInitialized || fading || sessionPlayer?.isFading == true) return
-        exo.volume = normalizedVolume()
+        exo.volume = normalizedVolume() * songFade
     }
 
     private fun normalizedVolume(): Float {

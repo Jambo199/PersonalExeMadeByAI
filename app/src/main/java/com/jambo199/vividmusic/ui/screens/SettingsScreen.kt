@@ -320,6 +320,25 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 }
             }
             item {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text("Fade between songs", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Fades out the end of each song and fades in the next",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(0, 2, 4, 6, 8, 12).forEach { sec ->
+                            FilterChip(
+                                selected = settings.songFadeSec == sec,
+                                onClick = { viewModel.updateSettings { it.copy(songFadeSec = sec) } },
+                                label = { Text(if (sec == 0) "Off" else "$sec s") },
+                            )
+                        }
+                    }
+                }
+            }
+            item {
                 SwitchRow(
                     null,
                     "Continue where you left off",

@@ -62,6 +62,44 @@ object SleepTimer {
     }
 }
 
+/**
+ * A-B repeat (as in AIMP): mark a start and an end in the playing song and that part loops.
+ * Set by the UI, enforced by the playback service.
+ */
+object AbRepeat {
+    /** [endMs] is null while only the start is set. */
+    data class Loop(val key: String, val startMs: Long, val endMs: Long?)
+
+    private val _loop = MutableStateFlow<Loop?>(null)
+    val loop: StateFlow<Loop?> = _loop.asStateFlow()
+
+    /** Sets the start, then the end, then turns it off. Returns what happened, for a message. */
+    fun step(key: String, positionMs: Long): String {
+        val l = _loop.value
+        return when {
+            l == null || l.key != key -> {
+                _loop.value = Loop(key, positionMs, null)
+                "Loop start set. Choose A-B repeat again at the end of the part."
+            }
+            l.endMs == null -> {
+                if (kotlin.math.abs(positionMs - l.startMs) < 1_000) return "Let it play a little past the start first"
+                val start = minOf(l.startMs, positionMs)
+                val end = maxOf(l.startMs, positionMs)
+                _loop.value = Loop(key, start, end)
+                "Looping this part"
+            }
+            else -> {
+                _loop.value = null
+                "A-B repeat off"
+            }
+        }
+    }
+
+    fun clear() {
+        _loop.value = null
+    }
+}
+
 /** Equalizer, bass boost, virtualizer and loudness attached to the player's audio session. */
 object AudioEffects {
     data class Info(
