@@ -69,17 +69,26 @@ adb shell settings put secure anr_show_background 0 || true
 adb logcat -c
 
 echo "== Copying test music"
-adb shell mkdir -p /sdcard/Music /sdcard/Download
-adb push "$MEDIA/Music/." /sdcard/Music/ > /dev/null
-adb push "$MEDIA/Download/." /sdcard/Download/ > /dev/null
+# Shared storage can lag a little behind boot; wait until it's writable.
+for _ in $(seq 1 30); do
+  adb shell "mkdir -p /sdcard/Music /sdcard/Download && test -w /sdcard/Music" 2> /dev/null && break
+  sleep 2
+done
+push_music() {
+  adb push "$MEDIA/Music/." /sdcard/Music/ 2>&1 | tail -1
+  adb push "$MEDIA/Download/." /sdcard/Download/ 2>&1 | tail -1
+}
+push_music
 expected=$(find "$MEDIA" -type f | wc -l)
-for i in $(seq 1 30); do
+found=0
+for i in $(seq 1 45); do
   # Wait until the scanner has finished reading tags (files first appear with is_music=0).
   found=$(adb shell "content query --uri content://media/external/audio/media --projection _display_name --where 'is_music=1'" 2>/dev/null | grep -c "Row:" || true)
   echo "media index has $found/$expected music files"
   [ "$found" -ge "$expected" ] && break
-  if [ "$i" -eq 5 ]; then
-    # Nudge the media scanner if adb push wasn't picked up automatically.
+  if [ "$i" -eq 8 ] || [ "$i" -eq 20 ]; then
+    echo "   re-copying and nudging the media scanner"
+    push_music
     find "$MEDIA" -type f | while read -r f; do
       rel="${f#"$MEDIA"/}"
       adb shell "am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d 'file:///sdcard/${rel// /%20}'" > /dev/null 2>&1
@@ -87,6 +96,10 @@ for i in $(seq 1 30); do
   fi
   sleep 2
 done
+if [ "$found" -lt "$expected" ]; then
+  echo "⚠️  the emulator's media scanner didn't index the test songs; library screens will be empty"
+  adb shell ls -R /sdcard/Music /sdcard/Download | head -20
+fi
 
 if [ -n "$OLD_APK" ] && [ -f "$OLD_APK" ]; then
   echo "== In-app updater (installed as build 1; the release page has a newer build)"

@@ -147,7 +147,7 @@ jobs:
           # Read by the app's updater: build number plus a checksum it verifies after download.
           jq -n --argjson code ${{ github.run_number }} --arg name "1.0.${{ github.run_number }}" \
             --arg sha "$(sha256sum VividMusic.apk | cut -d' ' -f1)" --argjson size "$(stat -c %s VividMusic.apk)" \
-            --arg notes "$NOTES" --arg commit "${GITHUB_SHA::7}" \
+            --arg notes "${NOTES%%$'\n'*}" --arg commit "${GITHUB_SHA::7}" \
             '{versionCode: $code, versionName: $name, apk: "VividMusic.apk", sha256: $sha, size: $size, notes: $notes, commit: $commit}' > version.json
           cat version.json
           files="VividMusic.apk version.json"
