@@ -37,8 +37,8 @@ fun AuroraBackground(color: Color, playing: Boolean, modifier: Modifier = Modifi
         }
     }
     Canvas(modifier.fillMaxSize()) {
-        drawRect(Color(0xFF07070D))
-        val radius = max(size.width, size.height) * 0.6f
+        drawRect(Color(0xFF0A0A14))
+        val radius = max(size.width, size.height) * 0.7f
         colors.forEachIndexed { i, c ->
             // Each cloud loops on its own slow figure-of-eight.
             val speed = 0.07f + i * 0.023f
@@ -48,13 +48,13 @@ fun AuroraBackground(color: Color, playing: Boolean, modifier: Modifier = Modifi
                 size.height * (0.38f + 0.3f * cos(time * speed * 1.3f + phase * 0.7f)),
             )
             drawCircle(
-                Brush.radialGradient(listOf(c.copy(alpha = 0.62f), c.copy(alpha = 0.18f), Color.Transparent), center, radius),
+                Brush.radialGradient(listOf(c.copy(alpha = 0.9f), c.copy(alpha = 0.4f), Color.Transparent), center, radius),
                 radius = radius,
                 center = center,
             )
         }
         // Darker towards the bottom, where the controls are.
-        drawRect(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.15f), Color.Black.copy(alpha = 0.6f))))
+        drawRect(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.45f))))
     }
 }
 
@@ -62,8 +62,8 @@ fun AuroraBackground(color: Color, playing: Boolean, modifier: Modifier = Modifi
 internal fun auroraColors(base: Color): List<Color> {
     val hsv = FloatArray(3)
     android.graphics.Color.colorToHSV(base.toArgb(), hsv)
-    val s = hsv[1].coerceIn(0.45f, 0.9f)
-    val v = hsv[2].coerceIn(0.7f, 1f)
+    val s = hsv[1].coerceIn(0.55f, 0.95f)
+    val v = hsv[2].coerceIn(0.85f, 1f)
     return listOf(0f, 40f, -55f).map { shift ->
         Color.hsv((hsv[0] + shift + 360f) % 360f, s, v)
     }

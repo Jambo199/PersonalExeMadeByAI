@@ -403,8 +403,10 @@ adb shell input keyevent KEYCODE_BACK
 
 echo "== Party mode"
 adb shell input keyevent KEYCODE_MEDIA_PLAY
-shortcut party; shot 21d-party 4
-adb shell input tap 540 300; shot 21e-party-lights 3
+shortcut party; sleep 2
+tap "Got it"   # Android's one-time "Viewing full screen" hint
+shot 21d-party 1
+adb shell input tap 540 1000; sleep 1; adb shell input tap 540 1000; shot 21e-party-lights 2
 adb shell input keyevent KEYCODE_BACK
 
 echo "== Dark mode and landscape"

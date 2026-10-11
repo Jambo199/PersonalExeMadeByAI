@@ -129,7 +129,7 @@ fun PartyScreen(viewModel: MainViewModel) {
     // The controls tuck themselves away after a few seconds.
     LaunchedEffect(controls) {
         if (controls) {
-            delay(6_000)
+            delay(8_000)
             controls = false
         }
     }
