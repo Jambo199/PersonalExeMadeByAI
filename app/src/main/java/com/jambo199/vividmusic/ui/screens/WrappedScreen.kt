@@ -1,7 +1,5 @@
 package com.jambo199.vividmusic.ui.screens
 
-import android.content.Context
-import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -40,11 +38,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -53,17 +48,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.FileProvider
 import com.jambo199.vividmusic.data.Wrapped
 import com.jambo199.vividmusic.data.formatTotalDuration
 import com.jambo199.vividmusic.ui.LocalNav
 import com.jambo199.vividmusic.ui.MainViewModel
 import com.jambo199.vividmusic.ui.components.Artwork
-import kotlinx.coroutines.Dispatchers
+import com.jambo199.vividmusic.ui.components.Capturable
+import com.jambo199.vividmusic.ui.components.shareLayer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -309,33 +302,15 @@ private fun SummaryPage(w: Wrapped) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val layer = rememberGraphicsLayer()
-    Box(
-        Modifier.drawWithContent {
-            // Recorded so the card can be shared as a picture.
-            layer.record { this@drawWithContent.drawContent() }
-            drawLayer(layer)
-        },
-    ) { SummaryCard(w) }
+    Capturable(layer) { SummaryCard(w) }
     Spacer(Modifier.height(24.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Button(
-            onClick = {
-                scope.launch {
-                    val bitmap = layer.toImageBitmap().asAndroidBitmap()
-                    val file = withContext(Dispatchers.IO) {
-                        File(context.cacheDir, "shares").apply { mkdirs() }.let { dir ->
-                            File(dir, "vivid-wrapped.png").also { f -> f.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) } }
-                        }
-                    }
-                    share(context, file)
-                }
-            },
-            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
-        ) {
-            Icon(Icons.Rounded.Share, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Share")
-        }
+    Button(
+        onClick = { scope.launch { shareLayer(context, layer, "vivid-wrapped.png", "Share your Wrapped") } },
+        colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
+    ) {
+        Icon(Icons.Rounded.Share, contentDescription = null)
+        Spacer(Modifier.width(8.dp))
+        Text("Share")
     }
 }
 
@@ -372,16 +347,4 @@ private fun SummaryLine(label: String, value: String?) {
 @Composable
 private fun WhiteButton(text: String, onClick: () -> Unit) {
     OutlinedButton(onClick = onClick) { Text(text, color = Color.White) }
-}
-
-private fun share(context: Context, file: File) {
-    runCatching {
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.updates", file)
-        val send = Intent(Intent.ACTION_SEND)
-            .setType("image/png")
-            .putExtra(Intent.EXTRA_STREAM, uri)
-            .putExtra(Intent.EXTRA_TEXT, "My Vivid Music Wrapped")
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        context.startActivity(Intent.createChooser(send, "Share your Wrapped"))
-    }
 }

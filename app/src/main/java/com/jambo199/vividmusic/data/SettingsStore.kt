@@ -113,6 +113,8 @@ data class Settings(
     val showLyricsWhenAvailable: Boolean = false,
     /** Look up lyrics on LRCLIB when you open the lyrics of a song that has none. */
     val onlineLyrics: Boolean = true,
+    /** The line being sung fills with colour as it goes, karaoke style. */
+    val karaokeLyrics: Boolean = true,
     /**
      * Show the current synced lyric line in place of the artist on the lock screen, notification,
      * Dynamic Island-style pop-ups and car screens.
@@ -233,6 +235,7 @@ class SettingsStore(context: Context) {
             shakeToSkip = prefs.getBoolean("shakeToSkip", d.shakeToSkip),
             showLyricsWhenAvailable = prefs.getBoolean("showLyricsWhenAvailable", d.showLyricsWhenAvailable),
             onlineLyrics = prefs.getBoolean("onlineLyrics", d.onlineLyrics),
+            karaokeLyrics = prefs.getBoolean("karaokeLyrics", d.karaokeLyrics),
             sessionLyrics = prefs.getBoolean("sessionLyrics", d.sessionLyrics),
             autoCheckUpdates = prefs.getBoolean("autoCheckUpdates", d.autoCheckUpdates),
             searchHistory = readList("searchHistory"),
@@ -295,6 +298,7 @@ class SettingsStore(context: Context) {
             .putBoolean("shakeToSkip", s.shakeToSkip)
             .putBoolean("showLyricsWhenAvailable", s.showLyricsWhenAvailable)
             .putBoolean("onlineLyrics", s.onlineLyrics)
+            .putBoolean("karaokeLyrics", s.karaokeLyrics)
             .putBoolean("sessionLyrics", s.sessionLyrics)
             .putBoolean("autoCheckUpdates", s.autoCheckUpdates)
             .putString("searchHistory", JSONArray(s.searchHistory).toString())

@@ -5,7 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -54,9 +54,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
@@ -67,12 +69,14 @@ import com.jambo199.vividmusic.data.Lyrics
 import com.jambo199.vividmusic.data.OnlineLookup
 import com.jambo199.vividmusic.data.OnlineLyrics
 import com.jambo199.vividmusic.data.ReverbPreset
+import com.jambo199.vividmusic.data.Song
 import com.jambo199.vividmusic.data.formatDuration
 import com.jambo199.vividmusic.data.formatTotalDuration
 import com.jambo199.vividmusic.data.pluralize
 import com.jambo199.vividmusic.playback.SleepTimer
 import com.jambo199.vividmusic.ui.MainViewModel
 import com.jambo199.vividmusic.ui.components.DragHandle
+import com.jambo199.vividmusic.ui.components.ShareLyricDialog
 import com.jambo199.vividmusic.ui.components.SongRow
 import com.jambo199.vividmusic.ui.components.rememberReorderState
 import com.jambo199.vividmusic.ui.components.reorderItem
@@ -198,6 +202,10 @@ fun LyricsView(
     onSeek: (Long) -> Unit,
     contentColor: Color,
     modifier: Modifier = Modifier,
+    /** The playing song, for sharing a line as a picture. */
+    song: Song? = null,
+    /** Fill the line being sung from left to right, karaoke style. */
+    karaoke: Boolean = true,
 ) {
     if (lyrics == null) {
         if (autoSearch) {
@@ -247,12 +255,25 @@ fun LyricsView(
     LaunchedEffect(current) {
         if (current >= 0) listState.animateScrollToItem((current - 2).coerceAtLeast(0))
     }
+    var sharing by remember { mutableStateOf<String?>(null) }
     LazyColumn(modifier, state = listState, contentPadding = PaddingValues(top = 16.dp, bottom = 160.dp)) {
         itemsIndexed(lines) { i, line ->
-            LyricRow(line, active = i == current, passed = i < current, contentColor = contentColor) { onSeek(line.timeMs) }
+            LyricRow(
+                line = line,
+                active = i == current,
+                passed = i < current,
+                contentColor = contentColor,
+                // The line fills until the next one starts (or for a few seconds at the end).
+                endMs = lines.getOrNull(i + 1)?.timeMs ?: (line.timeMs + 5_000),
+                position = position.takeIf { karaoke && i == current },
+                isPlaying = isPlaying,
+                onLongClick = { if (song != null && line.text.isNotBlank()) sharing = line.text },
+            ) { onSeek(line.timeMs) }
         }
         item { credit() }
     }
+    val sharedLine = sharing
+    if (song != null && sharedLine != null) ShareLyricDialog(song, sharedLine) { sharing = null }
 }
 
 @Composable
@@ -298,20 +319,63 @@ private fun NoLyrics(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun LyricRow(line: LyricLine, active: Boolean, passed: Boolean, contentColor: Color, onClick: () -> Unit) {
+private fun LyricRow(
+    line: LyricLine,
+    active: Boolean,
+    passed: Boolean,
+    contentColor: Color,
+    endMs: Long,
+    /** Set on the line being sung when it should fill karaoke style. */
+    position: (() -> Long)?,
+    isPlaying: Boolean,
+    onLongClick: () -> Unit,
+    onClick: () -> Unit,
+) {
     val alpha by animateFloatAsState(if (active) 1f else if (passed) 0.45f else 0.6f, label = "lyricAlpha")
     val scale by animateFloatAsState(if (active) 1.04f else 1f, label = "lyricScale")
     val color by animateColorAsState(contentColor.copy(alpha = alpha), label = "lyricColor")
+    // Karaoke: how much of the line has been sung, updated every frame.
+    var fill by remember { mutableFloatStateOf(1f) }
+    var textWidth by remember { mutableFloatStateOf(0f) }
+    if (position != null) {
+        LaunchedEffect(line.timeMs, isPlaying) {
+            val span = (endMs - line.timeMs).coerceAtLeast(1)
+            do {
+                withFrameMillis {
+                    fill = ((position() + Lyrics.LEAD_MS - line.timeMs).toFloat() / span).coerceIn(0f, 1f)
+                }
+            } while (isPlaying)
+        }
+    }
+    val karaoke = position != null && textWidth > 0f
+    val style = if (karaoke) {
+        val sung = contentColor
+        val toCome = contentColor.copy(alpha = 0.45f)
+        MaterialTheme.typography.headlineSmall.copy(
+            brush = Brush.horizontalGradient(
+                0f to sung,
+                fill to sung,
+                fill to toCome,
+                1f to toCome,
+                startX = 0f,
+                endX = textWidth,
+            ),
+        )
+    } else {
+        MaterialTheme.typography.headlineSmall
+    }
     Text(
         line.text.ifBlank { "♪" },
-        style = MaterialTheme.typography.headlineSmall,
+        style = style,
         fontWeight = if (active) FontWeight.Bold else FontWeight.SemiBold,
-        color = color,
+        color = if (karaoke) Color.Unspecified else color,
+        onTextLayout = { layout -> textWidth = (0 until layout.lineCount).maxOfOrNull { layout.getLineRight(it) } ?: 0f },
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale

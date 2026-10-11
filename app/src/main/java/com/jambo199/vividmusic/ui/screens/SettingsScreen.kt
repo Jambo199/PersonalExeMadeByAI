@@ -469,6 +469,11 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 }
             }
             item {
+                SwitchRow(null, "Karaoke lyrics", "The line being sung fills with colour as it goes. Long-press a line to share it as a picture.", settings.karaokeLyrics) { v ->
+                    viewModel.updateSettings { it.copy(karaokeLyrics = v) }
+                }
+            }
+            item {
                 SwitchRow(
                     null,
                     "Lyrics on lock screen & Dynamic Island",

@@ -341,6 +341,8 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                                     onSeek = { viewModel.player.seekTo(it) },
                                     contentColor = controlColor,
                                     modifier = Modifier.fillMaxSize(),
+                                    song = song,
+                                    karaoke = settings.karaokeLyrics,
                                 )
                             } else {
                                 SwipeableArtwork(

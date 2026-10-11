@@ -220,6 +220,10 @@ adb shell dumpsys media_session | grep -m2 "description=" || true
 adb shell cmd statusbar expand-notifications
 shot 16c-notification-lyrics 3
 adb shell cmd statusbar collapse
+if longtap "These lyrics are synced"; then
+  shot 16d-share-lyric 2
+  tap "Cancel"
+fi
 
 online_song=$(ls "$MEDIA/Music/Online/"*.mp3 2> /dev/null | head -1)
 if [ -n "$online_song" ]; then
