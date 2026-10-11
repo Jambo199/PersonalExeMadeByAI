@@ -139,6 +139,9 @@ You can also lock the app in the recent-apps screen (pull the card down).
 - **Listening streaks**: days in a row with music, shown on Home and the stats page
 - **Badges** to unlock (Century, Marathon, On fire, Explorer, Golden ears…) on the stats page
 - **Song of the day** and three **daily mixes** on Home, made from the genres and artists you play
+- **Double-tap the artwork** to love a song, with a heart that pops up
+- **Confetti** when you unlock a badge or beat your best quiz score
+- **Car mode** (overflow menu): huge buttons on a dark screen that stays on, swipe anywhere to skip
 - **Shake to skip** (Settings)
 - **Music alarm**: wake up to your favourites, all songs, the song of the day or a daily mix –
   once, weekdays or the days you pick, gently rising over a minute, with Snooze and Stop in the

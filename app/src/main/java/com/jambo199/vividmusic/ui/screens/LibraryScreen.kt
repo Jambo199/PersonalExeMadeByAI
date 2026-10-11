@@ -37,6 +37,7 @@ import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Alarm
 import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.Equalizer
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Insights
@@ -141,6 +142,14 @@ fun MainScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                         onClick = {
                             menuOpen = false
                             onSleepTimer()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Car mode") },
+                        leadingIcon = { Icon(Icons.Rounded.DirectionsCar, null) },
+                        onClick = {
+                            menuOpen = false
+                            nav.car()
                         },
                     )
                     DropdownMenuItem(

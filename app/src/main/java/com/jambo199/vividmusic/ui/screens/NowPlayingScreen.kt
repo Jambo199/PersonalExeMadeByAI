@@ -21,6 +21,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -107,6 +108,7 @@ import androidx.core.view.WindowCompat
 import androidx.media3.common.Player
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.jambo199.vividmusic.AppGraph
 import com.jambo199.vividmusic.data.ArtworkStyle
 import com.jambo199.vividmusic.data.OnlineLookup
 import com.jambo199.vividmusic.data.OnlineLyrics
@@ -363,6 +365,10 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                                     speed = playback.speed,
                                     onNext = { viewModel.player.next() },
                                     onPrevious = { viewModel.player.previous() },
+                                    // Double-tap only ever adds, like a like; the heart button takes it away.
+                                    onLove = if (song.isOnline) null else {
+                                        { if (!AppGraph.userData.isFavorite(song.key)) viewModel.toggleFavorite(song) }
+                                    },
                                 )
                             }
                         }
@@ -736,9 +742,12 @@ private fun SwipeableArtwork(
     speed: Float,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
+    onLove: (() -> Unit)?,
 ) {
     val scope = rememberCoroutineScope()
     val offset = remember { Animatable(0f) }
+    // The heart that pops up on a double-tap.
+    val heart = remember { Animatable(0f) }
     LaunchedEffect(song.key) { offset.snapTo(0f) }
     val scale by animateFloatAsState(if (isPlaying) 1f else 0.86f, spring(dampingRatio = 0.6f, stiffness = 300f), label = "artScale")
     val spectrum = rememberSpectrum(enabled = visualizer != VisualizerStyle.OFF || beatPulse, playing = isPlaying, speed = speed)
@@ -769,6 +778,19 @@ private fun SwipeableArtwork(
                     alpha = 1f - (abs(offset.value) / widthPx).coerceIn(0f, 0.6f)
                 }
                 .then(if (vinyl) Modifier else Modifier.shadow(24.dp, shape, clip = false))
+                .then(
+                    if (onLove == null) Modifier else Modifier.pointerInput(song.key) {
+                        detectTapGestures(onDoubleTap = {
+                            onLove()
+                            scope.launch {
+                                heart.snapTo(0.01f)
+                                heart.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 500f))
+                                delay(350)
+                                heart.animateTo(0f, tween(250))
+                            }
+                        })
+                    },
+                )
                 .then(
                     if (!enabled) Modifier else Modifier.pointerInput(song.key) {
                         detectHorizontalDragGestures(
@@ -830,6 +852,22 @@ private fun SwipeableArtwork(
                             .padding(horizontal = 14.dp, vertical = 12.dp),
                     )
                 }
+            }
+            if (heart.value > 0f) {
+                Icon(
+                    Icons.Rounded.Favorite,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(side * 0.36f)
+                        .graphicsLayer {
+                            scaleX = heart.value
+                            scaleY = heart.value
+                            alpha = heart.value.coerceIn(0f, 1f)
+                            shadowElevation = 12f
+                        },
+                )
             }
         }
     }

@@ -27,6 +27,7 @@ object Routes {
     const val ALARM = "alarm"
     const val DISCOVER = "discover"
     const val PARTY = "party"
+    const val CAR = "car"
 }
 
 @Stable
@@ -47,6 +48,7 @@ class NavActions(private val nav: NavHostController) {
     fun alarm() = nav.navigate(Routes.ALARM) { launchSingleTop = true }
     fun discover() = nav.navigate(Routes.DISCOVER) { launchSingleTop = true }
     fun party() = nav.navigate(Routes.PARTY) { launchSingleTop = true }
+    fun car() = nav.navigate(Routes.CAR) { launchSingleTop = true }
     fun back() {
         nav.popBackStack()
     }

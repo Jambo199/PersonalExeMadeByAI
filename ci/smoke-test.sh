@@ -365,6 +365,12 @@ shortcut player; shot 21c-aurora 5
 shortcut settings
 tap "Blurred artwork" || { adb shell input swipe 540 1700 540 1000 400; sleep 1; tap "Blurred artwork"; }
 
+echo "== Car mode"
+shortcut car; shot 21f-car 3
+adb shell input swipe 900 1200 200 1200 250; sleep 2
+echo "-- after swiping in car mode: $(adb shell dumpsys media_session | grep -m1 -oE 'description=[^,]*')"
+adb shell input keyevent KEYCODE_BACK
+
 echo "== Party mode"
 adb shell input keyevent KEYCODE_MEDIA_PLAY
 shortcut party; shot 21d-party 4

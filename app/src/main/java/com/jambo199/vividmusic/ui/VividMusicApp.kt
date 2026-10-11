@@ -45,6 +45,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.jambo199.vividmusic.data.MainSection
+import com.jambo199.vividmusic.ui.components.BadgeCelebration
 import com.jambo199.vividmusic.ui.components.LocalBottomPadding
 import com.jambo199.vividmusic.ui.components.LocalSelection
 import com.jambo199.vividmusic.ui.components.MainNavigationBar
@@ -53,12 +54,13 @@ import com.jambo199.vividmusic.ui.components.MiniPlayer
 import com.jambo199.vividmusic.ui.components.SelectionBar
 import com.jambo199.vividmusic.ui.components.SelectionState
 import com.jambo199.vividmusic.ui.components.SongMenuHost
-import com.jambo199.vividmusic.ui.online.NcsArtistScreen
 import com.jambo199.vividmusic.ui.discover.DiscoverScreen
+import com.jambo199.vividmusic.ui.online.NcsArtistScreen
 import com.jambo199.vividmusic.ui.quiz.QuizScreen
 import com.jambo199.vividmusic.ui.screens.AlarmScreen
 import com.jambo199.vividmusic.ui.screens.AlbumScreen
 import com.jambo199.vividmusic.ui.screens.ArtistScreen
+import com.jambo199.vividmusic.ui.screens.CarScreen
 import com.jambo199.vividmusic.ui.screens.EqualizerScreen
 import com.jambo199.vividmusic.ui.screens.FolderScreen
 import com.jambo199.vividmusic.ui.screens.GenreScreen
@@ -145,6 +147,7 @@ fun VividMusicApp(viewModel: MainViewModel) {
             "alarm" -> nav.alarm()
             "discover" -> nav.discover()
             "party" -> nav.party()
+            "car" -> nav.car()
             "favorites" -> nav.playlist(com.jambo199.vividmusic.data.SmartPlaylists.FAVORITES)
             "queue" -> nav.nowPlaying()
         }
@@ -213,6 +216,7 @@ fun VividMusicApp(viewModel: MainViewModel) {
                     composable(Routes.ALARM) { AlarmScreen(viewModel) }
                     composable(Routes.DISCOVER) { DiscoverScreen(viewModel) }
                     composable(Routes.PARTY) { PartyScreen(viewModel) }
+                    composable(Routes.CAR) { CarScreen(viewModel) }
                     composable(Routes.ALBUM, arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
                         AlbumScreen(viewModel, entry.arguments?.getLong("id") ?: 0L)
                     }
@@ -316,6 +320,20 @@ fun VividMusicApp(viewModel: MainViewModel) {
                     Modifier.onSizeChanged { railWidth = with(density) { it.width.toDp() } },
                 )
             }
+
+            // A badge you've just earned: a banner and confetti over whatever's showing.
+            val celebration by viewModel.celebration.collectAsState()
+            celebration?.let { c ->
+                BadgeCelebration(
+                    c.badge,
+                    c.more,
+                    onDismiss = viewModel::dismissCelebration,
+                    onSeeAll = {
+                        viewModel.dismissCelebration()
+                        nav.stats()
+                    },
+                )
+            }
         }
 
         SongMenuHost(songMenu, viewModel)
@@ -323,4 +341,4 @@ fun VividMusicApp(viewModel: MainViewModel) {
     }
 }
 
-private val NO_MINI_PLAYER = setOf<String?>(Routes.NOW_PLAYING, Routes.QUIZ, Routes.WRAPPED, Routes.DISCOVER, Routes.PARTY)
+private val NO_MINI_PLAYER = setOf<String?>(Routes.NOW_PLAYING, Routes.QUIZ, Routes.WRAPPED, Routes.DISCOVER, Routes.PARTY, Routes.CAR)

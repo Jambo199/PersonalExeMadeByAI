@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jambo199.vividmusic.data.Song
 import com.jambo199.vividmusic.ui.LocalNav
+import com.jambo199.vividmusic.ui.components.Confetti
 import com.jambo199.vividmusic.ui.components.Artwork
 
 private val Correct = Color(0xFF2E7D32)
@@ -318,6 +319,15 @@ private fun Choice(song: Song, round: QuizState.Round, onClick: () -> Unit) {
 
 @Composable
 private fun FinishedView(quiz: QuizViewModel, result: QuizState.Finished, onDone: () -> Unit) {
+    Box(Modifier.fillMaxSize()) {
+        FinishedContent(quiz, result, onDone)
+        // A new best score deserves confetti (as long as you got at least one right).
+        if (result.newBest && result.score > 0) Confetti(burst = result)
+    }
+}
+
+@Composable
+private fun FinishedContent(quiz: QuizViewModel, result: QuizState.Finished, onDone: () -> Unit) {
     Centered {
         Icon(
             Icons.Rounded.EmojiEvents,

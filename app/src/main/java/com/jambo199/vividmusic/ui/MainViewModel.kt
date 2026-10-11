@@ -2,6 +2,7 @@ package com.jambo199.vividmusic.ui
 
 import android.app.Application
 import android.app.RecoverableSecurityException
+import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
 import android.net.Uri
@@ -12,6 +13,8 @@ import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.jambo199.vividmusic.AppGraph
+import com.jambo199.vividmusic.data.Achievement
+import com.jambo199.vividmusic.data.Achievements
 import com.jambo199.vividmusic.data.Album
 import com.jambo199.vividmusic.data.Artist
 import com.jambo199.vividmusic.data.Backup
@@ -58,6 +61,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -251,6 +255,46 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             PlayerEvents.messages.collect { _messages.emit(it) }
         }
     }
+
+    // region badges
+
+    /** A badge you've just unlocked, and how many others came with it. */
+    data class Celebration(val badge: Achievement, val more: Int)
+
+    private val badgePrefs = app.getSharedPreferences("badges", Context.MODE_PRIVATE)
+    private val _celebration = MutableStateFlow<Celebration?>(null)
+    val celebration: StateFlow<Celebration?> = _celebration.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            combine(libraryState.filter { it.hasLoadedOnce }.map { it.library }, userData.debounce(1_000)) { lib, data ->
+                Achievements.from(lib, data, quizBest())
+            }.flowOn(Dispatchers.Default).collect { checkBadges(it) }
+        }
+    }
+
+    private fun checkBadges(achievements: List<Achievement>) {
+        val unlocked = achievements.filter { it.unlocked }
+        val seen = badgePrefs.getStringSet("seen", null)
+        if (seen == null) {
+            // The first time: badges earned before celebrations existed aren't news.
+            badgePrefs.edit().putStringSet("seen", unlocked.mapTo(HashSet()) { it.id }).apply()
+            return
+        }
+        val fresh = unlocked.filter { it.id !in seen }
+        if (fresh.isEmpty()) return
+        badgePrefs.edit().putStringSet("seen", seen + fresh.map { it.id }).apply()
+        if (_celebration.value == null) _celebration.value = Celebration(fresh.first(), fresh.size - 1)
+    }
+
+    fun dismissCelebration() {
+        _celebration.value = null
+    }
+
+    private fun quizBest(): Int = getApplication<Application>().getSharedPreferences("quiz", Context.MODE_PRIVATE)
+        .all.values.filterIsInstance<Int>().maxOrNull() ?: 0
+
+    // endregion
 
     fun toast(message: String) {
         _messages.tryEmit(message)
