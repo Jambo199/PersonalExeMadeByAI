@@ -163,7 +163,8 @@ fun MiniPlayer(
                     Icon(Icons.Rounded.SkipNext, contentDescription = "Next", modifier = Modifier.size(28.dp))
                 }
             }
-            Box(Modifier.padding(horizontal = 14.dp).padding(bottom = 6.dp)) {
+            // Live radio has no length to show progress through.
+            if (!song.isRadio) Box(Modifier.padding(horizontal = 14.dp).padding(bottom = 6.dp)) {
                 LinearProgressIndicator(
                     progress = { progress },
                     modifier = Modifier

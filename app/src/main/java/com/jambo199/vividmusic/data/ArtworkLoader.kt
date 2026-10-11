@@ -17,10 +17,13 @@ import coil.fetch.Fetcher
 import coil.key.Keyer
 import coil.request.Options
 import coil.size.pxOrElse
+import com.jambo199.vividmusic.online.Http
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -56,9 +59,31 @@ class ArtworkLoader(private val context: Context) {
                 albumArt(song.albumId, size) ?: embedded(song.uri, size) ?: folderCover(song, size)
             }
         }
+        SongSource.ONLINE -> song.coverHint?.let { remote(it, size) }
         SongSource.FOLDER, SongSource.EXTERNAL -> embedded(song.uri, size)
             ?: song.coverHint?.let { decodeUri(it, size) }
             ?: if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && song.uri.authority == "media") systemThumbnail(song.uri, size) else null
+    }
+
+    /** Artwork of an online song, kept on disk so the notification doesn't fetch it each time. */
+    private fun remote(url: Uri, size: Int): Bitmap? {
+        val dir = File(context.cacheDir, "online_art").apply { mkdirs() }
+        val file = File(dir, Integer.toHexString(url.toString().hashCode()) + ".img")
+        if (!file.isFile) {
+            val conn = URL(url.toString()).openConnection() as HttpURLConnection
+            try {
+                conn.connectTimeout = 8_000
+                conn.readTimeout = 10_000
+                conn.setRequestProperty("User-Agent", Http.USER_AGENT)
+                if (conn.responseCode != 200) return null
+                val tmp = File(dir, file.name + ".part")
+                conn.inputStream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
+                tmp.renameTo(file)
+            } finally {
+                conn.disconnect()
+            }
+        }
+        return decodeFile(file, size)
     }
 
     private fun systemThumbnail(uri: Uri, size: Int): Bitmap? {

@@ -15,7 +15,7 @@ enum class FolderViewMode { TREE, FLAT }
 enum class PlayerBackground(val label: String) { BLUR("Blurred artwork"), GRADIENT("Colour gradient"), PLAIN("Plain") }
 
 /** The pages in the bottom navigation bar. */
-enum class MainSection(val label: String) { HOME("Home"), LIBRARY("Library"), FOLDERS("Folders") }
+enum class MainSection(val label: String) { HOME("Home"), LIBRARY("Library"), FOLDERS("Folders"), ONLINE("Online") }
 
 data class EqSettings(
     val enabled: Boolean = false,
@@ -58,6 +58,8 @@ data class Settings(
     val skipSilence: Boolean = false,
     val normalization: Normalization = Normalization.OFF,
     val fadePlayPause: Boolean = true,
+    /** Carry on podcasts, audiobooks and other long tracks where they were left. */
+    val rememberPositions: Boolean = true,
     val stopOnTaskRemoved: Boolean = false,
     val keepScreenOn: Boolean = false,
     val rememberSpeed: Boolean = true,
@@ -159,6 +161,7 @@ class SettingsStore(context: Context) {
             skipSilence = prefs.getBoolean("skipSilence", d.skipSilence),
             normalization = enumOr(prefs.getString("normalization", null), d.normalization),
             fadePlayPause = prefs.getBoolean("fadePlayPause", d.fadePlayPause),
+            rememberPositions = prefs.getBoolean("rememberPositions", d.rememberPositions),
             stopOnTaskRemoved = prefs.getBoolean("stopOnTaskRemoved", d.stopOnTaskRemoved),
             keepScreenOn = prefs.getBoolean("keepScreenOn", d.keepScreenOn),
             rememberSpeed = prefs.getBoolean("rememberSpeed", d.rememberSpeed),
@@ -207,6 +210,7 @@ class SettingsStore(context: Context) {
             .putBoolean("skipSilence", s.skipSilence)
             .putString("normalization", s.normalization.name)
             .putBoolean("fadePlayPause", s.fadePlayPause)
+            .putBoolean("rememberPositions", s.rememberPositions)
             .putBoolean("stopOnTaskRemoved", s.stopOnTaskRemoved)
             .putBoolean("keepScreenOn", s.keepScreenOn)
             .putBoolean("rememberSpeed", s.rememberSpeed)

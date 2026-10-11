@@ -191,6 +191,55 @@ if [ -n "$online_song" ]; then
   adb logcat -d | grep -E "OnlineLyrics" | grep -vE "OnlineLyrics:[[:space:]]+at " | tail -8
 fi
 
+echo "== Online"
+text_after() { # prints the first visible text after the label $1 (e.g. the first card under a heading)
+  dump > /dev/null && python3 - "$1" <<'PY'
+import sys, xml.etree.ElementTree as ET
+texts = [(n.get("text") or "").strip() for n in ET.parse("/tmp/ui.xml").getroot().iter("node")]
+texts = [t for t in texts if t]
+label = sys.argv[1]
+if label in texts and texts.index(label) + 1 < len(texts):
+    print(texts[texts.index(label) + 1])
+PY
+}
+shortcut online; shot 30-online-radio 12
+first_station=$(dump > /dev/null && python3 - <<'PY'
+import re, xml.etree.ElementTree as ET
+for n in ET.parse("/tmp/ui.xml").getroot().iter("node"):
+    m = re.match(r"Add (.+) to your stations", n.get("content-desc") or "")
+    if m:
+        print(m.group(1))
+        break
+PY
+)
+echo "first station: $first_station"
+if [ -n "$first_station" ]; then
+  tap "$first_station" && sleep 12 && shortcut player && shot 31-radio-player 6
+  adb shell dumpsys media_session | grep -E "state=PlaybackState" | head -1
+  adb shell input keyevent KEYCODE_MEDIA_PAUSE
+fi
+shortcut online
+tap "Free music" && shot 32-free-music 12
+first_album=$(text_after "Live concerts")
+echo "first album: $first_album"
+if [ -n "$first_album" ]; then
+  tap "$first_album" && shot 33-free-album 12
+  tap "Save all" && sleep 25 && shot 34-free-album-saving 2
+  adb shell ls -R "/sdcard/Music/Vivid Music" 2>&1 | head -12
+fi
+shortcut online
+tap "Podcasts" && shot 35-podcasts 12
+if tap "Search podcasts"; then
+  adb shell input text "history"
+  adb shell input keyevent KEYCODE_ENTER
+  shot 36-podcast-search 8
+  first_podcast=$(text_after 'Results for "history"')
+  echo "first podcast: $first_podcast"
+  [ -n "$first_podcast" ] && tap "$first_podcast" && shot 37-podcast 12
+fi
+adb shell input keyevent KEYCODE_BACK
+adb logcat -d | grep -E "OnlineViewModel|ExoPlayerImplInternal.*rror" | tail -5
+
 echo "== Other screens"
 shortcut settings;  shot 17-settings 3
 shortcut equalizer; shot 18-equalizer 3

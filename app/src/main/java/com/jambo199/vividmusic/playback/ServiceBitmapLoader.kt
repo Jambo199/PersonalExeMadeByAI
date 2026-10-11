@@ -51,7 +51,17 @@ class ServiceBitmapLoader : BitmapLoader {
             val data = metadata.artworkData
             return executor.submit(
                 Callable {
-                    val song = AppGraph.library.findByKey(key) ?: externalSong(Uri.parse(key))
+                    val extras = metadata.extras
+                    val online = extras?.getString(SongItems.K_SOURCE) == SongSource.ONLINE.name
+                    val song = if (online) {
+                        // Streams: the artwork address travels with the item.
+                        externalSong(Uri.parse(key)).copy(
+                            source = SongSource.ONLINE,
+                            coverHint = extras?.getString(SongItems.K_COVER)?.takeIf { it.isNotBlank() }?.let(Uri::parse),
+                        )
+                    } else {
+                        AppGraph.library.findByKey(key) ?: externalSong(Uri.parse(key))
+                    }
                     val bitmap = AppGraph.artwork.load(song, SIZE)
                         ?: data?.let { ArtworkLoader.decodeBytes(it, SIZE) }
                         ?: throw IOException("No artwork")

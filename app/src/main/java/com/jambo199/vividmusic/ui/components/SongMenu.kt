@@ -1,6 +1,7 @@
 package com.jambo199.vividmusic.ui.components
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.media.MediaMetadataRetriever
 import android.os.Build
@@ -127,7 +128,11 @@ fun SongMenuHost(state: SongMenuState, viewModel: MainViewModel) {
                     }
                     MenuRow(Icons.Rounded.SkipNext, "Play next") { act { viewModel.playNext(songs) } }
                     MenuRow(Icons.AutoMirrored.Rounded.QueueMusic, "Add to queue") { act { viewModel.addToQueue(songs) } }
-                    MenuRow(Icons.AutoMirrored.Rounded.PlaylistAdd, "Add to playlist…") { act { state.addToPlaylist(songs) } }
+                    // Playlists, sharing files, details and deleting only make sense for files on the phone.
+                    val onPhone = songs.none { it.isOnline }
+                    if (onPhone) {
+                        MenuRow(Icons.AutoMirrored.Rounded.PlaylistAdd, "Add to playlist…") { act { state.addToPlaylist(songs) } }
+                    }
                     if (single != null) {
                         val fav = single.key in userData.favoriteSet
                         MenuRow(
@@ -150,13 +155,18 @@ fun SongMenuHost(state: SongMenuState, viewModel: MainViewModel) {
                             act { viewModel.removeFromPlaylist(pid, request.playlistIndex) }
                         }
                     }
-                    MenuRow(Icons.Rounded.Share, "Share") { act { shareSongs(context, songs) } }
-                    if (single != null) {
-                        MenuRow(Icons.Rounded.Info, "Details") { act { details = single } }
+                    if (onPhone) {
+                        MenuRow(Icons.Rounded.Share, "Share") { act { shareSongs(context, songs) } }
+                        if (single != null) {
+                            MenuRow(Icons.Rounded.Info, "Details") { act { details = single } }
+                        }
+                    } else if (single != null) {
+                        MenuRow(Icons.Rounded.Share, "Share link") { act { shareLink(context, single) } }
                     }
-                    if (songs.any { it.source != SongSource.EXTERNAL }) {
+                    val deletable = songs.filter { it.source == SongSource.MEDIA_STORE || it.source == SongSource.FOLDER }
+                    if (deletable.isNotEmpty()) {
                         MenuRow(Icons.Rounded.Delete, "Delete from device", destructive = true) {
-                            act { confirmDelete = songs.filter { it.source != SongSource.EXTERNAL } }
+                            act { confirmDelete = deletable }
                         }
                     }
                 }
@@ -397,4 +407,11 @@ fun qualityBadge(info: Map<String, String>, song: Song): String? {
     info["sample"]?.let { parts += it }
     if (info["sample"] == null) info["bitrate"]?.let { parts += it }
     return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
+}
+
+/** Shares where an online song or station can be found. */
+private fun shareLink(context: Context, song: Song) {
+    val text = "${song.title} – ${song.displayArtist}\n${song.path.ifBlank { song.uri.toString() }}"
+    val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+    context.startActivity(Intent.createChooser(send, "Share"))
 }

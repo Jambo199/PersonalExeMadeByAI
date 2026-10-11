@@ -9,13 +9,18 @@ import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Metadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.extractor.metadata.icy.IcyInfo
 import androidx.media3.extractor.metadata.id3.BinaryFrame
 import androidx.media3.extractor.metadata.id3.InternalFrame
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
@@ -36,8 +41,11 @@ import com.jambo199.vividmusic.AppGraph
 import com.jambo199.vividmusic.MainActivity
 import com.jambo199.vividmusic.R
 import com.jambo199.vividmusic.data.EmbeddedLyrics
+import com.jambo199.vividmusic.data.PositionStore
 import com.jambo199.vividmusic.data.ReplayGain
 import com.jambo199.vividmusic.data.Song
+import com.jambo199.vividmusic.data.formatDuration
+import com.jambo199.vividmusic.online.Http
 import com.jambo199.vividmusic.widget.WidgetUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -68,6 +76,11 @@ class PlaybackService : MediaLibraryService() {
     private var sessionPlayer: ShuffleAwarePlayer? = null
     private var fading = false
     private var unsavedListeningMs = 0L
+
+    /** The playing item, when its position is being remembered, and where it had got to. */
+    private var positionKey: String? = null
+    private var positionMs = 0L
+    private var positionTicks = 0
     private var saveQueueJob: Job? = null
     private var saveStateJob: Job? = null
 
@@ -76,7 +89,14 @@ class PlaybackService : MediaLibraryService() {
         instance = this
         val settings = AppGraph.settings.current
 
+        // Streams (radio, Internet Archive, podcasts) often redirect from http to https.
+        val http = DefaultHttpDataSource.Factory()
+            .setUserAgent(Http.USER_AGENT)
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(15_000)
+            .setReadTimeoutMs(20_000)
         exo = ExoPlayer.Builder(this)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(this, http)))
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -164,6 +184,8 @@ class PlaybackService : MediaLibraryService() {
         saveStateNow(sync = true)
         WidgetUpdater.update(this, currentSong(), false)
         flushListeningTime()
+        rememberPosition()
+        AppGraph.positions.flush()
         AppGraph.userData.flush()
         AudioEffects.release(this)
         session?.run {
@@ -225,6 +247,12 @@ class PlaybackService : MediaLibraryService() {
                 if (!exo.isPlaying) continue
                 unsavedListeningMs += 1000
                 if (unsavedListeningMs >= 30_000) flushListeningTime()
+                positionKey?.let { key ->
+                    if (exo.currentMediaItem?.mediaId == key) {
+                        positionMs = exo.currentPosition
+                        if (++positionTicks % 10 == 0) rememberPosition()
+                    }
+                }
                 val duration = exo.duration
                 val threshold = if (duration > 0) minOf(30_000L, duration / 2) else 30_000L
                 if (!countedCurrent && exo.currentPosition >= threshold) {
@@ -239,6 +267,63 @@ class PlaybackService : MediaLibraryService() {
             }
         }
     }
+
+    // region online streams and remembered positions
+
+    private fun onItemChanged(item: MediaItem?, reason: Int) {
+        // Leaving a long track or episode: keep its place, or forget it if it played to the end.
+        positionKey?.let { key ->
+            if (key != item?.mediaId) {
+                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) AppGraph.positions.clear(key)
+                else if (positionMs > 0) AppGraph.positions.set(key, positionMs)
+            }
+        }
+        val online = item?.localConfiguration?.uri?.scheme?.startsWith("http") == true
+        exo.setWakeMode(if (online) C.WAKE_MODE_NETWORK else C.WAKE_MODE_LOCAL)
+
+        val song = item?.toSong()
+        positionKey = song?.takeIf { AppGraph.settings.current.rememberPositions && PositionStore.remembers(it) }?.key
+        positionMs = 0
+        val key = positionKey ?: return
+        if (key == item?.mediaId && exo.currentPosition < 1_000) {
+            val saved = AppGraph.positions.get(key)
+            val length = song?.durationMs ?: 0
+            if (saved > 5_000 && (length <= 0 || saved < length - 20_000)) {
+                exo.seekTo(saved)
+                PlayerEvents.post("Carrying on from ${formatDuration(saved)}")
+            }
+        }
+    }
+
+    private fun rememberPosition() {
+        val key = positionKey ?: return
+        if (exo.currentMediaItem?.mediaId != key) return
+        positionMs = exo.currentPosition
+        if (positionMs > 5_000) AppGraph.positions.set(key, positionMs)
+    }
+
+    /** Shows the song a radio station is playing (from the stream's ICY metadata) everywhere. */
+    private fun showStreamTitle(item: MediaItem, raw: String?) {
+        val text = raw?.trim().orEmpty()
+        val station = item.mediaMetadata.albumTitle?.toString().orEmpty()
+        if (text.isEmpty() || text.equals(station, ignoreCase = true)) return
+        val artist: String
+        val title: String
+        if (" - " in text) {
+            artist = text.substringBefore(" - ").trim()
+            title = text.substringAfter(" - ").trim()
+        } else {
+            artist = station
+            title = text
+        }
+        if (item.mediaMetadata.title?.toString() == title && item.mediaMetadata.artist?.toString() == artist) return
+        val extras = Bundle(item.mediaMetadata.extras ?: Bundle()).apply { putString(SongItems.K_ARTIST, artist) }
+        val metadata = item.mediaMetadata.buildUpon().setTitle(title).setArtist(artist).setExtras(extras).build()
+        // Same address, so the player only swaps the details; the stream keeps playing.
+        exo.replaceMediaItem(exo.currentMediaItemIndex, item.buildUpon().setMediaMetadata(metadata).build())
+    }
+
+    // endregion
 
     private fun flushListeningTime() {
         AppGraph.userData.addListeningTime(unsavedListeningMs)
@@ -271,6 +356,7 @@ class PlaybackService : MediaLibraryService() {
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            onItemChanged(mediaItem, reason)
             countedCurrent = false
             AppGraph.lyrics.onSongChanged(mediaItem?.mediaId)
             updateCustomLayout()
@@ -287,6 +373,21 @@ class PlaybackService : MediaLibraryService() {
             } else {
                 saveStateSoon()
                 flushListeningTime()
+                rememberPosition()
+            }
+        }
+
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            // Finished: next time it starts from the beginning.
+            if (playbackState == Player.STATE_ENDED) positionKey?.let { AppGraph.positions.clear(it) }
+        }
+
+        override fun onMetadata(metadata: Metadata) {
+            val item = exo.currentMediaItem ?: return
+            if (!item.mediaId.startsWith(Song.RADIO_PREFIX)) return
+            for (i in 0 until metadata.length()) {
+                val entry = metadata.get(i)
+                if (entry is IcyInfo) showStreamTitle(item, entry.title)
             }
         }
 
@@ -453,7 +554,8 @@ class PlaybackService : MediaLibraryService() {
                     item
                 } else {
                     val uri = item.requestMetadata.mediaUri ?: android.net.Uri.parse(item.mediaId)
-                    item.buildUpon().setUri(uri).build()
+                    val mime = SongItems.streamMimeType(item.mediaMetadata.extras?.getString(SongItems.K_MIME))
+                    item.buildUpon().setUri(uri).setMimeType(mime).build()
                 }
             }.toMutableList()
             return Futures.immediateFuture(resolved)

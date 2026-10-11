@@ -286,6 +286,16 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 }
             }
             item {
+                SwitchRow(
+                    null,
+                    "Continue where you left off",
+                    "Podcasts, audiobooks and other tracks over 15 minutes start again from where you stopped",
+                    settings.rememberPositions,
+                ) { v ->
+                    viewModel.updateSettings { it.copy(rememberPositions = v) }
+                }
+            }
+            item {
                 SwitchRow(null, "Remember playback speed", "Keep speed and pitch between songs and restarts", settings.rememberSpeed) { v ->
                     viewModel.updateSettings { it.copy(rememberSpeed = v) }
                 }

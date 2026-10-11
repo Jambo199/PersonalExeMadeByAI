@@ -97,6 +97,7 @@ import com.jambo199.vividmusic.ui.components.LocalSelection
 import com.jambo199.vividmusic.ui.components.SongRow
 import com.jambo199.vividmusic.ui.components.SortMenu
 import com.jambo199.vividmusic.ui.components.UpdateBanner
+import com.jambo199.vividmusic.ui.online.OnlineScreen
 import kotlinx.coroutines.launch
 
 private val TABS = listOf("Songs", "Albums", "Artists", "Playlists")
@@ -208,6 +209,7 @@ fun MainScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                     MainSection.HOME -> HomeScreen(viewModel)
                     MainSection.LIBRARY -> LibraryPages(viewModel)
                     MainSection.FOLDERS -> FoldersTab(viewModel)
+                    MainSection.ONLINE -> OnlineScreen(viewModel)
                 }
             }
         }

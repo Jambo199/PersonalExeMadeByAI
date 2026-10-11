@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -359,9 +360,11 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                                     modifier = Modifier.clickable { nav.fromPlayer { album(song.albumId) } },
                                 )
                             }
-                            val fav = song.key in userData.favoriteSet
+                            val onlineData by viewModel.online.collectAsState()
+                            val fav = viewModel.isFavorite(song, userData, onlineData)
                             val favScale by animateFloatAsState(if (fav) 1.15f else 1f, spring(dampingRatio = 0.35f), label = "fav")
-                            IconButton(onClick = { viewModel.toggleFavorite(song) }) {
+                            // Albums and podcasts streamed from the internet aren't in the library to favourite.
+                            if (!song.isOnline || song.isRadio) IconButton(onClick = { viewModel.toggleFavoriteAnywhere(song) }) {
                                 Icon(
                                     if (fav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                                     contentDescription = if (fav) "Remove from favourites" else "Add to favourites",
@@ -377,49 +380,53 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                         }
                         Spacer(Modifier.height(12.dp))
 
-                        // Seek bar
-                        val duration = playback.durationMs.coerceAtLeast(1L)
-                        val sliderValue = if (dragging) dragValue else (position.toFloat() / duration).coerceIn(0f, 1f)
-                        Slider(
-                            value = sliderValue,
-                            onValueChange = {
-                                dragging = true
-                                dragValue = it
-                            },
-                            onValueChangeFinished = {
-                                viewModel.player.seekTo((dragValue * duration).toLong())
-                                position = (dragValue * duration).toLong()
-                                dragging = false
-                            },
-                            colors = SliderDefaults.colors(
-                                thumbColor = sliderColor,
-                                activeTrackColor = sliderColor,
-                                inactiveTrackColor = controlColor.copy(alpha = 0.2f),
-                            ),
-                        )
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            val shown = if (dragging) (dragValue * duration).toLong() else position
-                            Text(formatDuration(shown), style = MaterialTheme.typography.labelMedium, color = controlColor.copy(alpha = 0.75f))
-                            Spacer(Modifier.weight(1f))
-                            qualityBadge(tech, song)?.let { badge ->
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = controlColor.copy(alpha = 0.1f),
-                                ) {
-                                    Text(
-                                        badge,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = controlColor.copy(alpha = 0.8f),
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    )
-                                }
-                            }
-                            Spacer(Modifier.weight(1f))
-                            Text(
-                                "-" + formatDuration((playback.durationMs - shown).coerceAtLeast(0)),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = controlColor.copy(alpha = 0.75f),
+                        if (song.isRadio) {
+                            LiveBar(song, controlColor, sliderColor)
+                        } else {
+                            // Seek bar
+                            val duration = playback.durationMs.coerceAtLeast(1L)
+                            val sliderValue = if (dragging) dragValue else (position.toFloat() / duration).coerceIn(0f, 1f)
+                            Slider(
+                                value = sliderValue,
+                                onValueChange = {
+                                    dragging = true
+                                    dragValue = it
+                                },
+                                onValueChangeFinished = {
+                                    viewModel.player.seekTo((dragValue * duration).toLong())
+                                    position = (dragValue * duration).toLong()
+                                    dragging = false
+                                },
+                                colors = SliderDefaults.colors(
+                                    thumbColor = sliderColor,
+                                    activeTrackColor = sliderColor,
+                                    inactiveTrackColor = controlColor.copy(alpha = 0.2f),
+                                ),
                             )
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                val shown = if (dragging) (dragValue * duration).toLong() else position
+                                Text(formatDuration(shown), style = MaterialTheme.typography.labelMedium, color = controlColor.copy(alpha = 0.75f))
+                                Spacer(Modifier.weight(1f))
+                                qualityBadge(tech, song)?.let { badge ->
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = controlColor.copy(alpha = 0.1f),
+                                    ) {
+                                        Text(
+                                            badge,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = controlColor.copy(alpha = 0.8f),
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.weight(1f))
+                                Text(
+                                    "-" + formatDuration((playback.durationMs - shown).coerceAtLeast(0)),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = controlColor.copy(alpha = 0.75f),
+                                )
+                            }
                         }
                         Spacer(Modifier.height(8.dp))
 
@@ -599,6 +606,40 @@ private fun sleepLabel(): String {
 private fun formatSpeed(speed: Float): String = "%.2f".format(speed).trimEnd('0').trimEnd('.', ',') + "×"
 
 private fun lerpToward(from: Color, to: Color, t: Float): Color = androidx.compose.ui.graphics.lerp(from, to, t)
+
+/** In place of the seek bar for radio: a "LIVE" badge and the station's name. */
+@Composable
+private fun LiveBar(song: Song, controlColor: Color, accent: Color) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(shape = RoundedCornerShape(6.dp), color = accent) {
+            Text(
+                "LIVE",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (accent.luminance() > 0.5f) Color.Black else Color.White,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            )
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(
+            song.album.ifBlank { "Internet radio" },
+            style = MaterialTheme.typography.labelLarge,
+            color = controlColor.copy(alpha = 0.8f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        val format = if ('/' in song.mimeType) "HLS" else song.mimeType
+        if (format.isNotBlank()) {
+            Text(format, style = MaterialTheme.typography.labelSmall, color = controlColor.copy(alpha = 0.6f))
+        }
+    }
+}
 
 /** The song's artwork, heavily blurred and darkened, filling the player. Android 12+. */
 @Composable

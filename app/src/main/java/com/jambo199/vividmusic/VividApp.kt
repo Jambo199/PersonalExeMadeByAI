@@ -7,10 +7,12 @@ import coil.memory.MemoryCache
 import com.jambo199.vividmusic.data.ArtworkLoader
 import com.jambo199.vividmusic.data.LibraryRepository
 import com.jambo199.vividmusic.data.LyricsRepository
+import com.jambo199.vividmusic.data.PositionStore
 import com.jambo199.vividmusic.data.SettingsStore
 import com.jambo199.vividmusic.data.SongArtworkFetcher
 import com.jambo199.vividmusic.data.SongArtworkKeyer
 import com.jambo199.vividmusic.data.UserDataStore
+import com.jambo199.vividmusic.online.OnlineStore
 import com.jambo199.vividmusic.playback.QueueStore
 import com.jambo199.vividmusic.update.UpdateManager
 import kotlinx.coroutines.CoroutineScope
@@ -31,6 +33,8 @@ object AppGraph {
     val lyrics by lazy { LyricsRepository(app, scope) { library.library } }
     val queueStore by lazy { QueueStore(app) }
     val updates by lazy { UpdateManager(app, scope) }
+    val online by lazy { OnlineStore(app, scope) }
+    val positions by lazy { PositionStore(app, scope) }
 
     fun init(application: Application) {
         app = application

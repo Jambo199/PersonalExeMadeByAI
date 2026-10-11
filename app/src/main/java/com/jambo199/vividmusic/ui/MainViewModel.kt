@@ -36,6 +36,8 @@ import com.jambo199.vividmusic.data.folderSongComparator
 import com.jambo199.vividmusic.data.pluralize
 import com.jambo199.vividmusic.data.searchKey
 import com.jambo199.vividmusic.data.songComparator
+import com.jambo199.vividmusic.online.OnlineData
+import com.jambo199.vividmusic.online.RadioStation
 import com.jambo199.vividmusic.playback.PlaybackState
 import com.jambo199.vividmusic.playback.PlayerConnection
 import com.jambo199.vividmusic.playback.PlayerEvents
@@ -95,6 +97,19 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val lyrics: StateFlow<Lyrics?> = AppGraph.lyrics.current
     val sleepTimer: StateFlow<SleepTimer.Mode> = SleepTimer.mode
     val update: StateFlow<UpdateState> = AppGraph.updates.state
+
+    val online: StateFlow<OnlineData> = AppGraph.online.state
+
+    /** The heart on the player: favourite station for radio, favourite song otherwise. */
+    fun isFavorite(song: Song, user: UserData, online: OnlineData): Boolean =
+        if (song.isRadio) song.key.removePrefix(Song.RADIO_PREFIX) in online.favoriteIds else song.key in user.favoriteSet
+
+    fun toggleFavoriteAnywhere(song: Song) {
+        if (song.isRadio) AppGraph.online.toggleFavorite(RadioStation.fromSong(song)) else toggleFavorite(song)
+    }
+
+    /** Where podcasts and long tracks were left, by song key. */
+    val positions: StateFlow<Map<String, Long>> = AppGraph.positions.state
 
     private val _updateBannerDismissed = MutableStateFlow(false)
 
@@ -307,6 +322,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             "player" -> requestOpenPlayer()
             "home" -> showSection(MainSection.HOME)
             "folders" -> showSection(MainSection.FOLDERS)
+            "online" -> showSection(MainSection.ONLINE)
             "songs" -> requestTab(0)
             "albums" -> requestTab(1)
             "artists" -> requestTab(2)

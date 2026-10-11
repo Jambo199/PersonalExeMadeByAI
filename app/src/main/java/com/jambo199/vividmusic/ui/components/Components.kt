@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.Button
@@ -99,15 +100,17 @@ fun Artwork(
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            imageVector = placeholderIcon,
+            imageVector = if (song?.isRadio == true && placeholderIcon == Icons.Rounded.MusicNote) Icons.Rounded.Radio else placeholderIcon,
             contentDescription = null,
             tint = Color.White.copy(alpha = 0.85f),
             modifier = Modifier.size(iconSize),
         )
-        if (song != null) {
+        if (song != null && (!song.isOnline || song.coverHint != null)) {
             val context = LocalContext.current
-            val request = remember(song.key, song.dateModifiedSec) {
-                ImageRequest.Builder(context).data(song).crossfade(true).build()
+            val request = remember(song.key, song.dateModifiedSec, song.coverHint) {
+                // Online songs: let Coil fetch and cache the artwork address itself.
+                val data: Any = if (song.isOnline) song.coverHint.toString() else song
+                ImageRequest.Builder(context).data(data).crossfade(true).build()
             }
             AsyncImage(
                 model = request,

@@ -93,6 +93,7 @@ dependencies {
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.common)
     implementation(libs.androidx.media3.extractor)
+    implementation(libs.androidx.media3.hls)
 
     implementation(libs.androidx.palette.ktx)
     implementation(libs.coil.compose)
@@ -100,4 +101,6 @@ dependencies {
     implementation(libs.kotlinx.coroutines.guava)
 
     testImplementation(libs.junit)
+    // The real org.json, so parser tests don't hit Android's stubs.
+    testImplementation(libs.org.json)
 }
