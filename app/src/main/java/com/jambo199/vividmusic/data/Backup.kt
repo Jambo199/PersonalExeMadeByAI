@@ -11,7 +11,7 @@ import org.json.JSONObject
 object Backup {
     private const val FORMAT = "vivid-music-backup"
 
-    data class Restored(val playlists: Int, val songsFound: Int, val songsMissing: Int)
+    data class Restored(val playlists: Int, val songsFound: Int, val songsMissing: Int, val foldersToAddAgain: Int)
 
     fun build(settings: SettingsStore, userData: UserDataStore, lyrics: LyricsRepository, library: Library): JSONObject {
         val data = userData.current
@@ -33,12 +33,17 @@ object Backup {
         require(json.optString("format") == FORMAT) { "That file isn't a Vivid Music backup" }
         val data = UserDataStore.parse(json.getJSONObject("userData"))
         val remap = matchSongs(UserDataStore.keysIn(data), json.optJSONObject("paths"), library)
+        // Access to folders picked with the system picker belongs to this install of the app, so
+        // the backup's picked folders can't be opened; keep the ones this phone already has.
+        val keepFolders = settings.current.pickedFolders
         json.optJSONObject("settings")?.let { settings.restore(it) }
+        val lostFolders = settings.current.pickedFolders.count { it !in keepFolders }
+        settings.update { it.copy(pickedFolders = keepFolders) }
         userData.restore(UserDataStore.remap(data, remap))
         json.optJSONObject("lyricsLinks")?.let { lyrics.restoreAssignments(it, remap) }
         val keys = UserDataStore.keysIn(data)
         val found = keys.count { it in library.byKey || it in remap }
-        return Restored(data.playlists.size, found, keys.size - found)
+        return Restored(data.playlists.size, found, keys.size - found, lostFolders)
     }
 
     /** Old key to this phone's key, for songs whose id changed: same path, or else a unique file name. */

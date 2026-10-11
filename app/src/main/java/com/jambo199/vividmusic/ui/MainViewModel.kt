@@ -530,7 +530,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             result.onSuccess { r ->
                 AppGraph.library.refreshAll()
                 val missing = if (r.songsMissing > 0) " • ${pluralize(r.songsMissing, "song")} not on this phone" else ""
-                toast("Backup restored: ${pluralize(r.playlists, "playlist")}$missing")
+                val folders = if (r.foldersToAddAgain > 0) " • add your ${pluralize(r.foldersToAddAgain, "folder")} again in Folders" else ""
+                toast("Backup restored: ${pluralize(r.playlists, "playlist")}$missing$folders")
             }.onFailure { e ->
                 toast((e as? IllegalArgumentException)?.message ?: "Couldn't restore that backup")
             }

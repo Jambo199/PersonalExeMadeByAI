@@ -148,7 +148,8 @@ data class Library(
                 groups.getOrPut(name.lowercase()) { name to ArrayList() }.second += song
             }
         }
-        groups.values.map { (name, list) -> Genre(name, list) }.sortedByDescending { it.songs.size }
+        val order = compareBy<Song>({ sortKey(it.displayArtist) }, { sortKey(it.displayAlbum) }, { it.trackNumber }, { sortKey(it.title) })
+        groups.values.map { (name, list) -> Genre(name, list.sortedWith(order)) }.sortedByDescending { it.songs.size }
     }
 
     fun genre(name: String): Genre? = genres.firstOrNull { it.name.equals(name, ignoreCase = true) }

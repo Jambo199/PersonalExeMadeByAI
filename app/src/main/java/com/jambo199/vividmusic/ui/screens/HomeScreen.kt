@@ -471,7 +471,7 @@ private fun StatsCard(viewModel: MainViewModel, onOpen: () -> Unit) {
             Column(Modifier.weight(1f)) {
                 Text("Your listening", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    if (week > 0) "${formatTotalDuration(week)} this week • ${pluralize(data.playCounts.values.sum(), "play")} in total"
+                    if (week >= 60_000) "${formatTotalDuration(week)} this week • ${pluralize(data.playCounts.values.sum(), "play")} in total"
                     else "See what you play most",
                     style = MaterialTheme.typography.bodyMedium,
                 )
