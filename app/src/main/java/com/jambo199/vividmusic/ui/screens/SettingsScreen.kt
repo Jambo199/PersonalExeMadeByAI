@@ -228,6 +228,16 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 }
             }
             item {
+                SwitchRow(
+                    null,
+                    "Find lyrics online",
+                    "When a song has no lyrics, look them up on LRCLIB (lrclib.net) as you open the lyrics. Only the song's title, artist, album and length are sent.",
+                    settings.onlineLyrics,
+                ) { v ->
+                    viewModel.updateSettings { it.copy(onlineLyrics = v) }
+                }
+            }
+            item {
                 SwitchRow(null, "Keep screen on", "While the player screen is open", settings.keepScreenOn) { v ->
                     viewModel.updateSettings { it.copy(keepScreenOn = v) }
                 }

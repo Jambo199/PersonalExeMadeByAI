@@ -71,9 +71,15 @@ object LrcParser {
         .trim()
 }
 
+/** Progress of looking up the current song's lyrics online. */
+@Immutable
+data class OnlineLookup(val songKey: String? = null, val state: State = State.IDLE, val message: String? = null) {
+    enum class State { IDLE, SEARCHING, NOT_FOUND, FAILED }
+}
+
 /**
  * Finds lyrics for the current song: a user-chosen .lrc file, a sidecar .lrc next to the song,
- * or lyrics embedded in the file's tags (reported by the player).
+ * lyrics embedded in the file's tags (reported by the player), or lyrics found online earlier.
  */
 class LyricsRepository(
     private val context: Context,
@@ -86,16 +92,60 @@ class LyricsRepository(
     private val assignmentsFile = File(context.filesDir, "lyrics_assignments.json")
     private val assignments: MutableMap<String, String> = loadAssignments()
 
+    private val online = OnlineLyrics(context)
+    private val _lookup = MutableStateFlow(OnlineLookup())
+    val lookup: StateFlow<OnlineLookup> = _lookup.asStateFlow()
+
     private var currentKey: String? = null
     private var embedded: String? = null
     private var job: Job? = null
+    private var lookupJob: Job? = null
 
     /** Called by the playback service whenever the playing song changes. */
     fun onSongChanged(key: String?) {
         if (key == currentKey) return
         currentKey = key
         embedded = null
+        lookupJob?.cancel()
+        _lookup.value = OnlineLookup(key)
         reload()
+    }
+
+    /**
+     * Looks the current song up on LRCLIB. Without [force], songs already looked up (found or
+     * not) aren't asked about again.
+     */
+    fun searchOnline(force: Boolean = false) {
+        val key = currentKey ?: return
+        val song = library().byKey[key] ?: return
+        val now = _lookup.value
+        if (!force && now.songKey == key && now.state != OnlineLookup.State.IDLE) return
+        if (!force && online.knownMissing(song)) {
+            _lookup.value = OnlineLookup(key, OnlineLookup.State.NOT_FOUND)
+            return
+        }
+        lookupJob?.cancel()
+        _lookup.value = OnlineLookup(key, OnlineLookup.State.SEARCHING)
+        lookupJob = scope.launch {
+            val result = withContext(Dispatchers.IO) { online.fetch(song) }
+            if (key != currentKey) return@launch
+            _lookup.value = when (result) {
+                is OnlineLyrics.Result.Found -> OnlineLookup(key)
+                OnlineLyrics.Result.NotFound -> OnlineLookup(key, OnlineLookup.State.NOT_FOUND)
+                is OnlineLyrics.Result.Failed -> OnlineLookup(key, OnlineLookup.State.FAILED, result.message)
+            }
+            if (result is OnlineLyrics.Result.Found) reload()
+        }
+    }
+
+    /** Drops lyrics that were downloaded for a song, for when they're wrong. */
+    fun removeOnline(songKey: String) {
+        val song = library().byKey[songKey] ?: return
+        online.remove(song)
+        if (songKey == currentKey) {
+            _lookup.value = OnlineLookup(songKey, OnlineLookup.State.NOT_FOUND)
+            reload()
+        }
     }
 
     /** Called by the playback service when the player found lyrics inside the file. */
@@ -156,6 +206,7 @@ class LyricsRepository(
             }
         }
         if (!embeddedText.isNullOrBlank()) return build(key, embeddedText, "Embedded lyrics")
+        song?.let { online.cached(it) }?.let { return build(key, it, OnlineLyrics.SOURCE) }
         return null
     }
 

@@ -174,6 +174,15 @@ adb shell input text "sing"
 shot 15-search 3
 tap "Sing Along" && sleep 2 && shortcut player && sleep 2 && tap "Lyrics" && shot 16-synced-lyrics 5
 
+online_song=$(ls "$MEDIA/Music/Online/"*.mp3 2> /dev/null | head -1)
+if [ -n "$online_song" ]; then
+  echo "== Online lyrics (LRCLIB)"
+  title=$(basename "$online_song" .mp3)
+  shortcut songs
+  tap "$title" && sleep 2 && shortcut player && sleep 2 && tap "Lyrics" && shot 16b-online-lyrics 8
+  adb logcat -d | grep -E "OnlineLyrics" | tail -5
+fi
+
 echo "== Other screens"
 shortcut settings;  shot 17-settings 3
 shortcut equalizer; shot 18-equalizer 3

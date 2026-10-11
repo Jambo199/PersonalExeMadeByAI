@@ -2,11 +2,11 @@ package com.jambo199.vividmusic.ui.screens
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -18,14 +18,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.TravelExplore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -33,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -57,6 +62,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jambo199.vividmusic.data.LyricLine
 import com.jambo199.vividmusic.data.Lyrics
+import com.jambo199.vividmusic.data.OnlineLookup
+import com.jambo199.vividmusic.data.OnlineLyrics
 import com.jambo199.vividmusic.data.formatDuration
 import com.jambo199.vividmusic.data.formatTotalDuration
 import com.jambo199.vividmusic.data.pluralize
@@ -178,7 +185,11 @@ fun QueueSheet(viewModel: MainViewModel, onDismiss: () -> Unit) {
 
 @Composable
 fun LyricsView(
+    songKey: String,
     lyrics: Lyrics?,
+    lookup: OnlineLookup,
+    autoSearch: Boolean,
+    onSearchOnline: (force: Boolean) -> Unit,
     position: () -> Long,
     isPlaying: Boolean,
     onSeek: (Long) -> Unit,
@@ -186,16 +197,25 @@ fun LyricsView(
     modifier: Modifier = Modifier,
 ) {
     if (lyrics == null) {
-        Box(modifier, contentAlignment = Alignment.Center) {
+        if (autoSearch) {
+            LaunchedEffect(songKey) {
+                // Give lyrics stored in the file a moment to turn up before going online.
+                delay(1200)
+                onSearchOnline(false)
+            }
+        }
+        NoLyrics(lookup, contentColor, onSearchOnline, modifier)
+        return
+    }
+    val credit: @Composable () -> Unit = {
+        if (lyrics.source == OnlineLyrics.SOURCE) {
             Text(
-                "No lyrics found.\n\nPut a .lrc file with the same name next to the song, or use ⋮ → Link lyrics file.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = contentColor.copy(alpha = 0.75f),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(24.dp),
+                "Lyrics from LRCLIB",
+                style = MaterialTheme.typography.labelMedium,
+                color = contentColor.copy(alpha = 0.55f),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp),
             )
         }
-        return
     }
     if (!lyrics.isSynced) {
         LazyColumn(modifier, contentPadding = PaddingValues(vertical = 24.dp, horizontal = 8.dp)) {
@@ -206,6 +226,7 @@ fun LyricsView(
                     color = contentColor,
                 )
             }
+            item { credit() }
         }
         return
     }
@@ -226,6 +247,50 @@ fun LyricsView(
     LazyColumn(modifier, state = listState, contentPadding = PaddingValues(top = 16.dp, bottom = 160.dp)) {
         itemsIndexed(lines) { i, line ->
             LyricRow(line, active = i == current, passed = i < current, contentColor = contentColor) { onSeek(line.timeMs) }
+        }
+        item { credit() }
+    }
+}
+
+@Composable
+private fun NoLyrics(
+    lookup: OnlineLookup,
+    contentColor: Color,
+    onSearchOnline: (force: Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val buttonColors = ButtonDefaults.outlinedButtonColors(contentColor = contentColor)
+    val border = BorderStroke(1.dp, contentColor.copy(alpha = 0.5f))
+    Column(
+        modifier.padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+    ) {
+        val message = when (lookup.state) {
+            OnlineLookup.State.SEARCHING -> "Looking for lyrics online…"
+            OnlineLookup.State.NOT_FOUND -> "No lyrics found, here or on LRCLIB.\n\nPut a .lrc file with the same name next to the song, or use ⋮ → Link lyrics file."
+            OnlineLookup.State.FAILED -> lookup.message ?: "Couldn't look up lyrics."
+            OnlineLookup.State.IDLE -> "No lyrics on your phone for this song.\n\nPut a .lrc file with the same name next to the song, use ⋮ → Link lyrics file, or search online."
+        }
+        if (lookup.state == OnlineLookup.State.SEARCHING) {
+            CircularProgressIndicator(color = contentColor, strokeWidth = 3.dp)
+        }
+        Text(
+            message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = contentColor.copy(alpha = 0.8f),
+            textAlign = TextAlign.Center,
+        )
+        when (lookup.state) {
+            OnlineLookup.State.IDLE -> OutlinedButton(onClick = { onSearchOnline(true) }, colors = buttonColors, border = border) {
+                Icon(Icons.Rounded.TravelExplore, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Search online")
+            }
+            OnlineLookup.State.FAILED -> OutlinedButton(onClick = { onSearchOnline(true) }, colors = buttonColors, border = border) {
+                Text("Try again")
+            }
+            else -> Unit
         }
     }
 }

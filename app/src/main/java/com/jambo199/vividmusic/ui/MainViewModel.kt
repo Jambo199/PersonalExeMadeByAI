@@ -21,6 +21,7 @@ import com.jambo199.vividmusic.data.Library
 import com.jambo199.vividmusic.data.LibraryState
 import com.jambo199.vividmusic.data.Lyrics
 import com.jambo199.vividmusic.data.MainSection
+import com.jambo199.vividmusic.data.OnlineLookup
 import com.jambo199.vividmusic.data.Playlist
 import com.jambo199.vividmusic.data.Settings
 import com.jambo199.vividmusic.data.SmartPlaylists
@@ -523,6 +524,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun unassignLyrics(song: Song) = AppGraph.lyrics.unassign(song.key)
+
+    val lyricsLookup: StateFlow<OnlineLookup> = AppGraph.lyrics.lookup
+
+    fun searchLyricsOnline(force: Boolean) = AppGraph.lyrics.searchOnline(force)
+
+    fun removeOnlineLyrics(song: Song) {
+        AppGraph.lyrics.removeOnline(song.key)
+        toast("Downloaded lyrics removed")
+    }
     fun hasLyricsFile(song: Song) = AppGraph.lyrics.hasAssignment(song.key)
 
     // endregion

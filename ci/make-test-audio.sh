@@ -44,5 +44,21 @@ ff -f lavfi -i "sine=frequency=392:duration=40" -c:a libmp3lame -b:a 96k -id3v2_
 ff -f lavfi -i "sine=frequency=220:duration=35" -c:a libmp3lame -b:a 64k -map_metadata -1 "$OUT/Download/Mixtape/Track 2.mp3"
 ff -f lavfi -i "sine=frequency=247:duration=35" -c:a libmp3lame -b:a 64k -map_metadata -1 "$OUT/Download/Mixtape/Track 10.mp3"
 
+# A real song's title and length (tones only, of course) so the test can find its lyrics on LRCLIB.
+real=$(curl -fsS -m 20 -A "VividMusic CI (https://github.com/Jambo199/PersonalExeMadeByAI)" \
+  "https://lrclib.net/api/search?track_name=Never%20Gonna%20Give%20You%20Up&artist_name=Rick%20Astley" || true)
+row=$(echo "${real:-[]}" | jq -r '[.[] | select(.syncedLyrics != null and .duration > 0)][0] // empty
+  | [(.duration | round), .trackName, .artistName, .albumName] | @tsv' 2>/dev/null || true)
+if [ -n "$row" ]; then
+  IFS=$'\t' read -r dur track artist album <<< "$row"
+  mkdir -p "$OUT/Music/Online"
+  ff -f lavfi -i "sine=frequency=262:duration=$dur" -ac 1 -c:a libmp3lame -b:a 32k -id3v2_version 3 \
+    -metadata title="$track" -metadata artist="$artist" -metadata album="$album" \
+    "$OUT/Music/Online/$track.mp3"
+  echo "LRCLIB test song: $track / $artist / $album / ${dur}s"
+else
+  echo "LRCLIB unreachable; skipping the online lyrics song"
+fi
+
 rm -rf "$OUT/covers"
 find "$OUT" -type f | sort

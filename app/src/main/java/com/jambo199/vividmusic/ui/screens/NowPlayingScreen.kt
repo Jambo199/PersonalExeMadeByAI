@@ -32,7 +32,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -101,6 +100,8 @@ import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.jambo199.vividmusic.data.ArtworkLoader
+import com.jambo199.vividmusic.data.OnlineLookup
+import com.jambo199.vividmusic.data.OnlineLyrics
 import com.jambo199.vividmusic.data.Song
 import com.jambo199.vividmusic.data.formatDuration
 import com.jambo199.vividmusic.playback.SleepTimer
@@ -147,6 +148,7 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
     val settings by viewModel.settings.collectAsState()
     val userData by viewModel.userData.collectAsState()
     val lyrics by viewModel.lyrics.collectAsState()
+    val lyricsLookup by viewModel.lyricsLookup.collectAsState()
     val sleep by viewModel.sleepTimer.collectAsState()
     val source by viewModel.queueSource.collectAsState()
     val nav = LocalNav.current
@@ -272,6 +274,12 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                                 menuOpen = false
                                 lyricsPicker.launch(arrayOf("*/*"))
                             })
+                            if (lyrics?.songKey == song.key && lyrics?.source == OnlineLyrics.SOURCE) {
+                                DropdownMenuItem(text = { Text("Remove downloaded lyrics") }, onClick = {
+                                    menuOpen = false
+                                    viewModel.removeOnlineLyrics(song)
+                                })
+                            }
                             if (viewModel.hasLyricsFile(song)) {
                                 DropdownMenuItem(text = { Text("Unlink lyrics file") }, onClick = {
                                     menuOpen = false
@@ -287,7 +295,11 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                         AnimatedContent(targetState = showLyrics, label = "artOrLyrics") { lyricsMode ->
                             if (lyricsMode) {
                                 LyricsView(
+                                    songKey = song.key,
                                     lyrics = lyrics?.takeIf { it.songKey == song.key },
+                                    lookup = lyricsLookup.takeIf { it.songKey == song.key } ?: OnlineLookup(song.key),
+                                    autoSearch = settings.onlineLyrics,
+                                    onSearchOnline = { force -> viewModel.searchLyricsOnline(force) },
                                     position = { viewModel.player.position() },
                                     isPlaying = playback.isPlaying,
                                     onSeek = { viewModel.player.seekTo(it) },
