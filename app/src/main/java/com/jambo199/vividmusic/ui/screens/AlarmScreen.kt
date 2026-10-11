@@ -107,7 +107,9 @@ fun AlarmScreen(viewModel: MainViewModel) {
             }
         }
     }
-    val next = MusicAlarm.nextRing(settings, now)
+    // Straight after a change, count from this moment rather than the last tick.
+    val current = remember(settings, now) { LocalDateTime.now() }
+    val next = MusicAlarm.nextRing(settings, current)
     val time = LocalTime.of(settings.alarmHour, settings.alarmMinute)
     val clock = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
 
@@ -160,7 +162,7 @@ fun AlarmScreen(viewModel: MainViewModel) {
                     )
                     Text(
                         when {
-                            next != null -> MusicAlarm.untilText(now, next) + " · " + daysText(settings.alarmDays)
+                            next != null -> MusicAlarm.untilText(current, next) + " · " + daysText(settings.alarmDays)
                             else -> "Off · tap the time to change it"
                         },
                         color = Color.White.copy(alpha = 0.9f),

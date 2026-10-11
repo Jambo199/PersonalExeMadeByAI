@@ -125,6 +125,7 @@ import com.jambo199.vividmusic.ui.components.RingVisualizer
 import com.jambo199.vividmusic.ui.components.Visualizer
 import com.jambo199.vividmusic.ui.components.qualityBadge
 import com.jambo199.vividmusic.ui.components.readTechnicalInfo
+import com.jambo199.vividmusic.ui.components.AuroraBackground
 import com.jambo199.vividmusic.ui.components.rememberSpectrum
 import com.jambo199.vividmusic.ui.theme.rememberArtworkColor
 import kotlinx.coroutines.Dispatchers
@@ -167,8 +168,10 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
     }
 
     val themeDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    // Blurred artwork sits under a dark scrim, so everything on it is drawn light.
-    val blurBackground = settings.playerBackground == PlayerBackground.BLUR && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val blurArtwork = settings.playerBackground == PlayerBackground.BLUR && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val aurora = settings.playerBackground == PlayerBackground.AURORA
+    // Blurred artwork (under a dark scrim) and the aurora are dark, so everything on them is drawn light.
+    val blurBackground = blurArtwork || aurora
     val dark = themeDark || blurBackground
     val artColor = rememberArtworkColor(song)
     val baseBg = if (blurBackground) Color(0xFF101010) else MaterialTheme.colorScheme.background
@@ -248,7 +251,8 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
             .fillMaxSize()
             .background(Brush.verticalGradient(listOf(topBg, baseBg))),
     ) {
-        if (blurBackground) BlurredArtwork(song)
+        if (blurArtwork) BlurredArtwork(song)
+        if (aurora) AuroraBackground(accent, playback.isPlaying)
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
             val landscape = maxWidth > maxHeight
             Column(Modifier.fillMaxSize()) {
@@ -290,6 +294,10 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                             DropdownMenuItem(text = { Text("Equalizer") }, onClick = {
                                 menuOpen = false
                                 nav.equalizer()
+                            })
+                            DropdownMenuItem(text = { Text("Party mode") }, onClick = {
+                                menuOpen = false
+                                nav.party()
                             })
                             DropdownMenuItem(
                                 text = {

@@ -15,6 +15,7 @@ data class HomeFeed(
     val forgottenFavorites: List<Song> = emptyList(),
     val unplayedAlbums: List<Album> = emptyList(),
     val dailyMixes: List<DailyMix> = emptyList(),
+    val decades: List<Decade> = emptyList(),
     val songCount: Int = 0,
     val totalDurationMs: Long = 0,
 )
@@ -28,6 +29,12 @@ data class DailyMix(
     val artists: String,
     val songs: List<Song>,
 )
+
+/** Songs from one decade, by their year tags. */
+data class Decade(val startYear: Int, val songs: List<Song>) {
+    /** "90s", "2000s", "2010s"… */
+    val label: String get() = if (startYear < 2000) "${startYear % 100}s" else "${startYear}s"
+}
 
 object HomeFeedBuilder {
     private const val QUICK_PICKS = 20
@@ -51,6 +58,7 @@ object HomeFeedBuilder {
             forgottenFavorites = forgottenFavorites(lib, data, seed),
             unplayedAlbums = unplayedAlbums(lib, data, seed),
             dailyMixes = dailyMixes(lib, data, seed),
+            decades = decades(lib),
             songCount = lib.songs.size,
             totalDurationMs = lib.songs.sumOf { it.durationMs },
         )
@@ -175,6 +183,16 @@ object HomeFeedBuilder {
             DailyMix("Daily Mix ${i + 1}", theme, artistsOf(songs), songs)
         }
     }
+
+    /** Decades with at least three songs, oldest first; only shown when there are two or more. */
+    fun decades(lib: Library): List<Decade> = lib.songs
+        .filter { it.year in 1900..2100 }
+        .groupBy { it.year / 10 * 10 }
+        .filter { it.value.size >= 3 }
+        .toSortedMap()
+        .map { (start, songs) -> Decade(start, songs) }
+        .takeIf { it.size >= 2 }
+        .orEmpty()
 
     /** Stable pseudo-random number in 0..1 for [key] under [seed]. */
     fun noise(key: String, seed: Long): Double {

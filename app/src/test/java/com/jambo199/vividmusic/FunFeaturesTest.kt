@@ -1,5 +1,8 @@
 package com.jambo199.vividmusic
 
+import com.jambo199.vividmusic.data.Decade
+import com.jambo199.vividmusic.data.UserData
+import com.jambo199.vividmusic.data.UserDataStore
 import com.jambo199.vividmusic.data.Wrapped
 import com.jambo199.vividmusic.playback.MusicAlarm
 import com.jambo199.vividmusic.playback.ShakeDetector
@@ -83,5 +86,42 @@ class FunFeaturesTest {
         assertEquals("Rings in 9 h 5 min", MusicAlarm.untilText(from, LocalDateTime.of(2026, 10, 12, 7, 30)))
         assertEquals("Rings in 1 min", MusicAlarm.untilText(from, from.plusSeconds(20)))
         assertEquals("Rings in 2 days 1 h", MusicAlarm.untilText(from.withSecond(0), from.withSecond(0).plusDays(2).plusHours(1)))
+    }
+
+    @Test
+    fun streakCountsDaysInARow() {
+        var d = UserData()
+        d = UserDataStore.countStreakDay(d, "2026-10-09", "2026-10-08")
+        assertEquals(1, d.streak)
+        d = UserDataStore.countStreakDay(d, "2026-10-10", "2026-10-09")
+        d = UserDataStore.countStreakDay(d, "2026-10-10", "2026-10-09") // same day again: no change
+        assertEquals(2, d.streak)
+        // Still going the next day, until something is played.
+        assertEquals(2, d.currentStreak("2026-10-11", "2026-10-10"))
+        // A day missed: gone, and the next day starts again from one.
+        assertEquals(0, d.currentStreak("2026-10-12", "2026-10-11"))
+        d = UserDataStore.countStreakDay(d, "2026-10-12", "2026-10-11")
+        assertEquals(1, d.streak)
+        assertEquals(2, d.bestStreak)
+    }
+
+    @Test
+    fun streakPicksUpEarlierDays() {
+        val day = 24L * 60 * 60 * 1000
+        val now = java.util.Calendar.getInstance().apply { set(2026, 9, 11, 12, 0) }.timeInMillis
+        val daily = mapOf(
+            UserDataStore.dayKey(now - day) to 120_000L,
+            UserDataStore.dayKey(now - 2 * day) to 60_000L,
+            UserDataStore.dayKey(now - 3 * day) to 5_000L, // under a minute: doesn't count
+            UserDataStore.dayKey(now - 4 * day) to 300_000L,
+        )
+        assertEquals(2, UserDataStore.pastStreak(daily, now))
+    }
+
+    @Test
+    fun decadeNames() {
+        assertEquals("80s", Decade(1980, emptyList()).label)
+        assertEquals("2000s", Decade(2000, emptyList()).label)
+        assertEquals("2020s", Decade(2020, emptyList()).label)
     }
 }

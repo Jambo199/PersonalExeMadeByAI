@@ -33,6 +33,7 @@ object Achievements {
             Achievement("repeat", "On repeat", "Play one song 25 times", topSongPlays, 25),
             Achievement("marathon", "Marathon", "Listen for 3 hours in one day", bestDay / 60_000, 3 * HOUR / 60_000),
             Achievement("devoted", "Devoted", "Listen on 7 different days", activeDays, 7),
+            Achievement("streak", "On fire", "Listen 7 days in a row", data.bestStreak.toLong(), 7),
             Achievement("hearts", "Heart collector", "Favourite 25 songs", data.favorites.size.toLong(), 25),
             Achievement("curator", "Curator", "Make 3 playlists", playlists, 3),
             Achievement("ncs", "NCS fan", "Save 10 NCS songs to your phone", ncsSaved, 10),

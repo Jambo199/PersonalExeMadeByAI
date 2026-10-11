@@ -123,6 +123,9 @@ You can also lock the app in the recent-apps screen (pull the card down).
 **Fun stuff**
 - **Live visualizer** over the artwork (bars, wave or mirror), and artwork that **bounces to the beat**
 - **Vinyl record** player: the artwork spins on a record while music plays
+- **Aurora** player background: soft clouds of the artwork's colours drifting while music plays
+- **Party mode** (player ⋮ menu): the whole screen becomes a light show to the beat – sweeping
+  beams, a ring of bars and colours that change on every beat (strobe flashes only if you turn them on)
 - **Sound presets**: Nightcore, Slowed, Slowed + reverb, Chipmunk, Deep voice and Concert hall,
   plus room / hall / plate **reverb** on anything
 - **Karaoke lyrics**: the line being sung fills with colour as it goes; long-press a line to
@@ -131,7 +134,10 @@ You can also lock the app in the recent-apps screen (pull the card down).
   with points for speed and streaks
 - **Your Wrapped**: a story of your top songs, artists, minutes, favourite genre and day, and your
   listening personality, ready to share
-- **Badges** to unlock (Century, Marathon, Explorer, Golden ears…) on the stats page
+- **Swipe to discover**: songs you've never played, one card at a time with a preview – swipe
+  right to love it, left to pass; or swipe through NCS songs and save the ones you like
+- **Listening streaks**: days in a row with music, shown on Home and the stats page
+- **Badges** to unlock (Century, Marathon, On fire, Explorer, Golden ears…) on the stats page
 - **Song of the day** and three **daily mixes** on Home, made from the genres and artists you play
 - **Shake to skip** (Settings)
 - **Music alarm**: wake up to your favourites, all songs, the song of the day or a daily mix –

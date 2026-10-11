@@ -12,7 +12,7 @@ enum class ThemeMode(val label: String) { SYSTEM("Follow system"), LIGHT("Light"
 
 enum class FolderViewMode { TREE, FLAT }
 
-enum class PlayerBackground(val label: String) { BLUR("Blurred artwork"), GRADIENT("Colour gradient"), PLAIN("Plain") }
+enum class PlayerBackground(val label: String) { BLUR("Blurred artwork"), GRADIENT("Colour gradient"), AURORA("Aurora"), PLAIN("Plain") }
 
 /** How the player shows the artwork. */
 enum class ArtworkStyle(val label: String) { SQUARE("Square"), VINYL("Vinyl record") }

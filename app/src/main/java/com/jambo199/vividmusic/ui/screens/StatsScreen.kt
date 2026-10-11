@@ -119,6 +119,14 @@ fun StatsScreen(viewModel: MainViewModel) {
                         StatCard(stats.songsPlayed.toString(), "different songs", Modifier.weight(1f))
                         StatCard(stats.favorites.toString(), if (stats.favorites == 1) "favourite" else "favourites", Modifier.weight(1f))
                     }
+                    if (data.bestStreak > 0) {
+                        val now = System.currentTimeMillis()
+                        val streak = data.currentStreak(UserDataStore.dayKey(now), UserDataStore.dayKey(now - DAY_MS))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            StatCard(streak.toString(), if (streak == 1) "day in a row" else "days in a row", Modifier.weight(1f))
+                            StatCard(data.bestStreak.toString(), "best streak (days)", Modifier.weight(1f))
+                        }
+                    }
                     if (stats.since > 0) {
                         Text(
                             "Since ${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(stats.since))}",

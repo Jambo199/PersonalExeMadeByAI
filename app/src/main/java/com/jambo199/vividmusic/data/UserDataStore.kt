@@ -27,8 +27,17 @@ data class UserData(
     val dailyMs: Map<String, Long> = emptyMap(),
     /** When listening stats started being kept. */
     val statsSince: Long = 0,
+    /** Days in a row with at least a minute of music, ending on [streakDay]. */
+    val streak: Int = 0,
+    /** The last day ("2026-10-11") counted in [streak]. */
+    val streakDay: String = "",
+    val bestStreak: Int = 0,
 ) {
     val favoriteSet: Set<String> by lazy { favorites.toSet() }
+
+    /** The streak still going: it lasts until a whole day goes by without music. */
+    fun currentStreak(today: String, yesterday: String): Int =
+        if (streakDay == today || streakDay == yesterday) streak else 0
 }
 
 /** Playlists, favourites and listening history stored as one small JSON file. */
@@ -109,13 +118,21 @@ class UserDataStore(context: Context, private val scope: CoroutineScope) {
     fun addListeningTime(ms: Long, now: Long = System.currentTimeMillis()) {
         if (ms <= 0) return
         val today = dayKey(now)
+        val yesterday = dayKey(now - DAY_MS)
         val oldest = dayKey(now - (DAYS_KEPT - 1) * DAY_MS)
         mutate { d ->
-            d.copy(
+            val next = d.copy(
                 listenedMs = d.listenedMs + ms,
                 dailyMs = (d.dailyMs + (today to (d.dailyMs[today] ?: 0L) + ms)).filterKeys { it >= oldest },
                 statsSince = d.statsSince.takeIf { it > 0 } ?: now,
             )
+            if (next.streakDay == today || (next.dailyMs[today] ?: 0L) < STREAK_MS) {
+                next
+            } else {
+                // Streaks started before they were tracked are picked up from the daily totals.
+                val base = if (next.streakDay.isEmpty()) next.copy(streak = pastStreak(next.dailyMs, now), streakDay = yesterday) else next
+                countStreakDay(base, today, yesterday)
+            }
         }
     }
 
@@ -196,6 +213,9 @@ class UserDataStore(context: Context, private val scope: CoroutineScope) {
                 listenedMs = root.optLong("listenedMs"),
                 dailyMs = root.optJSONObject("dailyMs")?.let { o -> o.keys().asSequence().associateWith { o.optLong(it) } }.orEmpty(),
                 statsSince = root.optLong("statsSince"),
+                streak = root.optInt("streak"),
+                streakDay = root.optString("streakDay"),
+                bestStreak = root.optInt("bestStreak"),
             )
         }
 
@@ -213,7 +233,27 @@ class UserDataStore(context: Context, private val scope: CoroutineScope) {
             root.put("listenedMs", data.listenedMs)
             root.put("dailyMs", JSONObject().apply { data.dailyMs.forEach { (k, v) -> put(k, v) } })
             root.put("statsSince", data.statsSince)
+            root.put("streak", data.streak)
+            root.put("streakDay", data.streakDay)
+            root.put("bestStreak", data.bestStreak)
             return root
+        }
+
+        /** A day with this much music counts towards the streak. */
+        const val STREAK_MS = 60_000L
+
+        /** [data] once [day] has had its first full minute of music. */
+        fun countStreakDay(data: UserData, day: String, previousDay: String): UserData {
+            if (data.streakDay == day) return data
+            val streak = if (data.streakDay == previousDay) data.streak + 1 else 1
+            return data.copy(streak = streak, streakDay = day, bestStreak = maxOf(data.bestStreak, streak))
+        }
+
+        /** Days in a row before the day of [now] with a minute or more of music. */
+        fun pastStreak(dailyMs: Map<String, Long>, now: Long): Int {
+            var days = 0
+            while ((dailyMs[dayKey(now - (days + 1) * DAY_MS)] ?: 0L) >= STREAK_MS) days++
+            return days
         }
 
         /** Every song key the data mentions. */

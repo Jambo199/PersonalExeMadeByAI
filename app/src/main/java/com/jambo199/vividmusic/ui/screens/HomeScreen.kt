@@ -36,11 +36,13 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FiberNew
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Insights
+import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Quiz
+import androidx.compose.material.icons.rounded.Style
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.Whatshot
@@ -71,6 +73,7 @@ import androidx.compose.ui.unit.dp
 import com.jambo199.vividmusic.data.Album
 import com.jambo199.vividmusic.data.Artist
 import com.jambo199.vividmusic.data.DailyMix
+import com.jambo199.vividmusic.data.Decade
 import com.jambo199.vividmusic.data.Genre
 import com.jambo199.vividmusic.data.HomeFeed
 import com.jambo199.vividmusic.data.MainSection
@@ -213,6 +216,20 @@ fun HomeScreen(viewModel: MainViewModel) {
             item(key = "genres") { GenreCarousel(library.genres.take(12)) { nav.genre(it.name) } }
         }
 
+        if (feed.decades.isNotEmpty()) {
+            item(key = "decades-title") { HomeHeader("Time machine", "Shuffle a decade") }
+            item(key = "decades") {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    items(feed.decades, key = { it.startYear }) { decade ->
+                        DecadeCard(decade) { viewModel.shuffle(decade.songs, "The ${decade.label}") }
+                    }
+                }
+            }
+        }
+
         if (feed.unplayedAlbums.isNotEmpty()) {
             item(key = "unplayed-title") { HomeHeader("Not played yet", "Albums waiting for a first listen") }
             item(key = "unplayed") { AlbumCarousel(feed.unplayedAlbums, onOpen = { nav.album(it.id) }, onPlay = playAlbum) }
@@ -234,6 +251,14 @@ fun HomeScreen(viewModel: MainViewModel) {
                 Icons.Rounded.Quiz,
                 listOf(Color(0xFF7C4DFF), Color(0xFFE040FB)),
             ) { nav.quiz() }
+        }
+        item(key = "discover") {
+            GradientCard(
+                "Swipe to discover",
+                "Songs you've never played, one card at a time: right to love, left to pass",
+                Icons.Rounded.Style,
+                listOf(Color(0xFFE91E63), Color(0xFFFF9800)),
+            ) { nav.discover() }
         }
     }
 }
@@ -498,10 +523,12 @@ private fun ArtistCarousel(artists: List<Artist>, onOpen: (Artist) -> Unit) {
 @Composable
 private fun StatsCard(viewModel: MainViewModel, onOpen: () -> Unit) {
     val data by viewModel.userData.collectAsState()
+    val now = remember(data) { System.currentTimeMillis() }
     val week = remember(data.dailyMs) {
-        val now = System.currentTimeMillis()
         (0 until 7).sumOf { data.dailyMs[UserDataStore.dayKey(now - it * 24L * 60 * 60 * 1000)] ?: 0L }
     }
+    val today = UserDataStore.dayKey(now)
+    val streak = data.currentStreak(today, UserDataStore.dayKey(now - 24L * 60 * 60 * 1000))
     Surface(
         onClick = onOpen,
         shape = RoundedCornerShape(16.dp),
@@ -520,11 +547,48 @@ private fun StatsCard(viewModel: MainViewModel, onOpen: () -> Unit) {
                     else "See what you play most",
                     style = MaterialTheme.typography.bodyMedium,
                 )
+                if (streak >= 2) {
+                    Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.LocalFireDepartment, contentDescription = null, tint = Color(0xFFFF6D00), modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            if (data.streakDay == today) "$streak-day streak" else "Play something today to keep your $streak-day streak",
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                }
             }
             Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null)
         }
     }
 }
+
+/** A decade as a retro-coloured tile. */
+@Composable
+private fun DecadeCard(decade: Decade, onPlay: () -> Unit) {
+    val colors = DecadeColors[Math.floorMod(decade.startYear / 10, DecadeColors.size)]
+    Column(
+        Modifier
+            .width(120.dp)
+            .height(92.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Brush.linearGradient(colors))
+            .clickable(onClick = onPlay)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(decade.label, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = Color.White)
+        Text(pluralize(decade.songs.size, "song"), style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.85f))
+    }
+}
+
+private val DecadeColors = listOf(
+    listOf(Color(0xFFFF6F00), Color(0xFFFFD54F)),
+    listOf(Color(0xFFAD1457), Color(0xFFFF80AB)),
+    listOf(Color(0xFF00838F), Color(0xFF80DEEA)),
+    listOf(Color(0xFF4527A0), Color(0xFFB388FF)),
+    listOf(Color(0xFF2E7D32), Color(0xFFB9F6CA)),
+)
 
 private val MixColors = listOf(
     listOf(Color(0xFF00897B), Color(0xFF64FFDA)),

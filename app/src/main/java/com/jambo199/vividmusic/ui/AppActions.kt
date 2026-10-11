@@ -25,6 +25,8 @@ object Routes {
     const val QUIZ = "quiz"
     const val WRAPPED = "wrapped"
     const val ALARM = "alarm"
+    const val DISCOVER = "discover"
+    const val PARTY = "party"
 }
 
 @Stable
@@ -43,6 +45,8 @@ class NavActions(private val nav: NavHostController) {
     fun quiz() = nav.navigate(Routes.QUIZ) { launchSingleTop = true }
     fun wrapped() = nav.navigate(Routes.WRAPPED) { launchSingleTop = true }
     fun alarm() = nav.navigate(Routes.ALARM) { launchSingleTop = true }
+    fun discover() = nav.navigate(Routes.DISCOVER) { launchSingleTop = true }
+    fun party() = nav.navigate(Routes.PARTY) { launchSingleTop = true }
     fun back() {
         nav.popBackStack()
     }

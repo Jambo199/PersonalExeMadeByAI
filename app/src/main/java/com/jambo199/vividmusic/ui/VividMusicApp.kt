@@ -54,6 +54,7 @@ import com.jambo199.vividmusic.ui.components.SelectionBar
 import com.jambo199.vividmusic.ui.components.SelectionState
 import com.jambo199.vividmusic.ui.components.SongMenuHost
 import com.jambo199.vividmusic.ui.online.NcsArtistScreen
+import com.jambo199.vividmusic.ui.discover.DiscoverScreen
 import com.jambo199.vividmusic.ui.quiz.QuizScreen
 import com.jambo199.vividmusic.ui.screens.AlarmScreen
 import com.jambo199.vividmusic.ui.screens.AlbumScreen
@@ -63,6 +64,7 @@ import com.jambo199.vividmusic.ui.screens.FolderScreen
 import com.jambo199.vividmusic.ui.screens.GenreScreen
 import com.jambo199.vividmusic.ui.screens.MainScreen
 import com.jambo199.vividmusic.ui.screens.NowPlayingScreen
+import com.jambo199.vividmusic.ui.screens.PartyScreen
 import com.jambo199.vividmusic.ui.screens.PermissionScreen
 import com.jambo199.vividmusic.ui.screens.PlaylistScreen
 import com.jambo199.vividmusic.ui.screens.SearchScreen
@@ -104,8 +106,8 @@ fun VividMusicApp(viewModel: MainViewModel) {
     val backStack by navController.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
     val showSelection = selection.active
-    // The quiz plays its own clips and Wrapped is full screen, so the mini player would only get in the way.
-    val showMini = playback.song != null && route != Routes.NOW_PLAYING && route != Routes.QUIZ && route != Routes.WRAPPED && !showSelection
+    // The quiz and Discover play their own clips and Wrapped is full screen, so the mini player would only get in the way.
+    val showMini = playback.song != null && route !in NO_MINI_PLAYER && !showSelection
     val section by viewModel.section.collectAsState()
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     // The navigation bar stays while browsing (albums, folders...) and hides for the player,
@@ -141,6 +143,8 @@ fun VividMusicApp(viewModel: MainViewModel) {
             "quiz" -> nav.quiz()
             "wrapped" -> nav.wrapped()
             "alarm" -> nav.alarm()
+            "discover" -> nav.discover()
+            "party" -> nav.party()
             "favorites" -> nav.playlist(com.jambo199.vividmusic.data.SmartPlaylists.FAVORITES)
             "queue" -> nav.nowPlaying()
         }
@@ -207,6 +211,8 @@ fun VividMusicApp(viewModel: MainViewModel) {
                     composable(Routes.QUIZ) { QuizScreen() }
                     composable(Routes.WRAPPED) { WrappedScreen(viewModel) }
                     composable(Routes.ALARM) { AlarmScreen(viewModel) }
+                    composable(Routes.DISCOVER) { DiscoverScreen(viewModel) }
+                    composable(Routes.PARTY) { PartyScreen(viewModel) }
                     composable(Routes.ALBUM, arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
                         AlbumScreen(viewModel, entry.arguments?.getLong("id") ?: 0L)
                     }
@@ -316,3 +322,5 @@ fun VividMusicApp(viewModel: MainViewModel) {
         if (sleepDialog) SleepTimerDialog(viewModel) { sleepDialog = false }
     }
 }
+
+private val NO_MINI_PLAYER = setOf<String?>(Routes.NOW_PLAYING, Routes.QUIZ, Routes.WRAPPED, Routes.DISCOVER, Routes.PARTY)

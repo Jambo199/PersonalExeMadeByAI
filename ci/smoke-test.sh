@@ -296,7 +296,7 @@ adb logcat -d | grep -E "NcsViewModel|ExoPlayerImplInternal.*rror|DownloadManage
 echo "== Fun: Guess the song and Wrapped"
 shortcut quiz; shot 46-quiz 4
 if tap "Start"; then
-  shot 47-quiz-question 5
+  shot 47-quiz-question 2
   first_choice=$(text_after "Which song is this?")
   echo "first choice: $first_choice"
   if [ -n "$first_choice" ] && tap "$first_choice"; then shot 48-quiz-answer 2; fi
@@ -306,6 +306,15 @@ shortcut wrapped; shot 49-wrapped 3
 adb shell input tap 900 1400; shot 50-wrapped-minutes 2
 for _ in 1 2 3 4 5 6 7 8; do adb shell input tap 900 1400; sleep 0.5; done
 shot 51-wrapped-summary 2
+adb shell input keyevent KEYCODE_BACK
+
+echo "== Swipe to discover"
+shortcut discover; shot 56-discover 5
+if tap "Love it"; then shot 57-discover-next 3; fi
+tap "Pass" && sleep 1
+adb shell input swipe 300 1000 1000 1050 250; sleep 1
+echo "-- favourites after discovering: $(adb shell run-as $PKG cat files/user_data.json 2>/dev/null | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("favorites",[])))' 2>/dev/null)"
+if tap "NCS songs"; then shot 58-discover-ncs 10; fi
 adb shell input keyevent KEYCODE_BACK
 
 echo "== Music alarm"
@@ -348,6 +357,19 @@ tap "Vinyl record" || { adb shell input swipe 540 1700 540 1000 400; sleep 1; ta
 shortcut player; shot 21b-vinyl 5
 shortcut settings
 tap "Square" || { adb shell input swipe 540 1700 540 1000 400; sleep 1; tap "Square"; }
+
+echo "== Aurora background"
+shortcut settings
+tap "Aurora" || { adb shell input swipe 540 1700 540 1000 400; sleep 1; tap "Aurora"; }
+shortcut player; shot 21c-aurora 5
+shortcut settings
+tap "Blurred artwork" || { adb shell input swipe 540 1700 540 1000 400; sleep 1; tap "Blurred artwork"; }
+
+echo "== Party mode"
+adb shell input keyevent KEYCODE_MEDIA_PLAY
+shortcut party; shot 21d-party 4
+adb shell input tap 540 300; shot 21e-party-lights 3
+adb shell input keyevent KEYCODE_BACK
 
 echo "== Dark mode and landscape"
 adb shell cmd uimode night yes
