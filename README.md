@@ -57,9 +57,6 @@ You can also lock the app in the recent-apps screen (pull the card down).
 - A bottom bar to switch between Home, Library and Folders (a side rail in landscape)
 
 **Online (no ads, no account)**
-- **Internet radio** – thousands of stations from the free [Radio Browser](https://www.radio-browser.info)
-  directory: popular stations, search, browse by country or style, save your favourites. Shows the
-  song a station is playing, in the app and the notification
 - **Free music** – concerts from the Internet Archive's Live Music Archive (bands that allow sharing
   their shows) and Creative Commons netlabel albums. Stream them, or **download** tracks into
   Music › Vivid Music so they join your library and play offline. Each album shows its licence
@@ -164,7 +161,7 @@ Kotlin sources live in `app/src/main/java/com/jambo199/vividmusic/`.
 | `data/HomeFeed.kt` | Quick picks and the other Home rows |
 | `data/Stats.kt` | Numbers for the listening stats screen |
 | `data/Backup.kt` | Backup file and restoring it |
-| `online/` | Radio Browser, Internet Archive and podcast clients, downloads |
+| `online/` | Internet Archive and podcast clients, downloads |
 | `ui/online/` | The Online page, free-music albums and podcast shows |
 | `playback/PlaybackService.kt` | Media3 ExoPlayer + media session (notification, headset, resume) |
 | `playback/SmartShuffle.kt` | Shuffle order that respects the current song and "Play next" |

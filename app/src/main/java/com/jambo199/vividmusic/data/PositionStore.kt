@@ -85,6 +85,6 @@ class PositionStore(context: Context, private val scope: CoroutineScope) {
 
         /** Whether [song] should continue where it was left. */
         fun remembers(song: Song): Boolean =
-            !song.isRadio && (song.key.startsWith(Song.PODCAST_PREFIX) || song.durationMs >= LONG_TRACK_MS)
+            song.key.startsWith(Song.PODCAST_PREFIX) || song.durationMs >= LONG_TRACK_MS
     }
 }

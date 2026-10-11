@@ -1,7 +1,6 @@
 package com.jambo199.vividmusic.ui.online
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -12,14 +11,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Podcasts
 import androidx.compose.material.icons.rounded.Public
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -44,19 +40,13 @@ import com.jambo199.vividmusic.online.ArchiveItem
 import com.jambo199.vividmusic.online.InternetArchive
 import com.jambo199.vividmusic.online.Load
 import com.jambo199.vividmusic.online.Podcast
-import com.jambo199.vividmusic.online.RadioStation
 import com.jambo199.vividmusic.ui.LocalNav
 import com.jambo199.vividmusic.ui.MainViewModel
 import com.jambo199.vividmusic.ui.components.LocalBottomPadding
 
-private val TABS = listOf("Radio", "Free music", "Podcasts")
+private val TABS = listOf("Free music", "Podcasts")
 
-private val RADIO_GENRES = listOf(
-    "pop", "rock", "jazz", "classical", "electronic", "hip hop", "chillout", "lofi", "dance", "country",
-    "blues", "reggae", "metal", "soul", "ambient", "news", "talk", "oldies", "80s", "90s",
-)
-
-/** Music from the internet: radio, free albums and concerts, and podcasts. No ads, no account. */
+/** Music from the internet: free albums and concerts, and podcasts. No ads, no account. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnlineScreen(viewModel: MainViewModel) {
@@ -72,132 +62,11 @@ fun OnlineScreen(viewModel: MainViewModel) {
             }
         }
         when (tab) {
-            0 -> RadioPage(viewModel)
-            1 -> FreeMusicPage()
+            0 -> FreeMusicPage()
             else -> PodcastsPage()
         }
     }
 }
-
-/** Plays [station] and tells the directory, which keeps its charts useful. */
-fun MainViewModel.playStation(online: OnlineViewModel, station: RadioStation) {
-    online.playStation(station)
-    play(listOf(station.toSong()), 0, "Radio · ${station.name}")
-}
-
-@Composable
-private fun RadioPage(viewModel: MainViewModel) {
-    val online = onlineViewModel()
-    val data by online.data.collectAsState()
-    val radio by online.radio.collectAsState()
-    val countries by online.countries.collectAsState()
-    val playback by viewModel.playback.collectAsState()
-    val bottom = LocalBottomPadding.current
-    LaunchedEffect(Unit) { online.startRadio() }
-
-    fun playing(station: RadioStation): Boolean? =
-        if (playback.song?.key == station.toSong().key) playback.isPlaying else null
-
-    LazyColumn(contentPadding = PaddingValues(bottom = bottom + 16.dp)) {
-        item(key = "search") { OnlineSearchField("Search radio stations") { online.searchStations(it) } }
-
-        if (data.favoriteStations.isNotEmpty()) {
-            item(key = "fav-title") { SectionTitle("Your stations") }
-            items(data.favoriteStations, key = { "fav" + it.id }) { s ->
-                StationRow(s, true, playing(s), { viewModel.playStation(online, s) }, { online.toggleFavorite(s) })
-            }
-        }
-
-        val recent = data.recentStations.filter { it.id !in data.favoriteIds }
-        if (recent.isNotEmpty()) {
-            item(key = "recent-title") { SectionTitle("Recently played") }
-            item(key = "recent") {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(recent, key = { "r" + it.id }) { s ->
-                        Column(
-                            Modifier
-                                .width(84.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { viewModel.playStation(online, s) },
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            StationLogo(s, 76.dp)
-                            Text(
-                                s.name,
-                                style = MaterialTheme.typography.labelMedium,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(top = 4.dp),
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        item(key = "browse-title") { SectionTitle("Browse", "By country and style") }
-        item(key = "countries") {
-            val ordered = countries.sortedByDescending { it.code == online.homeCountry }.take(30)
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                item(key = "popular") {
-                    AssistChip(
-                        onClick = { online.showPopularStations() },
-                        label = { Text("Popular") },
-                        leadingIcon = { Icon(Icons.Rounded.Star, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                    )
-                }
-                items(ordered, key = { "c" + it.code }) { c ->
-                    AssistChip(
-                        onClick = { online.stationsInCountry(c) },
-                        label = { Text("${flag(c.code)} ${c.name}", maxLines = 1) },
-                    )
-                }
-            }
-        }
-        item(key = "genres") {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(RADIO_GENRES, key = { "g$it" }) { g ->
-                    AssistChip(onClick = { online.stationsWithTag(g) }, label = { Text(g.replaceFirstChar(Char::uppercase)) })
-                }
-            }
-        }
-
-        item(key = "list-title") { SectionTitle(radio.title) }
-        when (val load = radio.load) {
-            Load.Loading -> item(key = "loading") { LoadingRow() }
-            is Load.Failed -> item(key = "error") { ErrorRow(load.message) { online.showPopularStations() } }
-            is Load.Ready -> {
-                if (load.data.isEmpty()) {
-                    item(key = "none") {
-                        Text(
-                            "No stations found.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                        )
-                    }
-                }
-                items(load.data, key = { "s" + it.id + it.url }) { s ->
-                    StationRow(s, s.id in data.favoriteIds, playing(s), { viewModel.playStation(online, s) }, { online.toggleFavorite(s) })
-                }
-            }
-        }
-        item(key = "credit") { Credit("Stations from radio-browser.info, a free community directory.") }
-    }
-}
-
-/** 🇬🇧 for "GB". */
-private fun flag(code: String): String =
-    if (code.length != 2) "" else code.uppercase().map { String(Character.toChars(0x1F1E6 + (it - 'A'))) }.joinToString("")
 
 @Composable
 private fun FreeMusicPage() {

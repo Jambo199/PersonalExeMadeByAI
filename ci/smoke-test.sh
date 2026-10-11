@@ -202,24 +202,7 @@ if label in texts and texts.index(label) + 1 < len(texts):
     print(texts[texts.index(label) + 1])
 PY
 }
-shortcut online; shot 30-online-radio 12
-first_station=$(dump > /dev/null && python3 - <<'PY'
-import re, xml.etree.ElementTree as ET
-for n in ET.parse("/tmp/ui.xml").getroot().iter("node"):
-    m = re.match(r"Add (.+) to your stations", n.get("content-desc") or "")
-    if m:
-        print(m.group(1))
-        break
-PY
-)
-echo "first station: $first_station"
-if [ -n "$first_station" ]; then
-  tap "$first_station" && sleep 12 && shortcut player && shot 31-radio-player 6
-  adb shell dumpsys media_session | grep -E "state=PlaybackState" | head -1
-  adb shell input keyevent KEYCODE_MEDIA_PAUSE
-fi
-shortcut online
-tap "Free music" && shot 32-free-music 12
+shortcut online; shot 32-free-music 12
 first_album=$(text_after "Live concerts")
 echo "first album: $first_album"
 if [ -n "$first_album" ]; then

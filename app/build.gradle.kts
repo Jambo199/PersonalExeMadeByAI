@@ -93,7 +93,6 @@ dependencies {
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.common)
     implementation(libs.androidx.media3.extractor)
-    implementation(libs.androidx.media3.hls)
 
     implementation(libs.androidx.palette.ktx)
     // Reading and writing tags for the tag editor.

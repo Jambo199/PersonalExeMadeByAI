@@ -16,9 +16,6 @@ import com.jambo199.vividmusic.online.OnlineData
 import com.jambo199.vividmusic.online.Podcast
 import com.jambo199.vividmusic.online.PodcastFeed
 import com.jambo199.vividmusic.online.Podcasts
-import com.jambo199.vividmusic.online.RadioBrowser
-import com.jambo199.vividmusic.online.RadioCountry
-import com.jambo199.vividmusic.online.RadioStation
 import com.jambo199.vividmusic.online.friendlyMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -29,69 +26,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Locale
 
-/** What the radio list is showing. */
-data class RadioList(val title: String, val load: Load<List<RadioStation>>)
-
-/** Fetches and remembers what the Online page shows: radio, free music and podcasts. */
+/** Fetches and remembers what the Online page shows: free music and podcasts. */
 class OnlineViewModel(app: Application) : AndroidViewModel(app) {
     val data: StateFlow<OnlineData> = AppGraph.online.state
-
-    // region radio
-
-    private val _radio = MutableStateFlow(RadioList("Popular stations", Load.Loading))
-    val radio: StateFlow<RadioList> = _radio.asStateFlow()
-    private var radioJob: Job? = null
-    private var radioStarted = false
-
-    private val _countries = MutableStateFlow<List<RadioCountry>>(emptyList())
-    val countries: StateFlow<List<RadioCountry>> = _countries.asStateFlow()
-
-    fun startRadio() {
-        if (radioStarted) return
-        radioStarted = true
-        showPopularStations()
-        viewModelScope.launch {
-            _countries.value = withContext(Dispatchers.IO) {
-                try {
-                    RadioBrowser.countries()
-                } catch (e: Exception) {
-                    emptyList()
-                }
-            }
-        }
-    }
-
-    fun showPopularStations() = loadRadio("Popular stations") { RadioBrowser.top() }
-
-    fun searchStations(query: String) {
-        if (query.isBlank()) showPopularStations() else loadRadio("\"${query.trim()}\"") { RadioBrowser.search(query.trim()) }
-    }
-
-    fun stationsInCountry(country: RadioCountry) = loadRadio(country.name) { RadioBrowser.byCountry(country.code) }
-
-    fun stationsWithTag(tag: String) = loadRadio(tag.replaceFirstChar(Char::uppercase)) { RadioBrowser.byTag(tag) }
-
-    /** The phone's own country, offered first. */
-    val homeCountry: String = Locale.getDefault().country.uppercase()
-
-    private fun loadRadio(title: String, fetch: () -> List<RadioStation>) {
-        radioJob?.cancel()
-        _radio.value = RadioList(title, Load.Loading)
-        radioJob = viewModelScope.launch {
-            _radio.value = RadioList(title, fetchOrFail(fetch))
-        }
-    }
-
-    fun playStation(station: RadioStation) {
-        AppGraph.online.stationPlayed(station)
-        viewModelScope.launch(Dispatchers.IO) { RadioBrowser.reportPlay(station.id) }
-    }
-
-    fun toggleFavorite(station: RadioStation) = AppGraph.online.toggleFavorite(station)
-
-    // endregion
 
     // region free music (Internet Archive)
 

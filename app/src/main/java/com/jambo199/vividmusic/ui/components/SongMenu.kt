@@ -438,7 +438,7 @@ fun qualityBadge(info: Map<String, String>, song: Song): String? {
     return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
 
-/** Shares where an online song or station can be found. */
+/** Shares where an online song can be found. */
 private fun shareLink(context: Context, song: Song) {
     val text = "${song.title} – ${song.displayArtist}\n${song.path.ifBlank { song.uri.toString() }}"
     val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)

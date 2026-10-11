@@ -5,7 +5,7 @@ set -uo pipefail
 DIR="${1:-screenshots}"
 shift || true
 names=("$@")
-[ ${#names[@]} -eq 0 ] && names=(30-online-radio 31-radio-player 32-free-music 33-free-album 34-free-album-saving 35-podcasts 36-podcast-search 37-podcast 02-home 02a-songs 02b-multi-select 05-folders 07-folder-neon 08-playlists 09-player 16b-online-lyrics 14-mini-player 14b-home-after-listening 14c-bottom-nav-library 14d-home-scrolled 14e-genre 17-settings 19b-stats 20-dark-home 20b-dark-albums 20d-dark-folders 21-dark-player 22-landscape 22b-landscape-home 23-after-restart)
+[ ${#names[@]} -eq 0 ] && names=(32-free-music 33-free-album 34-free-album-saving 35-podcasts 36-podcast-search 37-podcast 02-home 02a-songs 02b-multi-select 05-folders 07-folder-neon 08-playlists 09-player 16b-online-lyrics 14-mini-player 14b-home-after-listening 14c-bottom-nav-library 14d-home-scrolled 14e-genre 17-settings 19b-stats 20-dark-home 20b-dark-albums 20d-dark-folders 21-dark-player 22-landscape 22b-landscape-home 23-after-restart)
 for n in "${names[@]}"; do
   f="$DIR/$n.png"
   [ -f "$f" ] || { echo "THUMB $n missing"; continue; }

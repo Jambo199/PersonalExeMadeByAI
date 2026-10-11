@@ -27,7 +27,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.Button
@@ -100,7 +99,7 @@ fun Artwork(
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            imageVector = if (song?.isRadio == true && placeholderIcon == Icons.Rounded.MusicNote) Icons.Rounded.Radio else placeholderIcon,
+            imageVector = placeholderIcon,
             contentDescription = null,
             tint = Color.White.copy(alpha = 0.85f),
             modifier = Modifier.size(iconSize),

@@ -46,14 +46,11 @@ data class Song(
     val displayAlbum: String get() = album.ifBlank { UNKNOWN_ALBUM }
     val extension: String get() = fileName.substringAfterLast('.', "").uppercase()
 
-    /** A radio station: live, no length, can't seek. */
-    val isRadio: Boolean get() = key.startsWith(RADIO_PREFIX)
     val isOnline: Boolean get() = source == SongSource.ONLINE
 
     companion object {
         const val UNKNOWN_ARTIST = "Unknown artist"
         const val UNKNOWN_ALBUM = "Unknown album"
-        const val RADIO_PREFIX = "radio:"
         const val ARCHIVE_PREFIX = "ia:"
         const val PODCAST_PREFIX = "pod:"
     }

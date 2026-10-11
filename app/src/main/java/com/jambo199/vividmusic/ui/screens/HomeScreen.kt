@@ -84,9 +84,6 @@ import com.jambo199.vividmusic.ui.components.EmptyState
 import com.jambo199.vividmusic.ui.components.LocalBottomPadding
 import com.jambo199.vividmusic.ui.components.SongRow
 import com.jambo199.vividmusic.ui.components.placeholderBrush
-import com.jambo199.vividmusic.ui.online.StationLogo
-import com.jambo199.vividmusic.ui.online.onlineViewModel
-import com.jambo199.vividmusic.ui.online.playStation
 import java.util.Calendar
 
 /** Quick picks, recent albums and other ways back into your music. */
@@ -100,8 +97,6 @@ fun HomeScreen(viewModel: MainViewModel) {
     val menu = LocalSongMenu.current
     val bottom = LocalBottomPadding.current
     val listState = rememberLazyListState()
-    val online = onlineViewModel()
-    val onlineData by viewModel.online.collectAsState()
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) viewModel.addPickedFolder(uri)
     }
@@ -182,41 +177,6 @@ fun HomeScreen(viewModel: MainViewModel) {
                 else HomeHeader("Artists", "Biggest in your library")
             }
             item(key = "artists") { ArtistCarousel(feed.artists) { nav.artist(it.name) } }
-        }
-
-        val stations = onlineData.favoriteStations.ifEmpty { onlineData.recentStations }
-        if (stations.isNotEmpty()) {
-            item(key = "radio-title") {
-                HomeHeader(if (onlineData.favoriteStations.isNotEmpty()) "Your stations" else "Radio you played", "Live now") {
-                    TextButton(onClick = { viewModel.showSection(MainSection.ONLINE) }) { Text("More radio") }
-                }
-            }
-            item(key = "radio") {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(stations, key = { "st" + it.id }) { station ->
-                        Column(
-                            Modifier
-                                .width(96.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { viewModel.playStation(online, station) },
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            StationLogo(station, 88.dp)
-                            Text(
-                                station.name,
-                                style = MaterialTheme.typography.labelMedium,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(top = 4.dp),
-                            )
-                        }
-                    }
-                }
-            }
         }
 
         if (library.genres.size >= 2) {

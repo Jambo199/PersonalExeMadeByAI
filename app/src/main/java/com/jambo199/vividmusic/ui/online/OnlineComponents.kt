@@ -23,9 +23,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudOff
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.FavoriteBorder
-import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
@@ -43,7 +40,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -56,8 +52,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import com.jambo199.vividmusic.online.RadioStation
-import com.jambo199.vividmusic.ui.components.PlayingIndicator
 import com.jambo199.vividmusic.ui.components.placeholderBrush
 
 /** One OnlineViewModel for the whole app, so lists stay loaded while you move between screens. */
@@ -162,75 +156,6 @@ fun RemoteImage(url: String?, seed: String, modifier: Modifier, fit: Boolean = f
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(if (fit) 6.dp else 0.dp),
-            )
-        }
-    }
-}
-
-@Composable
-fun StationLogo(station: RadioStation, size: Dp) {
-    RemoteImage(
-        url = station.favicon.takeIf { it.startsWith("http") },
-        seed = station.name,
-        fit = true,
-        modifier = Modifier
-            .size(size)
-            .clip(RoundedCornerShape(12.dp)),
-    ) {
-        Icon(Icons.Rounded.Radio, contentDescription = null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(size / 2))
-    }
-}
-
-@Composable
-fun StationRow(
-    station: RadioStation,
-    favorite: Boolean,
-    playing: Boolean?,
-    onPlay: () -> Unit,
-    onFavorite: () -> Unit,
-) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onPlay)
-            .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            StationLogo(station, 52.dp)
-            if (playing != null) {
-                Box(
-                    Modifier
-                        .size(52.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.Black.copy(alpha = 0.45f)),
-                    contentAlignment = Alignment.Center,
-                ) { PlayingIndicator(playing, color = Color.White) }
-            }
-        }
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                station.name,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (playing != null) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (playing != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                station.subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        IconButton(onClick = onFavorite) {
-            Icon(
-                if (favorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                contentDescription = if (favorite) "Remove ${station.name} from your stations" else "Add ${station.name} to your stations",
-                tint = if (favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

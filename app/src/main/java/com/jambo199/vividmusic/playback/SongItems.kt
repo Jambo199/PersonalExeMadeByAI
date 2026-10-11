@@ -5,7 +5,6 @@ import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
-import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import com.jambo199.vividmusic.data.Song
 import com.jambo199.vividmusic.data.SongSource
@@ -29,7 +28,7 @@ object SongItems {
     private const val K_PATH = "v.path"
     private const val K_FOLDER = "v.folder"
     private const val K_FILE = "v.file"
-    const val K_MIME = "v.mime"
+    private const val K_MIME = "v.mime"
     private const val K_GENRE = "v.genre"
     const val K_SOURCE = "v.source"
     const val K_COVER = "v.cover"
@@ -77,15 +76,10 @@ object SongItems {
         return MediaItem.Builder()
             .setMediaId(song.key)
             .setUri(song.uri)
-            .setMimeType(streamMimeType(song.mimeType))
             .setMediaMetadata(metadata)
             .setRequestMetadata(MediaItem.RequestMetadata.Builder().setMediaUri(song.uri).build())
             .build()
     }
-
-    /** The container type the player must be told about (HLS radio), or null to let it detect. */
-    fun streamMimeType(mime: String?): String? =
-        if (mime.equals(MimeTypes.APPLICATION_M3U8, ignoreCase = true) || mime == "application/x-mpegURL") MimeTypes.APPLICATION_M3U8 else null
 
     @OptIn(UnstableApi::class)
     fun toSong(item: MediaItem): Song {

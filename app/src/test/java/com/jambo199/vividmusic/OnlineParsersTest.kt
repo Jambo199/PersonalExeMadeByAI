@@ -4,36 +4,11 @@ import com.jambo199.vividmusic.online.Downloads
 import com.jambo199.vividmusic.online.Http
 import com.jambo199.vividmusic.online.InternetArchive
 import com.jambo199.vividmusic.online.Podcasts
-import com.jambo199.vividmusic.online.RadioBrowser
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class OnlineParsersTest {
-    @Test
-    fun radioStationsSkipBrokenAndDuplicateStreams() {
-        val json = """[
-            {"stationuuid":"a","name":" Jazz FM ","url":"http://x/jazz.pls","url_resolved":"https://stream.example/jazz",
-             "favicon":"https://example/jazz.png","country":"United Kingdom","countrycode":"GB","tags":"jazz, smooth jazz,",
-             "codec":"MP3","bitrate":128,"hls":0},
-            {"stationuuid":"b","name":"Jazz FM mirror","url_resolved":"https://stream.example/jazz","codec":"MP3"},
-            {"stationuuid":"c","name":"No stream","url_resolved":"","url":"ftp://nope"},
-            {"stationuuid":"d","name":"News","url_resolved":"https://news.example/live/master.m3u8","codec":"UNKNOWN","hls":0}
-        ]"""
-        val stations = RadioBrowser.parseStations(json)
-        assertEquals(listOf("a", "d"), stations.map { it.id })
-        val jazz = stations[0]
-        assertEquals("Jazz FM", jazz.name)
-        assertEquals(listOf("jazz", "smooth jazz"), jazz.tags)
-        assertEquals("Jazz, Smooth jazz · United Kingdom · MP3 128 kbps", jazz.subtitle)
-        assertFalse(jazz.hls)
-        // HLS spotted from the address even when the directory doesn't flag it; "UNKNOWN" codec hidden.
-        assertTrue(stations[1].hls)
-        assertEquals("", stations[1].codec)
-    }
-
     @Test
     fun archiveSearchHandlesListsAndStrings() {
         val json = """{"response":{"docs":[
