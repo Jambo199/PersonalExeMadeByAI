@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,7 +37,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -57,8 +57,9 @@ fun ncsViewModel(): NcsViewModel {
 @Composable
 fun OnlineSearchField(placeholder: String, initial: String = "", onSearch: (String) -> Unit) {
     var text by rememberSaveable { mutableStateOf(initial) }
+    // Follows the search from outside (e.g. cleared by picking a sort order).
+    LaunchedEffect(initial) { if (text != initial) text = initial }
     val keyboard = LocalSoftwareKeyboardController.current
-    val focus = LocalFocusManager.current
     OutlinedTextField(
         value = text,
         onValueChange = { text = it },
@@ -76,8 +77,9 @@ fun OnlineSearchField(placeholder: String, initial: String = "", onSearch: (Stri
         shape = RoundedCornerShape(28.dp),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = {
+            // The field keeps focus: moving it would let the rest of an Enter key press
+            // land on whatever got focus next.
             keyboard?.hide()
-            focus.clearFocus()
             onSearch(text)
         }),
         modifier = Modifier

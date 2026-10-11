@@ -127,7 +127,7 @@ fun NcsScreen(viewModel: MainViewModel) {
     LazyColumn(state = listState, contentPadding = PaddingValues(bottom = bottom + 16.dp)) {
         item(key = "search") {
             // A fresh field whenever the page switches between songs and artists.
-            key(showArtists, if (showArtists) artistList.query else listing.query) {
+            key(showArtists) {
                 if (showArtists) {
                     OnlineSearchField("Search NCS artists", artistList.query) { ncs.searchArtists(it) }
                 } else {
