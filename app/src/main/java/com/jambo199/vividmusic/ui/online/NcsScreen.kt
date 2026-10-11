@@ -209,8 +209,23 @@ fun NcsScreen(viewModel: MainViewModel) {
                     }
                 }
                 listing.error != null -> ErrorRow(listing.error.orEmpty()) { ncs.loadMore() }
-                listing.pages > 0 && listing.tracks.isEmpty() ->
-                    Credit(if (listing.popular) "None of the most played songs fit this. Try another genre or mood." else "Nothing found. Try an artist or song name, or another genre.")
+                listing.pages > 0 && listing.tracks.isEmpty() -> {
+                    val narrowed = listOfNotNull(listing.genre?.name, listing.mood?.name).joinToString(" · ")
+                    Column {
+                        Credit(
+                            when {
+                                narrowed.isNotEmpty() && listing.popular -> "None of the most played songs are $narrowed."
+                                narrowed.isNotEmpty() -> "Nothing found in $narrowed."
+                                else -> "Nothing found. Try an artist or song name."
+                            },
+                        )
+                        if (narrowed.isNotEmpty()) {
+                            FilledTonalButton(onClick = { ncs.clearFilters() }, modifier = Modifier.padding(horizontal = 20.dp)) {
+                                Text("Show all genres and moods")
+                            }
+                        }
+                    }
+                }
                 listing.pages > 0 && !listing.hasMore ->
                     Credit(if (listing.popular) "That's the top ${listing.tracks.size} most played." else "That's all ${listing.tracks.size} songs.")
             }

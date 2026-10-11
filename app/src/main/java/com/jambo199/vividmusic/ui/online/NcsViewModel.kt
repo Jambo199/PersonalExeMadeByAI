@@ -2,6 +2,7 @@ package com.jambo199.vividmusic.ui.online
 
 import android.app.Application
 import android.os.Environment
+import android.util.Log
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -99,6 +100,8 @@ class NcsViewModel(app: Application) : AndroidViewModel(app) {
     fun selectMood(mood: NcsFilter?) = restart(_listing.value.copy(mood = mood))
 
     fun selectSort(sort: NcsSort) = restart(_listing.value.copy(sort = sort))
+
+    fun clearFilters() = restart(_listing.value.copy(genre = null, mood = null))
 
     private fun restart(wanted: NcsListing) {
         if (wanted.sameSearch(_listing.value) && _listing.value.pages > 0) return
@@ -199,6 +202,7 @@ class NcsViewModel(app: Application) : AndroidViewModel(app) {
             val seen = chart.tracks.mapTo(HashSet()) { it.id }
             var place = chart.tracks.size
             val fresh = found.filterNotNull().filter { seen.add(it.id) }.map { it.copy(rank = ++place) }
+            Log.i(TAG, "Chart places ${chart.nextIndex + 1}-${chart.nextIndex + page.entries.size}: ${found.count { it != null }} found on ncs.io")
             NcsSeen.add(fresh)
             chart = ChartProgress(
                 tracks = chart.tracks + fresh,
@@ -397,5 +401,6 @@ class NcsViewModel(app: Application) : AndroidViewModel(app) {
 
         /** Chart places matched per page (each needs a look-up on ncs.io). */
         private const val CHART_PAGE = 25
+        private const val TAG = "NcsViewModel"
     }
 }
