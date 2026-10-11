@@ -99,6 +99,7 @@ class PlaybackService : MediaLibraryService() {
     private var autoAdvanced = false
     private var saveQueueJob: Job? = null
     private val playingNow = MutableStateFlow(false)
+    private val liveUpdate by lazy { LiveUpdate(this) }
     private var shake: ShakeDetector? = null
     private var saveStateJob: Job? = null
 
@@ -310,6 +311,7 @@ class PlaybackService : MediaLibraryService() {
         AudioEffects.release(this)
         AudioEffects.releaseReverb()
         shake?.stop()
+        liveUpdate.hide()
         session?.run {
             player.release()
             release()
@@ -413,6 +415,43 @@ class PlaybackService : MediaLibraryService() {
                         ((next - Lyrics.LEAD_MS - pos) / exo.playbackParameters.speed).toLong().coerceIn(40L, 500L)
                     }
                     delay(wait)
+                }
+            }
+        }
+        // Android 16+: the playing song as a Live Update, for the status-bar chip and islands
+        // that show Live Updates (vivo's Origin Island on OriginOS 6).
+        scope.launch {
+            combine(playingNow, AppGraph.settings.state.map { it.liveUpdate }.distinctUntilChanged()) { playing, on ->
+                playing && on && LiveUpdate.supported
+            }.distinctUntilChanged().collectLatest { active ->
+                if (!active) {
+                    // Not straight away: a moment of buffering or a song change shouldn't make it flicker.
+                    delay(3_000)
+                    liveUpdate.hide()
+                    return@collectLatest
+                }
+                var artFor: String? = null
+                var art: android.graphics.Bitmap? = null
+                while (isActive) {
+                    val song = currentSong()
+                    if (song != null) {
+                        if (song.key != artFor) {
+                            artFor = song.key
+                            art = withContext(Dispatchers.IO) { runCatching { AppGraph.artwork.load(song, 256) }.getOrNull() }
+                        }
+                        val line = sessionPlayer?.currentLyricLine
+                        val duration = exo.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: song.durationMs
+                        liveUpdate.show(
+                            title = song.title,
+                            text = line ?: song.displayArtist,
+                            chip = LiveUpdate.chipText(song.title, line),
+                            artwork = art,
+                            positionMs = exo.currentPosition,
+                            durationMs = duration,
+                            speed = exo.playbackParameters.speed,
+                        )
+                    }
+                    delay(1_000)
                 }
             }
         }

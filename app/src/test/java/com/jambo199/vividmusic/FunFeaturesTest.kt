@@ -10,6 +10,7 @@ import com.jambo199.vividmusic.data.UserDataStore
 import com.jambo199.vividmusic.data.VoiceCommand
 import com.jambo199.vividmusic.data.Wrapped
 import com.jambo199.vividmusic.playback.FocusTimer
+import com.jambo199.vividmusic.playback.LiveUpdate
 import com.jambo199.vividmusic.playback.MusicAlarm
 import com.jambo199.vividmusic.playback.ShakeDetector
 import org.junit.Assert.assertEquals
@@ -187,5 +188,12 @@ class FunFeaturesTest {
         assertEquals("[ti:Song]\n[ar:Artist]\n[by:Vivid Music]\n[00:01.00]Hello there\n[00:04.25]Second line\n", lrc)
         // And it reads back as synced lyrics.
         assertEquals(listOf(1_000L, 4_250L), LrcParser.parse(lrc).map { it.timeMs })
+    }
+
+    @Test
+    fun liveUpdateChipStaysShort() {
+        assertEquals("Faded", LiveUpdate.chipText("Faded", null))
+        assertEquals("Hello there", LiveUpdate.chipText("Some Song", "Hello there"))
+        assertEquals("A very long s…", LiveUpdate.chipText("A very long song title indeed", " "))
     }
 }

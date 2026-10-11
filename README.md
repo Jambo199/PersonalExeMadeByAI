@@ -93,9 +93,11 @@ You can also lock the app in the recent-apps screen (pull the card down).
 
 **Playback**
 - Background playback with notification, lock-screen and Bluetooth/headset controls
-- Works with Dynamic Island-style pop-ups (vivo's Origin Island and similar): title, artist,
-  artwork and progress, plus the **line being sung** in place of the artist for songs with synced
-  lyrics (also on the lock screen and car screens; turn it off in Settings)
+- **Dynamic Island**: on Android 16 and later the playing song is also posted as a Live Update,
+  which shows in the status-bar chip and on islands that display Live Updates (vivo's Origin Island
+  on OriginOS 6). On older OriginOS, vivo only puts music from its own list of apps on the island,
+  so sideloaded players can't appear there. The media notification also carries the **line being
+  sung** in place of the artist for songs with synced lyrics (lock screen, car screens…)
 - Shows up in Android's quick-settings media player, which can resume your last song even after the app was closed
 - Favourite button in the notification
 - Smart shuffle: the current song keeps playing, *Play next* really plays next even when shuffled,

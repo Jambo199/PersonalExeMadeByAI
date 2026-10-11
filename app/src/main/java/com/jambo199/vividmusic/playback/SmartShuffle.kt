@@ -192,6 +192,10 @@ class ShuffleAwarePlayer(
      * Shows [line] in place of the artist everywhere outside the app: lock screen, notification,
      * Dynamic Island-style pop-ups and car screens. Null puts the artist back.
      */
+    /** The lyric line showing for the playing song, if any. */
+    val currentLyricLine: String?
+        get() = lyricLine?.takeIf { lyricKey == exo.currentMediaItem?.mediaId }
+
     fun showLyricLine(songKey: String?, line: String?) {
         if (songKey == lyricKey && line == lyricLine) return
         lyricKey = songKey
