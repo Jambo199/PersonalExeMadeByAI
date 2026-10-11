@@ -192,9 +192,9 @@ if tap "Speed"; then
 fi
 adb shell dumpsys media_session | grep -E "state=PlaybackState|description=" | head -6
 echo "-- music notification (channel now_playing; progress should move between the two):"
-adb shell dumpsys notification --noredact | grep -A60 "pkg=$PKG" | grep -m3 -oE "channel=[a-z_]+|android.progress(Max)?=[^ ]+"
+adb shell dumpsys notification --noredact | grep -A60 "pkg=$PKG" | grep -m3 -oE "channel=[a-z_]+|android.progress(Max)?=[^)]+\)"
 sleep 4
-adb shell dumpsys notification --noredact | grep -A60 "pkg=$PKG" | grep -m3 -oE "channel=[a-z_]+|android.progress(Max)?=[^ ]+"
+adb shell dumpsys notification --noredact | grep -A60 "pkg=$PKG" | grep -m3 -oE "channel=[a-z_]+|android.progress(Max)?=[^)]+\)"
 adb shell input keyevent KEYCODE_MEDIA_PAUSE
 sleep 1
 echo "after pause (state=2 means paused):"
