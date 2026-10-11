@@ -47,6 +47,7 @@ import com.jambo199.vividmusic.AppGraph
 import com.jambo199.vividmusic.MainActivity
 import com.jambo199.vividmusic.R
 import com.jambo199.vividmusic.data.EmbeddedLyrics
+import com.jambo199.vividmusic.data.FunCounters
 import com.jambo199.vividmusic.data.Lyrics
 import com.jambo199.vividmusic.data.PositionStore
 import com.jambo199.vividmusic.data.ReplayGain
@@ -251,6 +252,7 @@ class PlaybackService : MediaLibraryService() {
             exo.prepare()
             if (s.alarmGentle) sessionPlayer?.fadeIn(MusicAlarm.GENTLE_MS) else sessionPlayer?.play()
             alarmRinging = true
+            AppGraph.counters.add(FunCounters.ALARM)
             MusicAlarm.showRinging(this@PlaybackService, s.alarmMusic)
         }
     }
@@ -437,7 +439,10 @@ class PlaybackService : MediaLibraryService() {
                                 MusicAlarm.scheduleFocusResume(this@PlaybackService, next)
                                 PlayerEvents.post("Break time! The music's back in ${next.plan.breakMinutes} minutes")
                             }
-                            else -> PlayerEvents.post("Focus session done. Nice work!")
+                            else -> {
+                                AppGraph.counters.add(FunCounters.FOCUS)
+                                PlayerEvents.post("Focus session done. Nice work!")
+                            }
                         }
                     }
                     is FocusTimer.Mode.Break -> Unit

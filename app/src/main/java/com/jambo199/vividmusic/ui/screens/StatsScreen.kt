@@ -58,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.jambo199.vividmusic.AppGraph
 import com.jambo199.vividmusic.data.Achievements
 import com.jambo199.vividmusic.data.ListeningClock
 import com.jambo199.vividmusic.data.ListeningStats
@@ -97,10 +98,11 @@ fun StatsScreen(viewModel: MainViewModel) {
     var confirmClear by remember { mutableStateOf(false) }
     val stats = remember(library, data) { ListeningStats.from(library, data) }
     val context = LocalContext.current
-    val achievements = remember(library, data) {
+    val counters by AppGraph.counters.state.collectAsState()
+    val achievements = remember(library, data, counters) {
         val quiz = context.getSharedPreferences("quiz", Context.MODE_PRIVATE)
         val quizBest = quiz.all.values.filterIsInstance<Int>().maxOrNull() ?: 0
-        Achievements.from(library, data, quizBest)
+        Achievements.from(library, data, quizBest, counters)
     }
 
     Column(Modifier.fillMaxSize()) {

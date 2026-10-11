@@ -321,8 +321,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         viewModelScope.launch {
-            combine(libraryState.filter { it.hasLoadedOnce }.map { it.library }, userData.debounce(1_000)) { lib, data ->
-                Achievements.from(lib, data, quizBest())
+            combine(
+                libraryState.filter { it.hasLoadedOnce }.map { it.library },
+                userData.debounce(1_000),
+                AppGraph.counters.state,
+            ) { lib, data, counters ->
+                Achievements.from(lib, data, quizBest(), counters)
             }.flowOn(Dispatchers.Default).collect { checkBadges(it) }
         }
     }

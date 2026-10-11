@@ -59,6 +59,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.jambo199.vividmusic.AppGraph
+import com.jambo199.vividmusic.data.FunCounters
 import com.jambo199.vividmusic.playback.Spectrum
 import com.jambo199.vividmusic.ui.LocalNav
 import com.jambo199.vividmusic.ui.MainViewModel
@@ -123,6 +125,7 @@ fun PartyScreen(viewModel: MainViewModel) {
             bars?.show(WindowInsetsCompat.Type.systemBars())
         }
     }
+    LaunchedEffect(Unit) { AppGraph.counters.add(FunCounters.PARTY) }
     // The controls tuck themselves away after a few seconds.
     LaunchedEffect(controls) {
         if (controls) {

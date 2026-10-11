@@ -16,6 +16,7 @@ import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.jambo199.vividmusic.AppGraph
+import com.jambo199.vividmusic.data.FunCounters
 import com.jambo199.vividmusic.data.Song
 import com.jambo199.vividmusic.data.UserData
 import com.jambo199.vividmusic.online.ChartProgress
@@ -147,6 +148,7 @@ class DiscoverViewModel(app: Application) : AndroidViewModel(app) {
         val s = _state.value
         val song = s.current ?: return
         var message: String? = null
+        AppGraph.counters.add(FunCounters.DISCOVER)
         if (keep) {
             if (song.isOnline) {
                 message = saveNcs(song)

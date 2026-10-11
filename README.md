@@ -140,7 +140,8 @@ You can also lock the app in the recent-apps screen (pull the card down).
 - **Swipe to discover**: songs you've never played, one card at a time with a preview – swipe
   right to love it, left to pass; or swipe through NCS songs and save the ones you like
 - **Listening streaks**: days in a row with music, shown on Home and the stats page
-- **Badges** to unlock (Century, Marathon, On fire, Explorer, Golden ears…) on the stats page
+- **Badges** to unlock (Century, Marathon, On fire, Night owl, Party starter, Crate digger, Golden ears…) on
+  the stats page, celebrated with confetti
 - **Song of the day** and three **daily mixes** on Home, made from the genres and artists you play
 - **What's your mood?** on Home: Chill, Energetic, Happy, Focus, Party or Mellow – a mix from your
   songs' genres, topped up with NCS songs of that mood when you haven't got many

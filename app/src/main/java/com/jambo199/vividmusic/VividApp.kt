@@ -5,6 +5,7 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.memory.MemoryCache
 import com.jambo199.vividmusic.data.ArtworkLoader
+import com.jambo199.vividmusic.data.FunCounters
 import com.jambo199.vividmusic.data.LibraryRepository
 import com.jambo199.vividmusic.data.LyricsRepository
 import com.jambo199.vividmusic.data.PositionStore
@@ -39,6 +40,7 @@ object AppGraph {
     val updates by lazy { UpdateManager(app, scope) }
     val online by lazy { OnlineStore(app, scope) }
     val positions by lazy { PositionStore(app, scope) }
+    val counters by lazy { FunCounters(app) }
 
     fun init(application: Application) {
         app = application

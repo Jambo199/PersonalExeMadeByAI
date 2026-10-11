@@ -16,7 +16,7 @@ data class Achievement(
 object Achievements {
     private const val HOUR = 60L * 60 * 1000
 
-    fun from(lib: Library, data: UserData, quizBest: Int): List<Achievement> {
+    fun from(lib: Library, data: UserData, quizBest: Int, counters: Map<String, Int> = emptyMap()): List<Achievement> {
         val counts = data.playCounts.filter { it.value > 0 }
         val plays = counts.values.sum().toLong()
         val bestDay = data.dailyMs.values.maxOrNull() ?: 0L
@@ -25,6 +25,8 @@ object Achievements {
         val ncsSaved = lib.songs.count { "/Music/NCS/" in it.path }.toLong()
         val lossless = lib.songs.count { it.extension in LOSSLESS }.toLong()
         val playlists = data.playlists.size.toLong()
+        fun hours(range: IntRange) = range.sumOf { data.hourMs.getOrElse(it) { 0L } } / 60_000
+        fun count(key: String) = (counters[key] ?: 0).toLong()
         return listOf(
             Achievement("first", "First note", "Play your first song", plays, 1),
             Achievement("century", "Century", "Reach 100 plays", plays, 100),
@@ -39,6 +41,12 @@ object Achievements {
             Achievement("ncs", "NCS fan", "Save 10 NCS songs to your phone", ncsSaved, 10),
             Achievement("quiz", "Quiz whiz", "Score 1,500 in Guess the song", quizBest.toLong(), 1_500),
             Achievement("lossless", "Golden ears", "Have 10 lossless (FLAC, WAV…) songs", lossless, 10),
+            Achievement("night", "Night owl", "Listen for an hour after midnight", hours(0..4), 60),
+            Achievement("early", "Early bird", "Listen for an hour before 8 am", hours(5..7), 60),
+            Achievement("party", "Party starter", "Turn on party mode", count(FunCounters.PARTY), 1),
+            Achievement("alarm", "Rise and shine", "Wake up to the music alarm", count(FunCounters.ALARM), 1),
+            Achievement("discover", "Crate digger", "Swipe through 50 Discover cards", count(FunCounters.DISCOVER), 50),
+            Achievement("focus", "In the zone", "Finish a whole focus session", count(FunCounters.FOCUS), 1),
         )
     }
 

@@ -33,7 +33,13 @@ import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Headphones
+import androidx.compose.material.icons.rounded.Alarm
+import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.Celebration
+import androidx.compose.material.icons.rounded.HourglassTop
 import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.Style
+import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Quiz
@@ -78,6 +84,12 @@ private fun iconFor(id: String): ImageVector = when (id) {
     "ncs" -> Icons.Rounded.Headphones
     "quiz" -> Icons.Rounded.Quiz
     "streak" -> Icons.Rounded.LocalFireDepartment
+    "night" -> Icons.Rounded.Bedtime
+    "early" -> Icons.Rounded.WbSunny
+    "party" -> Icons.Rounded.Celebration
+    "alarm" -> Icons.Rounded.Alarm
+    "discover" -> Icons.Rounded.Style
+    "focus" -> Icons.Rounded.HourglassTop
     else -> Icons.Rounded.GraphicEq
 }
 
