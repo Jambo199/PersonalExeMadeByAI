@@ -37,6 +37,16 @@ val AccentColors = listOf(
     "Hot pink" to Color(0xFFD81B60),
     "Crimson" to Color(0xFFE53935),
     "Gold" to Color(0xFFF9A825),
+    "Indigo" to Color(0xFF3F51B5),
+    "Sky" to Color(0xFF039BE5),
+    "Mint" to Color(0xFF26A69A),
+    "Lime" to Color(0xFF7CB342),
+    "Amber" to Color(0xFFFFB300),
+    "Coral" to Color(0xFFFF7043),
+    "Rose" to Color(0xFFEC407A),
+    "Lavender" to Color(0xFF9575CD),
+    "Mocha" to Color(0xFF8D6E63),
+    "Slate" to Color(0xFF607D8B),
 )
 
 /** Approximates a Material 3 tone: same hue/saturation, chosen lightness (0..100). */
@@ -155,15 +165,18 @@ fun isAppInDarkTheme(settings: Settings): Boolean = when (settings.themeMode) {
     ThemeMode.DARK -> true
 }
 
+/** [artworkSeed] is the playing song's artwork colour, used when "Colours from album art" is on. */
 @Composable
-fun VividTheme(settings: Settings, content: @Composable () -> Unit) {
+fun VividTheme(settings: Settings, artworkSeed: Color? = null, content: @Composable () -> Unit) {
     val dark = isAppInDarkTheme(settings)
     val context = LocalContext.current
-    val scheme = remember(dark, settings.dynamicColor, settings.accentIndex, settings.pureBlack) {
-        val base = if (settings.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        } else {
-            schemeFromSeed(AccentColors.getOrElse(settings.accentIndex) { AccentColors[0] }.second, dark)
+    val seed = artworkSeed.takeIf { settings.artworkColors }
+    val scheme = remember(dark, settings.dynamicColor, settings.accentIndex, settings.pureBlack, seed) {
+        val base = when {
+            seed != null -> schemeFromSeed(seed, dark)
+            settings.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+                if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            else -> schemeFromSeed(AccentColors.getOrElse(settings.accentIndex) { AccentColors[0] }.second, dark)
         }
         if (dark && settings.pureBlack) base.pureBlack() else base
     }

@@ -11,6 +11,8 @@ enum class ThemeMode(val label: String) { SYSTEM("Follow system"), LIGHT("Light"
 
 enum class FolderViewMode { TREE, FLAT }
 
+enum class PlayerBackground(val label: String) { BLUR("Blurred artwork"), GRADIENT("Colour gradient"), PLAIN("Plain") }
+
 /** The pages in the bottom navigation bar. */
 enum class MainSection(val label: String) { HOME("Home"), LIBRARY("Library"), FOLDERS("Folders") }
 
@@ -33,6 +35,9 @@ data class Settings(
     val dynamicColor: Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
     val pureBlack: Boolean = false,
     val accentIndex: Int = 0,
+    /** Take the app's colours from the playing song's artwork. */
+    val artworkColors: Boolean = true,
+    val playerBackground: PlayerBackground = PlayerBackground.BLUR,
     val includeAllAudio: Boolean = false,
     val minDurationSec: Int = 10,
     val excludedFolders: Set<String> = emptySet(),
@@ -92,6 +97,8 @@ class SettingsStore(context: Context) {
             dynamicColor = prefs.getBoolean("dynamicColor", d.dynamicColor),
             pureBlack = prefs.getBoolean("pureBlack", d.pureBlack),
             accentIndex = prefs.getInt("accentIndex", d.accentIndex),
+            artworkColors = prefs.getBoolean("artworkColors", d.artworkColors),
+            playerBackground = enumOr(prefs.getString("playerBackground", null), d.playerBackground),
             includeAllAudio = prefs.getBoolean("includeAllAudio", d.includeAllAudio),
             minDurationSec = prefs.getInt("minDurationSec", d.minDurationSec),
             excludedFolders = prefs.getStringSet("excludedFolders", null)?.toSet() ?: d.excludedFolders,
@@ -135,6 +142,8 @@ class SettingsStore(context: Context) {
             .putBoolean("dynamicColor", s.dynamicColor)
             .putBoolean("pureBlack", s.pureBlack)
             .putInt("accentIndex", s.accentIndex)
+            .putBoolean("artworkColors", s.artworkColors)
+            .putString("playerBackground", s.playerBackground.name)
             .putBoolean("includeAllAudio", s.includeAllAudio)
             .putInt("minDurationSec", s.minDurationSec)
             .putStringSet("excludedFolders", s.excludedFolders)

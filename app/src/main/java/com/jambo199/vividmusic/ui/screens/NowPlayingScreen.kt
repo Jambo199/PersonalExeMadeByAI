@@ -1,6 +1,7 @@
 package com.jambo199.vividmusic.ui.screens
 
-import android.graphics.drawable.BitmapDrawable
+import android.app.Activity
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -81,6 +82,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -89,19 +92,19 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import androidx.media3.common.Player
-import androidx.palette.graphics.Palette
-import coil.imageLoader
+import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import coil.request.SuccessResult
-import com.jambo199.vividmusic.data.ArtworkLoader
 import com.jambo199.vividmusic.data.OnlineLookup
 import com.jambo199.vividmusic.data.OnlineLyrics
+import com.jambo199.vividmusic.data.PlayerBackground
 import com.jambo199.vividmusic.data.Song
 import com.jambo199.vividmusic.data.formatDuration
 import com.jambo199.vividmusic.playback.SleepTimer
@@ -112,34 +115,12 @@ import com.jambo199.vividmusic.ui.components.AddToPlaylistDialog
 import com.jambo199.vividmusic.ui.components.Artwork
 import com.jambo199.vividmusic.ui.components.qualityBadge
 import com.jambo199.vividmusic.ui.components.readTechnicalInfo
+import com.jambo199.vividmusic.ui.theme.rememberArtworkColor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
-
-/** Dominant colour of the artwork, for tinting the player background. */
-@Composable
-fun rememberArtworkColor(song: Song?): Color? {
-    val context = LocalContext.current
-    val color by produceState<Color?>(null, song?.key) {
-        value = song?.let {
-            withContext(Dispatchers.Default) {
-                try {
-                    val request = ImageRequest.Builder(context).data(it).size(160).allowHardware(false).build()
-                    val result = context.imageLoader.execute(request) as? SuccessResult ?: return@withContext null
-                    val bitmap = (result.drawable as? BitmapDrawable)?.bitmap ?: return@withContext null
-                    val palette = Palette.from(ArtworkLoader.ensureSoftware(bitmap)).maximumColorCount(16).generate()
-                    val swatch = palette.vibrantSwatch ?: palette.darkVibrantSwatch ?: palette.mutedSwatch ?: palette.dominantSwatch
-                    swatch?.rgb?.let { rgb -> Color(rgb) }
-                } catch (e: Exception) {
-                    null
-                }
-            }
-        }
-    }
-    return color
-}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -173,21 +154,45 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
         onDispose { view.keepScreenOn = false }
     }
 
-    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val themeDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    // Blurred artwork sits under a dark scrim, so everything on it is drawn light.
+    val blurBackground = settings.playerBackground == PlayerBackground.BLUR && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val dark = themeDark || blurBackground
     val artColor = rememberArtworkColor(song)
-    val baseBg = MaterialTheme.colorScheme.background
+    val baseBg = if (blurBackground) Color(0xFF101010) else MaterialTheme.colorScheme.background
     val accentTarget = artColor ?: MaterialTheme.colorScheme.primary
     val accent by animateColorAsState(accentTarget, tween(700), label = "accent")
     val topBg by animateColorAsState(
-        (artColor ?: MaterialTheme.colorScheme.primaryContainer).copy(alpha = if (dark) 0.55f else 0.4f).compositeOver(baseBg),
+        when (settings.playerBackground) {
+            PlayerBackground.PLAIN -> baseBg
+            else -> (artColor ?: MaterialTheme.colorScheme.primaryContainer).copy(alpha = if (dark) 0.55f else 0.4f).compositeOver(baseBg)
+        },
         tween(700),
         label = "bg",
     )
     val controlColor = if (dark) Color.White else Color(0xFF1A1A1A)
     val sliderColor = if (artColor != null) {
-        if (dark) lerpToward(accent, Color.White, 0.25f) else lerpToward(accent, Color.Black, 0.25f)
+        if (dark) lerpToward(accent, Color.White, if (blurBackground) 0.4f else 0.25f) else lerpToward(accent, Color.Black, 0.25f)
+    } else if (blurBackground) {
+        Color.White
     } else {
         MaterialTheme.colorScheme.primary
+    }
+
+    // Light status bar icons over the dark blurred background, even in the light theme.
+    val window = (view.context as? Activity)?.window
+    DisposableEffect(blurBackground, themeDark, window) {
+        val controller = window?.let { WindowCompat.getInsetsController(it, view) }
+        if (controller != null && blurBackground && !themeDark) {
+            controller.isAppearanceLightStatusBars = false
+            controller.isAppearanceLightNavigationBars = false
+        }
+        onDispose {
+            if (controller != null && blurBackground && !themeDark) {
+                controller.isAppearanceLightStatusBars = true
+                controller.isAppearanceLightNavigationBars = true
+            }
+        }
     }
 
     var position by remember { mutableLongStateOf(viewModel.player.position()) }
@@ -228,6 +233,7 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
             .fillMaxSize()
             .background(Brush.verticalGradient(listOf(topBg, baseBg))),
     ) {
+        if (blurBackground) BlurredArtwork(song)
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
             val landscape = maxWidth > maxHeight
             Column(Modifier.fillMaxSize()) {
@@ -588,6 +594,28 @@ private fun sleepLabel(): String {
 private fun formatSpeed(speed: Float): String = "%.2f".format(speed).trimEnd('0').trimEnd('.', ',') + "×"
 
 private fun lerpToward(from: Color, to: Color, t: Float): Color = androidx.compose.ui.graphics.lerp(from, to, t)
+
+/** The song's artwork, heavily blurred and darkened, filling the player. Android 12+. */
+@Composable
+private fun BlurredArtwork(song: Song) {
+    val context = LocalContext.current
+    val request = remember(song.key, song.dateModifiedSec) {
+        ImageRequest.Builder(context).data(song).size(256).crossfade(600).build()
+    }
+    AsyncImage(
+        model = request,
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier
+            .fillMaxSize()
+            .blur(80.dp, BlurredEdgeTreatment.Rectangle),
+    )
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.30f), Color.Black.copy(alpha = 0.62f)))),
+    )
+}
 
 @Composable
 private fun ExtraButton(

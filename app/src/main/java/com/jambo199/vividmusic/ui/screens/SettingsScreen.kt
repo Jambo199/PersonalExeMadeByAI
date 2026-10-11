@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.Brightness6
 import androidx.compose.material.icons.rounded.Check
@@ -46,6 +47,7 @@ import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -73,6 +75,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.jambo199.vividmusic.BuildConfig
 import com.jambo199.vividmusic.data.LibraryRepository
+import com.jambo199.vividmusic.data.PlayerBackground
 import com.jambo199.vividmusic.data.ThemeMode
 import com.jambo199.vividmusic.ui.LocalNav
 import com.jambo199.vividmusic.ui.MainViewModel
@@ -108,9 +111,24 @@ fun SettingsScreen(viewModel: MainViewModel) {
             item {
                 SettingRow(Icons.Rounded.Brightness6, "Theme", settings.themeMode.label) { themeDialog = true }
             }
+            item {
+                SwitchRow(
+                    Icons.Rounded.AutoAwesome,
+                    "Colours from album art",
+                    "The app takes its colours from the song that's playing",
+                    settings.artworkColors,
+                ) { v ->
+                    viewModel.updateSettings { it.copy(artworkColors = v) }
+                }
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 item {
-                    SwitchRow(Icons.Rounded.ColorLens, "Wallpaper colours", "Use Material You colours from your wallpaper", settings.dynamicColor) { v ->
+                    SwitchRow(
+                        Icons.Rounded.ColorLens,
+                        "Wallpaper colours",
+                        if (settings.artworkColors) "Use Material You colours from your wallpaper when nothing is playing" else "Use Material You colours from your wallpaper",
+                        settings.dynamicColor,
+                    ) { v ->
                         viewModel.updateSettings { it.copy(dynamicColor = v) }
                     }
                 }
@@ -139,6 +157,27 @@ fun SettingsScreen(viewModel: MainViewModel) {
                                 }
                             }
                         }
+                    }
+                }
+            }
+            item {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text("Player background", style = MaterialTheme.typography.bodyLarge)
+                    FlowRow(
+                        Modifier.padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        PlayerBackground.entries
+                            // Blurring needs Android 12.
+                            .filter { it != PlayerBackground.BLUR || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S }
+                            .forEach { option ->
+                                FilterChip(
+                                    selected = settings.playerBackground == option ||
+                                        (option == PlayerBackground.GRADIENT && settings.playerBackground == PlayerBackground.BLUR && Build.VERSION.SDK_INT < Build.VERSION_CODES.S),
+                                    onClick = { viewModel.updateSettings { it.copy(playerBackground = option) } },
+                                    label = { Text(option.label) },
+                                )
+                            }
                     }
                 }
             }

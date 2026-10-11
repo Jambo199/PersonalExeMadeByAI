@@ -82,6 +82,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val libraryState: StateFlow<LibraryState> = AppGraph.library.state
     val userData: StateFlow<UserData> = AppGraph.userData.state
     val playback: StateFlow<PlaybackState> = player.state
+    val currentSong: StateFlow<Song?> = player.state.map { it.song }.distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val queue: StateFlow<List<QueueEntry>> = player.queue
     val queueSource: StateFlow<String> = player.source
     val lyrics: StateFlow<Lyrics?> = AppGraph.lyrics.current

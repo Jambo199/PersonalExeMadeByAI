@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import com.jambo199.vividmusic.ui.MainViewModel
 import com.jambo199.vividmusic.ui.VividMusicApp
 import com.jambo199.vividmusic.ui.theme.VividTheme
+import com.jambo199.vividmusic.ui.theme.rememberArtworkSeed
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
@@ -20,7 +21,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             val settings by viewModel.settings.collectAsState()
-            VividTheme(settings) {
+            val song by viewModel.currentSong.collectAsState()
+            val seed = if (settings.artworkColors) rememberArtworkSeed(song) else null
+            VividTheme(settings, seed) {
                 VividMusicApp(viewModel)
             }
         }
