@@ -34,7 +34,7 @@ data class NcsTrack(
         mediaStoreId = -1,
         title = title,
         artist = artists,
-        album = "NCS: $title",
+        album = "NoCopyrightSounds",
         albumArtist = artists,
         albumId = 0,
         durationMs = 0,
@@ -114,8 +114,12 @@ object Ncs {
             )
         }.distinctBy { it.id }
         val selects = SELECT.findAll(html).associate { it.groupValues[1] to it.groupValues[2] }
+        // ncs.io lists a few twice with different capitals ("Angry", "angry"); keep the first.
         fun options(name: String) = selects[name]?.let { block ->
-            OPTION.findAll(block).map { NcsFilter(it.groupValues[1], unescape(it.groupValues[2]).trim()) }.toList()
+            OPTION.findAll(block)
+                .map { NcsFilter(it.groupValues[1], unescape(it.groupValues[2]).trim().replaceFirstChar(Char::titlecase)) }
+                .distinctBy { it.name.lowercase() }
+                .toList()
         }.orEmpty()
         return NcsPage(
             tracks = tracks,

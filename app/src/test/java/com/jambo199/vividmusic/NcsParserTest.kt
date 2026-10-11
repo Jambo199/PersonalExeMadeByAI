@@ -22,7 +22,7 @@ class NcsParserTest {
 
     private val page = """
         <form><select name="genre" class="form-control"><option value="">Genre</option><option value="3">Drum &amp; Bass</option><option value="10">House</option></select>
-        <select name="mood"><option value="">Mood</option><option value="6">energetic</option></select></form>
+        <select name="mood"><option value="">Mood</option><option value="6">energetic</option><option value="40">Angry</option><option value="41">angry</option></select></form>
         <table class="tablesorter"><thead><tr><th>Title</th></tr></thead><tbody>
         ${row("d06186d5-dda6", "Desire", "gabriawll, Ada Petcu", "desire-1791504076", "g_desire", "9 Oct 2026")}
         ${row("8ff25563-7d92", "Don&#039;t Stop", "Zack &amp; Co", "dont-stop-1791504079", "z_dontstop", "1 Sep 2026")}
@@ -53,7 +53,8 @@ class NcsParserTest {
     fun readsFiltersAndPages() {
         val result = Ncs.parse(page, 1)
         assertEquals(listOf("3" to "Drum & Bass", "10" to "House"), result.genres.map { it.id to it.name })
-        assertEquals(listOf("energetic"), result.moods.map { it.name })
+        assertEquals(listOf("Energetic", "Angry"), result.moods.map { it.name })
+        assertEquals("40", result.moods[1].id)
         assertTrue(result.hasMore)
         // Page 10 must not take the link to page 100 for a link to page 11.
         assertFalse(Ncs.parse(page.replace("page=2\"", "page=9\""), 10).hasMore)
