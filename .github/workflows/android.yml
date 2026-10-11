@@ -3,7 +3,7 @@ name: Android app (Vivid Music)
 on:
   push:
     branches: [ccr-862b8099-9n782j, main, master]
-    paths: ['android/**', '.github/workflows/android.yml']
+    paths-ignore: ['README.md', 'LICENSE', '**/*.md']
   workflow_dispatch:
 
 concurrency:
@@ -15,9 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    defaults:
-      run:
-        working-directory: android
     steps:
       - uses: actions/checkout@v4
 
@@ -37,9 +34,9 @@ jobs:
 
       - name: Collect APK
         run: |
-          mkdir -p ../dist
-          cp app/build/outputs/apk/release/app-release.apk ../dist/VividMusic-1.0.${{ github.run_number }}.apk
-          ls -la ../dist
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk dist/VividMusic-1.0.${{ github.run_number }}.apk
+          ls -la dist
 
       - uses: actions/upload-artifact@v4
         with:
@@ -53,8 +50,8 @@ jobs:
           VERSION_CODE: 1
         run: |
           ./gradlew --no-daemon assembleRelease
-          mkdir -p ../dist-old
-          cp app/build/outputs/apk/release/app-release.apk ../dist-old/VividMusic-old.apk
+          mkdir -p dist-old
+          cp app/build/outputs/apk/release/app-release.apk dist-old/VividMusic-old.apk
 
       - uses: actions/upload-artifact@v4
         with:
@@ -87,7 +84,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Make test music
-        run: bash android/ci/make-test-audio.sh testmedia
+        run: bash ci/make-test-audio.sh testmedia
 
       - name: Run app on an Android 14 emulator
         uses: reactivecircus/android-emulator-runner@v2
@@ -98,7 +95,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -camera-back none
-          script: bash android/ci/smoke-test.sh "$(ls dist/*.apk | head -1)" testmedia screenshots "$(ls dist-old/*.apk | head -1)"
+          script: bash ci/smoke-test.sh "$(ls dist/*.apk | head -1)" testmedia screenshots "$(ls dist-old/*.apk | head -1)"
 
       - name: Pack screenshots
         if: always()
@@ -114,7 +111,7 @@ jobs:
 
       - name: Screenshot previews (base64, for reviewing from the log)
         if: always()
-        run: bash android/ci/thumbnails.sh screenshots
+        run: bash ci/thumbnails.sh screenshots
 
   publish:
     needs: [build, emulator-test]
