@@ -1,11 +1,14 @@
 package com.jambo199.vividmusic
 
 import com.jambo199.vividmusic.data.Wrapped
+import com.jambo199.vividmusic.playback.MusicAlarm
 import com.jambo199.vividmusic.playback.ShakeDetector
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.DayOfWeek
+import java.time.LocalDateTime
 
 class FunFeaturesTest {
     @Test
@@ -47,5 +50,38 @@ class FunFeaturesTest {
         assertEquals("The Explorer", Wrapped.personality(plays = 30, differentSongs = 28, topSongPlays = 2, topArtistPlays = 4).title)
         assertEquals("The Mix Master", Wrapped.personality(plays = 30, differentSongs = 15, topSongPlays = 3, topArtistPlays = 5).title)
         assertEquals("The Loyal Listener", Wrapped.personality(plays = 30, differentSongs = 6, topSongPlays = 6, topArtistPlays = 8).title)
+    }
+
+    @Test
+    fun alarmRingsNextTimeTheClockGetsThere() {
+        // Sunday 11 October 2026, 06:00.
+        val now = LocalDateTime.of(2026, 10, 11, 6, 0)
+        assertEquals(LocalDateTime.of(2026, 10, 11, 7, 30), MusicAlarm.nextRing(7, 30, emptySet(), now))
+        // Already past today: tomorrow.
+        assertEquals(LocalDateTime.of(2026, 10, 12, 5, 0), MusicAlarm.nextRing(5, 0, emptySet(), now))
+        // Exactly now counts as passed, so a ring doesn't set itself for the same minute again.
+        assertEquals(LocalDateTime.of(2026, 10, 12, 6, 0), MusicAlarm.nextRing(6, 0, emptySet(), now))
+    }
+
+    @Test
+    fun alarmSkipsDaysItIsntSetFor() {
+        val sunday = LocalDateTime.of(2026, 10, 11, 9, 0)
+        assertEquals(DayOfWeek.SUNDAY, sunday.dayOfWeek)
+        val weekdays = (1..5).toSet()
+        // Sunday morning, weekdays only: Monday.
+        assertEquals(LocalDateTime.of(2026, 10, 12, 7, 0), MusicAlarm.nextRing(7, 0, weekdays, sunday))
+        // Friday evening: past Saturday and Sunday to Monday.
+        val friday = LocalDateTime.of(2026, 10, 16, 20, 0)
+        assertEquals(LocalDateTime.of(2026, 10, 19, 7, 0), MusicAlarm.nextRing(7, 0, weekdays, friday))
+        // Only Sundays, asked on Sunday after the time: a week later.
+        assertEquals(LocalDateTime.of(2026, 10, 18, 8, 0), MusicAlarm.nextRing(8, 0, setOf(7), sunday))
+    }
+
+    @Test
+    fun alarmCountdownText() {
+        val from = LocalDateTime.of(2026, 10, 11, 22, 25, 30)
+        assertEquals("Rings in 9 h 5 min", MusicAlarm.untilText(from, LocalDateTime.of(2026, 10, 12, 7, 30)))
+        assertEquals("Rings in 1 min", MusicAlarm.untilText(from, from.plusSeconds(20)))
+        assertEquals("Rings in 2 days 1 h", MusicAlarm.untilText(from.withSecond(0), from.withSecond(0).plusDays(2).plusHours(1)))
     }
 }

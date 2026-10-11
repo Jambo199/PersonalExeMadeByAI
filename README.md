@@ -120,6 +120,24 @@ You can also lock the app in the recent-apps screen (pull the card down).
 - Drag-to-reorder queue, remove songs, save the queue as a playlist
 - Audio quality badge (format, sample rate / bitrate)
 
+**Fun stuff**
+- **Live visualizer** over the artwork (bars, wave or mirror), and artwork that **bounces to the beat**
+- **Vinyl record** player: the artwork spins on a record while music plays
+- **Sound presets**: Nightcore, Slowed, Slowed + reverb, Chipmunk, Deep voice and Concert hall,
+  plus room / hall / plate **reverb** on anything
+- **Karaoke lyrics**: the line being sung fills with colour as it goes; long-press a line to
+  share it as a picture card in the song's colours
+- **Guess the song**: hear a few seconds and pick the right title – from your songs or NCS hits,
+  with points for speed and streaks
+- **Your Wrapped**: a story of your top songs, artists, minutes, favourite genre and day, and your
+  listening personality, ready to share
+- **Badges** to unlock (Century, Marathon, Explorer, Golden ears…) on the stats page
+- **Song of the day** and three **daily mixes** on Home, made from the genres and artists you play
+- **Shake to skip** (Settings)
+- **Music alarm**: wake up to your favourites, all songs, the song of the day or a daily mix –
+  once, weekdays or the days you pick, gently rising over a minute, with Snooze and Stop in the
+  notification (overflow menu › Music alarm)
+
 **Playlists**
 - Your own playlists (create, rename, drag to reorder, delete)
 - Import `.m3u`/`.m3u8` playlists from other players, and export any playlist as M3U

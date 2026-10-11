@@ -13,11 +13,15 @@ import com.jambo199.vividmusic.data.SongArtworkFetcher
 import com.jambo199.vividmusic.data.SongArtworkKeyer
 import com.jambo199.vividmusic.data.UserDataStore
 import com.jambo199.vividmusic.online.OnlineStore
+import com.jambo199.vividmusic.playback.MusicAlarm
 import com.jambo199.vividmusic.playback.QueueStore
 import com.jambo199.vividmusic.update.UpdateManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 /** Hand-rolled dependency container; the UI and the playback service share one process. */
 object AppGraph {
@@ -46,6 +50,13 @@ class VividApp : Application(), ImageLoaderFactory {
         super.onCreate()
         AppGraph.init(this)
         AppGraph.library.refreshAll()
+        // Keeps the music alarm set with Android whenever its time or days change.
+        AppGraph.scope.launch {
+            AppGraph.settings.state
+                .map { listOf(it.alarmEnabled, it.alarmHour, it.alarmMinute, it.alarmDays) }
+                .distinctUntilChanged()
+                .collect { MusicAlarm.schedule(this@VividApp) }
+        }
     }
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)

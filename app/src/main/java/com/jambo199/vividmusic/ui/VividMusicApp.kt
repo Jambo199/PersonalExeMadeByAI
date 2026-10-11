@@ -55,6 +55,7 @@ import com.jambo199.vividmusic.ui.components.SelectionState
 import com.jambo199.vividmusic.ui.components.SongMenuHost
 import com.jambo199.vividmusic.ui.online.NcsArtistScreen
 import com.jambo199.vividmusic.ui.quiz.QuizScreen
+import com.jambo199.vividmusic.ui.screens.AlarmScreen
 import com.jambo199.vividmusic.ui.screens.AlbumScreen
 import com.jambo199.vividmusic.ui.screens.ArtistScreen
 import com.jambo199.vividmusic.ui.screens.EqualizerScreen
@@ -139,6 +140,7 @@ fun VividMusicApp(viewModel: MainViewModel) {
             "stats" -> nav.stats()
             "quiz" -> nav.quiz()
             "wrapped" -> nav.wrapped()
+            "alarm" -> nav.alarm()
             "favorites" -> nav.playlist(com.jambo199.vividmusic.data.SmartPlaylists.FAVORITES)
             "queue" -> nav.nowPlaying()
         }
@@ -204,6 +206,7 @@ fun VividMusicApp(viewModel: MainViewModel) {
                     composable(Routes.STATS) { StatsScreen(viewModel) }
                     composable(Routes.QUIZ) { QuizScreen() }
                     composable(Routes.WRAPPED) { WrappedScreen(viewModel) }
+                    composable(Routes.ALARM) { AlarmScreen(viewModel) }
                     composable(Routes.ALBUM, arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
                         AlbumScreen(viewModel, entry.arguments?.getLong("id") ?: 0L)
                     }

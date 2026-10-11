@@ -39,6 +39,7 @@ import com.jambo199.vividmusic.data.folderSongComparator
 import com.jambo199.vividmusic.data.pluralize
 import com.jambo199.vividmusic.data.searchKey
 import com.jambo199.vividmusic.data.songComparator
+import com.jambo199.vividmusic.playback.MusicAlarm
 import com.jambo199.vividmusic.playback.PlaybackState
 import com.jambo199.vividmusic.playback.PlayerConnection
 import com.jambo199.vividmusic.playback.PlayerEvents
@@ -311,6 +312,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
             "player" -> requestOpenPlayer()
+            // The alarm couldn't start the music in the background, so you tapped its notification.
+            "wake" -> {
+                MusicAlarm.ring(getApplication(), force = true)
+                requestOpenPlayer()
+            }
             "home" -> showSection(MainSection.HOME)
             "folders" -> showSection(MainSection.FOLDERS)
             "ncs" -> showSection(MainSection.NCS)

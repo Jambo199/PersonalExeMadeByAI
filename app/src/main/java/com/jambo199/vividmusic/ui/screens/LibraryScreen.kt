@@ -35,6 +35,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.Alarm
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Equalizer
 import androidx.compose.material.icons.rounded.GridView
@@ -140,6 +141,14 @@ fun MainScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                         onClick = {
                             menuOpen = false
                             onSleepTimer()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Music alarm") },
+                        leadingIcon = { Icon(Icons.Rounded.Alarm, null) },
+                        onClick = {
+                            menuOpen = false
+                            nav.alarm()
                         },
                     )
                     DropdownMenuItem(

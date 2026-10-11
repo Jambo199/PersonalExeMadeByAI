@@ -70,6 +70,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jambo199.vividmusic.data.Album
 import com.jambo199.vividmusic.data.Artist
+import com.jambo199.vividmusic.data.DailyMix
 import com.jambo199.vividmusic.data.Genre
 import com.jambo199.vividmusic.data.HomeFeed
 import com.jambo199.vividmusic.data.MainSection
@@ -137,6 +138,20 @@ fun HomeScreen(viewModel: MainViewModel) {
             if (song != null) {
                 SongOfTheDayCard(song, playing = playback.song?.key == song.key && playback.isPlaying) {
                     viewModel.play(listOf(song), 0, "Song of the day")
+                }
+            }
+        }
+
+        if (feed.dailyMixes.isNotEmpty()) {
+            item(key = "mixes-title") { HomeHeader("Your daily mixes", "Made from what you love, fresh every day") }
+            item(key = "mixes") {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(feed.dailyMixes, key = { it.title }) { mix ->
+                        DailyMixCard(mix) { viewModel.shuffle(mix.songs, mix.title + " · " + mix.theme) }
+                    }
                 }
             }
         }
@@ -508,6 +523,74 @@ private fun StatsCard(viewModel: MainViewModel, onOpen: () -> Unit) {
             }
             Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null)
         }
+    }
+}
+
+private val MixColors = listOf(
+    listOf(Color(0xFF00897B), Color(0xFF64FFDA)),
+    listOf(Color(0xFFD81B60), Color(0xFFFF80AB)),
+    listOf(Color(0xFF3949AB), Color(0xFF82B1FF)),
+)
+
+/** A daily mix: four covers from it, its theme and some of its artists. */
+@Composable
+private fun DailyMixCard(mix: DailyMix, onPlay: () -> Unit) {
+    val covers = remember(mix) { mix.songs.distinctBy { it.albumId }.take(4) }
+    val colors = MixColors[(mix.title.lastOrNull()?.digitToIntOrNull() ?: 1).minus(1).mod(MixColors.size)]
+    Column(
+        Modifier
+            .width(160.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onPlay),
+    ) {
+        Box(
+            Modifier
+                .size(160.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Brush.linearGradient(colors)),
+        ) {
+            if (covers.size >= 4) {
+                Column {
+                    covers.chunked(2).forEach { row ->
+                        Row {
+                            row.forEach { song -> Artwork(song, Modifier.size(80.dp), shape = RoundedCornerShape(0.dp)) }
+                        }
+                    }
+                }
+            } else {
+                covers.firstOrNull()?.let { Artwork(it, Modifier.size(160.dp), shape = RoundedCornerShape(0.dp)) }
+            }
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, colors[0].copy(alpha = 0.95f)))),
+            )
+            Column(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(12.dp),
+            ) {
+                Text(mix.title.uppercase(), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.85f))
+                Text(mix.theme, style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Icon(
+                Icons.Rounded.PlayCircle,
+                contentDescription = "Play ${mix.title}",
+                tint = Color.White,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .size(32.dp),
+            )
+        }
+        Text(
+            mix.artists,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 6.dp, start = 2.dp, end = 2.dp),
+        )
     }
 }
 

@@ -14,8 +14,19 @@ data class HomeFeed(
     val artists: List<Artist> = emptyList(),
     val forgottenFavorites: List<Song> = emptyList(),
     val unplayedAlbums: List<Album> = emptyList(),
+    val dailyMixes: List<DailyMix> = emptyList(),
     val songCount: Int = 0,
     val totalDurationMs: Long = 0,
+)
+
+/** A ready-made mix around one of your genres (or artists). */
+data class DailyMix(
+    val title: String,
+    /** What it's built around, e.g. "Synthwave". */
+    val theme: String,
+    /** A few of the artists in it. */
+    val artists: String,
+    val songs: List<Song>,
 )
 
 object HomeFeedBuilder {
@@ -39,6 +50,7 @@ object HomeFeedBuilder {
             else lib.artists.filter { it.name != Song.UNKNOWN_ARTIST }.sortedByDescending { it.songs.size }.take(ROW),
             forgottenFavorites = forgottenFavorites(lib, data, seed),
             unplayedAlbums = unplayedAlbums(lib, data, seed),
+            dailyMixes = dailyMixes(lib, data, seed),
             songCount = lib.songs.size,
             totalDurationMs = lib.songs.sumOf { it.durationMs },
         )
@@ -117,6 +129,52 @@ object HomeFeedBuilder {
             .filter { album -> album.songs.none { (data.playCounts[it.key] ?: 0) > 0 } }
             .sortedBy { noise(it.key, seed) }
             .take(ROW)
+
+    private const val MIX_SIZE = 30
+    private const val MIXES = 3
+
+    /**
+     * Up to three mixes, one per genre you play (or have) most; each leans on songs you play
+     * and love, with a shuffle of the rest. Libraries without genre tags get mixes around their
+     * top artists instead.
+     */
+    fun dailyMixes(lib: Library, data: UserData, seed: Long): List<DailyMix> {
+        fun score(song: Song): Double {
+            val plays = data.playCounts[song.key] ?: 0
+            return 1.5 * ln(1.0 + plays) + (if (song.key in data.favoriteSet) 2.0 else 0.0) + 2.0 * noise(song.key, seed)
+        }
+        fun artistsOf(songs: List<Song>) = songs
+            .map { it.displayArtist }
+            .filter { it != Song.UNKNOWN_ARTIST }
+            .groupingBy { it }.eachCount()
+            .entries.sortedByDescending { it.value }
+            .take(3).map { it.key }
+            .let { names -> if (names.size == 3) names.joinToString(", ") + " and more" else names.joinToString(" and ") }
+
+        val genres = lib.genres
+            .filter { it.songs.size >= 4 }
+            .sortedByDescending { g -> g.songs.sumOf { (data.playCounts[it.key] ?: 0) * 3 + 1 } }
+            .take(MIXES)
+        val mixes = genres.map { g ->
+            g.name to g.songs.sortedByDescending(::score).take(MIX_SIZE)
+        }.toMutableList()
+        if (mixes.size < MIXES) {
+            // Top artists, with some of everything else around them.
+            val used = mixes.mapTo(HashSet()) { it.first }
+            val artists = (rankedArtists(lib, data).ifEmpty { lib.artists.sortedByDescending { it.songs.size } })
+                .filter { it.name != Song.UNKNOWN_ARTIST && it.name !in used && it.songs.size >= 2 }
+            for (artist in artists) {
+                if (mixes.size >= MIXES) break
+                val own = artist.songs.sortedByDescending(::score).take(MIX_SIZE / 2)
+                val others = lib.songs.filter { it !in own }.sortedByDescending(::score).take(MIX_SIZE - own.size)
+                val songs = (own + others).sortedBy { noise(it.key, seed + 1) }
+                if (songs.size >= 4) mixes += artist.name to songs
+            }
+        }
+        return mixes.mapIndexed { i, (theme, songs) ->
+            DailyMix("Daily Mix ${i + 1}", theme, artistsOf(songs), songs)
+        }
+    }
 
     /** Stable pseudo-random number in 0..1 for [key] under [seed]. */
     fun noise(key: String, seed: Long): Double {

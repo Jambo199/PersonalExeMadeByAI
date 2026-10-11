@@ -3,10 +3,13 @@ package com.jambo199.vividmusic.playback
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.KeyEvent
 import androidx.annotation.OptIn
+import androidx.core.app.ServiceCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -61,10 +64,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Background playback: owns ExoPlayer and the media session that drives the notification,
@@ -95,6 +100,9 @@ class PlaybackService : MediaLibraryService() {
     private val playingNow = MutableStateFlow(false)
     private var shake: ShakeDetector? = null
     private var saveStateJob: Job? = null
+
+    /** The music alarm is playing (until it's paused, snoozed or stopped). */
+    private var alarmRinging = false
 
     override fun onCreate() {
         super.onCreate()
@@ -174,6 +182,52 @@ class PlaybackService : MediaLibraryService() {
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action != MusicAlarm.ACTION_RING) return super.onStartCommand(intent, flags, startId)
+        // Android wants a notification straight away; the music's own one then takes its place.
+        ServiceCompat.startForeground(
+            this,
+            DefaultMediaNotificationProvider.DEFAULT_NOTIFICATION_ID,
+            MusicAlarm.startingNotification(this),
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK else 0,
+        )
+        ringAlarm()
+        return START_NOT_STICKY
+    }
+
+    /** The music alarm going off: plays the wake-up music, quietly at first when gentle. */
+    private fun ringAlarm() {
+        val s = AppGraph.settings.current
+        scope.launch {
+            // Straight after a reboot the library may still be loading.
+            val lib = withTimeoutOrNull(15_000) { AppGraph.library.state.first { it.hasLoadedOnce }.library }
+                ?: AppGraph.library.library
+            val songs = MusicAlarm.songsFor(s.alarmMusic, lib, AppGraph.userData.current, System.currentTimeMillis())
+            if (songs.isNotEmpty()) {
+                sessionPlayer?.setMediaItems(songs.map { it.toMediaItem() }.toMutableList(), 0, 0L)
+                // A short list goes round again until you're up.
+                if (songs.sumOf { it.durationMs } < 30 * 60_000L) exo.repeatMode = Player.REPEAT_MODE_ALL
+            }
+            if (exo.mediaItemCount == 0) {
+                ServiceCompat.stopForeground(this@PlaybackService, ServiceCompat.STOP_FOREGROUND_REMOVE)
+                MusicAlarm.showNothingToPlay(this@PlaybackService)
+                return@launch
+            }
+            MusicAlarm.raiseVolume(this@PlaybackService)
+            exo.prepare()
+            if (s.alarmGentle) sessionPlayer?.fadeIn(MusicAlarm.GENTLE_MS) else sessionPlayer?.play()
+            alarmRinging = true
+            MusicAlarm.showRinging(this@PlaybackService, s.alarmMusic)
+        }
+    }
+
+    /** Snooze or Stop on the alarm notification. */
+    private fun endAlarm() {
+        if (!alarmRinging) return
+        alarmRinging = false
+        sessionPlayer?.pause()
+    }
 
     /** Widget buttons, applied directly while the service is alive. */
     private fun handleKey(keyCode: Int) {
@@ -512,6 +566,11 @@ class PlaybackService : MediaLibraryService() {
         }
 
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            // Paused the wake-up music yourself: you're awake, so the alarm notification goes.
+            if (!playWhenReady && alarmRinging) {
+                alarmRinging = false
+                MusicAlarm.cancelRinging(this@PlaybackService)
+            }
             if (!playWhenReady && reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM &&
                 SleepTimer.mode.value is SleepTimer.Mode.EndOfSong
             ) {
@@ -806,6 +865,17 @@ class PlaybackService : MediaLibraryService() {
             if (service.exo.mediaItemCount == 0) return false
             service.handleKey(keyCode)
             return true
+        }
+
+        /** Rings the music alarm in the running player. Returns false if the service isn't running. */
+        fun ringIfRunning(force: Boolean): Boolean {
+            val service = instance ?: return false
+            if (force || !service.exo.isPlaying) service.ringAlarm()
+            return true
+        }
+
+        fun stopAlarm() {
+            instance?.endAlarm()
         }
 
         private const val BROWSE_ROOT = "vivid:root"

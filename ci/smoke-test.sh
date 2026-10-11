@@ -308,6 +308,32 @@ for _ in 1 2 3 4 5 6 7 8; do adb shell input tap 900 1400; sleep 0.5; done
 shot 51-wrapped-summary 2
 adb shell input keyevent KEYCODE_BACK
 
+echo "== Music alarm"
+adb shell input keyevent KEYCODE_MEDIA_PAUSE
+shortcut alarm; shot 52-alarm 3
+tap "Weekdays"
+if tap "Try it now"; then
+  sleep 6
+  echo "-- media session after 'Try it now':"
+  adb shell dumpsys media_session | grep -E "state=PlaybackState" | head -3
+  adb shell dumpsys notification --noredact | grep -E "android.title=|android.text=" | grep -iE "morning|waking" | head -4
+  adb shell cmd statusbar expand-notifications
+  shot 53-alarm-ringing 3
+  if tap "Stop"; then
+    sleep 2
+    echo "-- media session after Stop:"
+    adb shell dumpsys media_session | grep -E "state=PlaybackState" | head -3
+  fi
+  adb shell cmd statusbar collapse
+fi
+if tap "Wake up to music"; then
+  shot 54-alarm-picker 2
+  tap "Set" && shot 55-alarm-set 2
+  echo "-- alarms set by the app:"
+  adb shell dumpsys alarm | grep -A4 "$PKG" | grep -E "type=|origWhen|AlarmClock|RTC" | head -8
+fi
+adb shell input keyevent KEYCODE_BACK
+
 echo "== Other screens"
 shortcut settings;  shot 17-settings 3
 shortcut equalizer; shot 18-equalizer 3

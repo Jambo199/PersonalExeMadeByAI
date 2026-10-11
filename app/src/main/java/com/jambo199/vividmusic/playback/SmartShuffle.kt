@@ -219,17 +219,27 @@ class ShuffleAwarePlayer(
         }
     }
 
+    /** Starts playing silently and slowly turns it up over [ms], to wake you gently. */
+    fun fadeIn(ms: Long) {
+        val id = ++fade
+        setPausing(false)
+        exo.volume = 0f
+        super.play()
+        // Ears hear loudness on a curve, so a straight line would seem to jump up at the start.
+        ramp(id, 0f, targetVolume, ms, curve = { it * it }) {}
+    }
+
     /**
      * Moves the volume from [from] to [to] in steps. [to] is read at every step because a new
      * song's ReplayGain tags can arrive during the fade.
      */
-    private fun ramp(id: Int, from: Float, to: () -> Float, ms: Long, done: () -> Unit) {
+    private fun ramp(id: Int, from: Float, to: () -> Float, ms: Long, curve: (Float) -> Float = { it }, done: () -> Unit) {
         fadingNow = true
-        val steps = 10
+        val steps = (ms / 100).toInt().coerceIn(10, 600)
         for (i in 1..steps) {
             handler.postDelayed({
                 if (id != fade) return@postDelayed
-                exo.volume = from + (to() - from) * i / steps
+                exo.volume = from + (to() - from) * curve(i / steps.toFloat())
                 if (i == steps) {
                     fadingNow = false
                     done()

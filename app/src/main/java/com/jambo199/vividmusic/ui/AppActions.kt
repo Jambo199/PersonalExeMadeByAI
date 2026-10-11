@@ -24,6 +24,7 @@ object Routes {
     const val NCS_ARTIST = "ncs_artist/{path}"
     const val QUIZ = "quiz"
     const val WRAPPED = "wrapped"
+    const val ALARM = "alarm"
 }
 
 @Stable
@@ -41,6 +42,7 @@ class NavActions(private val nav: NavHostController) {
     fun stats() = nav.navigate(Routes.STATS) { launchSingleTop = true }
     fun quiz() = nav.navigate(Routes.QUIZ) { launchSingleTop = true }
     fun wrapped() = nav.navigate(Routes.WRAPPED) { launchSingleTop = true }
+    fun alarm() = nav.navigate(Routes.ALARM) { launchSingleTop = true }
     fun back() {
         nav.popBackStack()
     }

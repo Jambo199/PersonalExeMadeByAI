@@ -28,6 +28,14 @@ enum class ReverbPreset(val label: String, val preset: Short) {
     PLATE("Plate", 6),
 }
 
+/** What the music alarm wakes you up with. */
+enum class AlarmMusic(val label: String) {
+    FAVORITES("Favourites"),
+    ALL("All songs"),
+    SONG_OF_THE_DAY("Song of the day"),
+    DAILY_MIX("Daily mix"),
+}
+
 /** The tabs on the Library page; which show, and their order, is a setting. */
 enum class LibraryTab(val label: String) { SONGS("Songs"), ALBUMS("Albums"), ARTISTS("Artists"), PLAYLISTS("Playlists") }
 
@@ -121,6 +129,15 @@ data class Settings(
      */
     val sessionLyrics: Boolean = true,
     val autoCheckUpdates: Boolean = true,
+    /** Wake up to music: rings at [alarmHour]:[alarmMinute]. */
+    val alarmEnabled: Boolean = false,
+    val alarmHour: Int = 7,
+    val alarmMinute: Int = 30,
+    /** Days it rings on, 1 = Monday … 7 = Sunday; none means just once. */
+    val alarmDays: Set<Int> = emptySet(),
+    val alarmMusic: AlarmMusic = AlarmMusic.FAVORITES,
+    /** Starts quietly and rises over a minute. */
+    val alarmGentle: Boolean = true,
     /** Most recent first. */
     val searchHistory: List<String> = emptyList(),
     val eq: EqSettings = EqSettings(),
@@ -238,6 +255,13 @@ class SettingsStore(context: Context) {
             karaokeLyrics = prefs.getBoolean("karaokeLyrics", d.karaokeLyrics),
             sessionLyrics = prefs.getBoolean("sessionLyrics", d.sessionLyrics),
             autoCheckUpdates = prefs.getBoolean("autoCheckUpdates", d.autoCheckUpdates),
+            alarmEnabled = prefs.getBoolean("alarmEnabled", d.alarmEnabled),
+            alarmHour = prefs.getInt("alarmHour", d.alarmHour),
+            alarmMinute = prefs.getInt("alarmMinute", d.alarmMinute),
+            alarmDays = prefs.getString("alarmDays", null)
+                ?.split(',')?.mapNotNull { it.trim().toIntOrNull()?.takeIf { d -> d in 1..7 } }?.toSet() ?: d.alarmDays,
+            alarmMusic = enumOr(prefs.getString("alarmMusic", null), d.alarmMusic),
+            alarmGentle = prefs.getBoolean("alarmGentle", d.alarmGentle),
             searchHistory = readList("searchHistory"),
             eq = EqSettings(
                 enabled = prefs.getBoolean("eq.enabled", false),
@@ -301,6 +325,12 @@ class SettingsStore(context: Context) {
             .putBoolean("karaokeLyrics", s.karaokeLyrics)
             .putBoolean("sessionLyrics", s.sessionLyrics)
             .putBoolean("autoCheckUpdates", s.autoCheckUpdates)
+            .putBoolean("alarmEnabled", s.alarmEnabled)
+            .putInt("alarmHour", s.alarmHour)
+            .putInt("alarmMinute", s.alarmMinute)
+            .putString("alarmDays", s.alarmDays.sorted().joinToString(","))
+            .putString("alarmMusic", s.alarmMusic.name)
+            .putBoolean("alarmGentle", s.alarmGentle)
             .putString("searchHistory", JSONArray(s.searchHistory).toString())
             .putBoolean("eq.enabled", s.eq.enabled)
             .putInt("eq.preset", s.eq.preset)
