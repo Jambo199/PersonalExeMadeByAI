@@ -50,6 +50,33 @@ tap() { # tap on the element labelled $1 ($2 = "top" picks the highest match on 
   return 1
 }
 
+focus_report() { # which text box has focus and what's in it ($1 = when)
+  if dump; then
+    python3 - "$1" <<'PY'
+import sys, xml.etree.ElementTree as ET
+nodes = list(ET.parse("/tmp/ui.xml").getroot().iter("node"))
+edits = [n for n in nodes if n.get("class", "").endswith("EditText")]
+focused = [n for n in nodes if n.get("focused") == "true"]
+print("   [%s] text boxes: %s; focused: %s" % (
+    sys.argv[1],
+    [(n.get("text"), n.get("focused")) for n in edits],
+    [(n.get("class", "").split(".")[-1], n.get("text") or n.get("content-desc")) for n in focused],
+))
+PY
+  fi
+}
+type_into() { # tap the text box labelled $1, then type $2 and press Enter, reporting focus on the way
+  tap "$1" || return 1
+  focus_report "after tap"
+  sleep 1
+  focus_report "1s later"
+  adb shell input text "$2"
+  focus_report "after typing"
+  adb shell input keyevent KEYCODE_ENTER
+  sleep 1
+  focus_report "after enter"
+}
+
 longtap() { # long-press the element labelled $1
   if dump && xy=$(python3 "$HERE/ui.py" /tmp/ui.xml "$1"); then
     set -- $xy
@@ -240,10 +267,7 @@ if tap "Song info"; then
 fi
 shortcut ncs
 tap "Newest"
-if tap "Search NCS songs and artists"; then
-  sleep 1
-  adb shell input text "alan%swalker"
-  adb shell input keyevent KEYCODE_ENTER
+if type_into "Search NCS songs and artists" "alan%swalker"; then
   shot 40-ncs-search-artist 10
   if tap "Alan Walker" top; then shot 41-ncs-alan-walker 10; fi
 fi
@@ -251,10 +275,7 @@ echo "== NCS artists"
 shortcut ncs
 if tap "Artists"; then shot 42-ncs-artists 20; fi
 if tap "A–Z"; then shot 43-ncs-artists-az 8; fi
-if tap "Search NCS artists"; then
-  sleep 1
-  adb shell input text "jim"
-  adb shell input keyevent KEYCODE_ENTER
+if type_into "Search NCS artists" "jim"; then
   shot 44-ncs-artist-search 8
   if tap "Jim Yosef" top; then shot 45-ncs-jim-yosef 10; fi
 fi
