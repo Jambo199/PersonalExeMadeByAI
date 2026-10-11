@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -58,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -65,6 +67,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jambo199.vividmusic.data.Album
 import com.jambo199.vividmusic.data.Artist
+import com.jambo199.vividmusic.data.Genre
 import com.jambo199.vividmusic.data.HomeFeed
 import com.jambo199.vividmusic.data.MainSection
 import com.jambo199.vividmusic.data.SmartPlaylists
@@ -80,6 +83,7 @@ import com.jambo199.vividmusic.ui.components.Artwork
 import com.jambo199.vividmusic.ui.components.EmptyState
 import com.jambo199.vividmusic.ui.components.LocalBottomPadding
 import com.jambo199.vividmusic.ui.components.SongRow
+import com.jambo199.vividmusic.ui.components.placeholderBrush
 import java.util.Calendar
 
 /** Quick picks, recent albums and other ways back into your music. */
@@ -173,6 +177,11 @@ fun HomeScreen(viewModel: MainViewModel) {
                 else HomeHeader("Artists", "Biggest in your library")
             }
             item(key = "artists") { ArtistCarousel(feed.artists) { nav.artist(it.name) } }
+        }
+
+        if (library.genres.size >= 2) {
+            item(key = "genres-title") { HomeHeader("Genres", "Browse by style") }
+            item(key = "genres") { GenreCarousel(library.genres.take(12)) { nav.genre(it.name) } }
         }
 
         if (feed.unplayedAlbums.isNotEmpty()) {
@@ -468,6 +477,51 @@ private fun StatsCard(viewModel: MainViewModel, onOpen: () -> Unit) {
                 )
             }
             Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null)
+        }
+    }
+}
+
+@Composable
+private fun GenreCarousel(genres: List<Genre>, onOpen: (Genre) -> Unit) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        items(genres, key = { it.name }) { genre ->
+            Box(
+                Modifier
+                    .width(156.dp)
+                    .height(92.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(placeholderBrush(genre.name))
+                    .clickable { onOpen(genre) },
+            ) {
+                Artwork(
+                    genre.cover,
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .offset(x = 14.dp, y = 10.dp)
+                        .size(64.dp)
+                        .graphicsLayer { rotationZ = 22f },
+                    RoundedCornerShape(8.dp),
+                )
+                Column(Modifier.padding(12.dp)) {
+                    Text(
+                        genre.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.width(96.dp),
+                    )
+                    Text(
+                        pluralize(genre.songs.size, "song"),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White.copy(alpha = 0.85f),
+                    )
+                }
+            }
         }
     }
 }

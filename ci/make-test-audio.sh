@@ -27,17 +27,17 @@ mp3_with_cover "$OUT/Music/Neon Dreams/03 Gamma Rise.mp3" 659 45 "$OUT/covers/ne
 
 ff -f lavfi -i "sine=frequency=330:duration=60" -i "$OUT/covers/chill.png" -map 0:a -map 1:v \
   -c:a aac -b:a 96k -c:v png -disposition:v attached_pic \
-  -metadata title="Sunset Boulevard" -metadata artist="Lo-Fi Robot" -metadata album="Evening Tapes" -metadata track=1 -metadata date=2023 \
+  -metadata title="Sunset Boulevard" -metadata artist="Lo-Fi Robot" -metadata album="Evening Tapes" -metadata track=1 -metadata date=2023 -metadata genre="Lo-Fi" \
   "$OUT/Music/Chill/Sunset Boulevard.m4a"
 
 ff -f lavfi -i "sine=frequency=294:duration=55" -i "$OUT/covers/night.png" -map 0:a -map 1:v \
   -c:a flac -c:v png -disposition:v attached_pic \
-  -metadata title="Night Drive" -metadata artist="Lo-Fi Robot" -metadata album="Evening Tapes" -metadata track=2 -metadata date=2023 \
+  -metadata title="Night Drive" -metadata artist="Lo-Fi Robot" -metadata album="Evening Tapes" -metadata track=2 -metadata date=2023 -metadata genre="Lo-Fi" \
   "$OUT/Music/Chill/Night Drive.flac"
 
 LYRICS=$'[00:00.50]Hello from Vivid Music\n[00:04.00]These lyrics are synced\n[00:08.00]Each line lights up in time\n[00:12.00]Tap a line to jump there\n[00:16.00]La la la\n[00:20.00]The end'
 ff -f lavfi -i "sine=frequency=392:duration=40" -c:a libmp3lame -b:a 96k -id3v2_version 3 \
-  -metadata title="Sing Along" -metadata artist="Karaoke Bot" -metadata album="Words" -metadata LYRICS="$LYRICS" \
+  -metadata title="Sing Along" -metadata artist="Karaoke Bot" -metadata album="Words" -metadata genre="Pop" -metadata LYRICS="$LYRICS" \
   "$OUT/Music/Lyrics/Sing Along.mp3"
 
 # No tags or art at all, and names that need natural sorting.

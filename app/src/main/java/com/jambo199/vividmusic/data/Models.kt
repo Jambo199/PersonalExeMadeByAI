@@ -74,6 +74,14 @@ data class Artist(
 }
 
 @Immutable
+data class Genre(
+    val name: String,
+    val songs: List<Song>,
+) {
+    val cover: Song get() = songs.first()
+}
+
+@Immutable
 data class FolderNode(
     val key: String,
     val name: String,
@@ -126,6 +134,24 @@ data class Library(
 ) {
     val albumsById: Map<Long, Album> by lazy { albums.associateBy { it.id } }
     val artistsByName: Map<String, Artist> by lazy { artists.associateBy { it.name } }
+
+    /**
+     * Genres from the songs' tags, biggest first. Multi-genre tags ("Rock; Pop") count for each,
+     * and spelling differences in case are merged.
+     */
+    val genres: List<Genre> by lazy {
+        val groups = LinkedHashMap<String, Pair<String, MutableList<Song>>>()
+        for (song in songs) {
+            for (raw in song.genre.split(';', '\u0000')) {
+                val name = raw.trim()
+                if (name.isEmpty() || name.equals("<unknown>", ignoreCase = true)) continue
+                groups.getOrPut(name.lowercase()) { name to ArrayList() }.second += song
+            }
+        }
+        groups.values.map { (name, list) -> Genre(name, list) }.sortedByDescending { it.songs.size }
+    }
+
+    fun genre(name: String): Genre? = genres.firstOrNull { it.name.equals(name, ignoreCase = true) }
 
     /** Folders that directly contain songs, for the flat folder list. */
     val musicFolders: List<FolderNode> by lazy { folders.values.filter { it.songs.isNotEmpty() } }

@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Folder
@@ -264,6 +265,71 @@ fun ArtistScreen(viewModel: MainViewModel, name: String) {
                 SongRow(
                     song = song,
                     subtitle = song.displayAlbum,
+                    isCurrent = playback.song?.key == song.key,
+                    isPlaying = playback.isPlaying,
+                    selected = selection.isSelected(song),
+                    onClick = { if (selection.active) selection.toggle(song) else viewModel.play(songs, index, source) },
+                    onLongClick = { selection.start(song, songs) },
+                    onMore = { menu.open(song) },
+                )
+            }
+        }
+    }
+}
+
+// endregion
+
+// region genre
+
+@Composable
+fun GenreScreen(viewModel: MainViewModel, name: String) {
+    val library by viewModel.library.collectAsState()
+    val playback by viewModel.playback.collectAsState()
+    val nav = LocalNav.current
+    val menu = LocalSongMenu.current
+    val selection = LocalSelection.current
+    val genre = library.genre(name) ?: return NotFound("Genre")
+    val songs = genre.songs
+    val source = "Genre · ${genre.name}"
+    val albums = remember(genre, library) {
+        songs.map { it.albumId }.distinct().mapNotNull { library.albumsById[it] }
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        DetailTopBar(genre.name)
+        LazyColumn(contentPadding = PaddingValues(bottom = LocalBottomPadding.current + 8.dp)) {
+            item {
+                DetailHeader(
+                    cover = genre.cover,
+                    title = genre.name,
+                    lines = listOf(
+                        "${pluralize(albums.size, "album")} • ${pluralize(songs.size, "song")}",
+                        formatTotalDuration(songs.sumOf { it.durationMs }),
+                    ),
+                    placeholder = Icons.Rounded.Category,
+                )
+                PlayShuffleRow(
+                    onPlay = { viewModel.playInOrder(songs, source) },
+                    onShuffle = { viewModel.shuffle(songs, source) },
+                )
+            }
+            if (albums.size > 1) {
+                item { SectionHeader("Albums") }
+                item {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(albums, key = { it.id }) { album ->
+                            AlbumCard(album, Modifier.width(150.dp)) { nav.album(album.id) }
+                        }
+                    }
+                }
+            }
+            item { SectionHeader("Songs") }
+            itemsIndexed(songs, key = { _, s -> s.key }) { index, song ->
+                SongRow(
+                    song = song,
                     isCurrent = playback.song?.key == song.key,
                     isPlaying = playback.isPlaying,
                     selected = selection.isSelected(song),

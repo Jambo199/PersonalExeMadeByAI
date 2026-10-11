@@ -166,6 +166,12 @@ shot 14-mini-player 3
 shortcut home; shot 14b-home-after-listening 3
 tap "Library" && shot 14c-bottom-nav-library 2
 tap "Home"
+sleep 1
+adb shell input swipe 540 1900 540 500 400
+adb shell input swipe 540 1900 540 500 400
+shot 14d-home-scrolled 2
+tap "Synthwave" && shot 14e-genre 3
+tap "Home"
 
 echo "== Lyrics song"
 shortcut search
