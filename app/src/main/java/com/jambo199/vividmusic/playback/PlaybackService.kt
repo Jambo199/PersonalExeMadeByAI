@@ -316,6 +316,7 @@ class PlaybackService : MediaLibraryService() {
     // region online streams and remembered positions
 
     private fun onItemChanged(item: MediaItem?, reason: Int) {
+        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT && AppGraph.settings.current.pauseOnRepeat) exo.pause()
         autoAdvanced = reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO || reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
         AbRepeat.loop.value?.let { if (it.key != item?.mediaId) AbRepeat.clear() }
         // Leaving a long track or episode: keep its place, or forget it if it played to the end.

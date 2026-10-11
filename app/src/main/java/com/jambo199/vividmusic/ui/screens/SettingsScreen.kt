@@ -42,12 +42,15 @@ import androidx.compose.material.icons.rounded.Equalizer
 import androidx.compose.material.icons.rounded.FolderOff
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -78,6 +81,7 @@ import androidx.compose.ui.unit.dp
 import com.jambo199.vividmusic.BuildConfig
 import com.jambo199.vividmusic.data.ArtistSeparators
 import com.jambo199.vividmusic.data.LibraryRepository
+import com.jambo199.vividmusic.data.LibraryTab
 import com.jambo199.vividmusic.data.Normalization
 import com.jambo199.vividmusic.data.PlayerBackground
 import com.jambo199.vividmusic.data.ThemeMode
@@ -280,6 +284,41 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 }
             }
 
+            item {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text("Library tabs", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Choose which tabs the Library page shows, and their order",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    val shown = settings.libraryTabs
+                    val order = shown + LibraryTab.entries.filter { it !in shown }
+                    fun setTabs(tabs: List<LibraryTab>) = viewModel.updateSettings { it.copy(libraryTabs = tabs, libraryTab = 0) }
+                    order.forEach { tab ->
+                        val on = tab in shown
+                        val index = shown.indexOf(tab)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = on,
+                                // At least one tab stays.
+                                enabled = !on || shown.size > 1,
+                                onCheckedChange = { checked -> setTabs(if (checked) shown + tab else shown - tab) },
+                            )
+                            Text(tab.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                            IconButton(
+                                enabled = on && index > 0,
+                                onClick = { setTabs(shown.toMutableList().apply { add(index - 1, removeAt(index)) }) },
+                            ) { Icon(Icons.Rounded.KeyboardArrowUp, contentDescription = "Move ${tab.label} up") }
+                            IconButton(
+                                enabled = on && index in 0 until shown.lastIndex,
+                                onClick = { setTabs(shown.toMutableList().apply { add(index + 1, removeAt(index)) }) },
+                            ) { Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Move ${tab.label} down") }
+                        }
+                    }
+                }
+            }
+
             item { SectionHeader("Playback") }
             item { SettingRow(Icons.Rounded.Equalizer, "Equalizer", "Bass, treble, presets and effects") { nav.equalizer() } }
             item {
@@ -336,6 +375,11 @@ fun SettingsScreen(viewModel: MainViewModel) {
                             )
                         }
                     }
+                }
+            }
+            item {
+                SwitchRow(null, "Pause on repeat", "With repeat one on, stop at the end of the song instead of playing it again", settings.pauseOnRepeat) { v ->
+                    viewModel.updateSettings { it.copy(pauseOnRepeat = v) }
                 }
             }
             item {

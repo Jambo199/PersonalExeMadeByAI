@@ -56,8 +56,21 @@ You can also lock the app in the recent-apps screen (pull the card down).
 - **Your listening** stats: time listened, plays, a last-7-days chart, most played songs, artists and albums, and a library summary
 - A bottom bar to switch between Home, Library and Folders (a side rail in landscape)
 
+**Online (no ads, no account)**
+- **Internet radio** – thousands of stations from the free [Radio Browser](https://www.radio-browser.info)
+  directory: popular stations, search, browse by country or style, save your favourites. Shows the
+  song a station is playing, in the app and the notification
+- **Free music** – concerts from the Internet Archive's Live Music Archive (bands that allow sharing
+  their shows) and Creative Commons netlabel albums. Stream them, or **download** tracks into
+  Music › Vivid Music so they join your library and play offline. Each album shows its licence
+- **Podcasts** – top charts and search, subscribe, stream or download episodes, and carry on where
+  you left off
+- Not included on purpose: ripping YouTube or other paid/ad-supported services, or peer-to-peer
+  downloading, since that would mean getting around their terms and copyright
+
 **Library**
-- Songs, Albums, Artists and Playlists tabs, all with album-art thumbnails
+- Songs, Albums, Artists and Playlists tabs, all with album-art thumbnails – reorder or hide tabs in Settings
+- Artist tags like "A; B" or "A feat. B" list the song under each artist (choose the separators)
 - Sort songs by title, artist, album, date added, length, year or file name (A–Z fast scroller)
 - Album grid or list, artist pages with their albums, album pages with disc/track order
 - Search across songs, albums, artists and folders (ignores accents and case)
@@ -81,8 +94,12 @@ You can also lock the app in the recent-apps screen (pull the card down).
 - Repeat all / one, gapless playback, skip silence
 - Playback speed and pitch
 - Sleep timer (minutes or end of song) with a gentle fade-out
-- Equalizer with device presets, per-band sliders, bass boost, surround and loudness
-- Volume normalisation from ReplayGain tags (per song or per album)
+- Equalizer with device presets, your own saved presets, per-band sliders, bass boost, surround and loudness
+- Volume normalisation from ReplayGain tags (per song or per album), with a pre-amp and an
+  adjustment for untagged songs
+- Fade between songs, a short fade on play/pause, and "pause on repeat"
+- A-B repeat to loop part of a song
+- Podcasts, audiobooks and other tracks over 15 minutes continue where you stopped
 - Pauses when headphones are unplugged; handles calls and other apps' audio
 - Resumes your queue and position after closing the app or restarting the phone
 - "Open with" support: play audio files straight from your file manager, WhatsApp, Downloads…
@@ -147,6 +164,8 @@ Kotlin sources live in `app/src/main/java/com/jambo199/vividmusic/`.
 | `data/HomeFeed.kt` | Quick picks and the other Home rows |
 | `data/Stats.kt` | Numbers for the listening stats screen |
 | `data/Backup.kt` | Backup file and restoring it |
+| `online/` | Radio Browser, Internet Archive and podcast clients, downloads |
+| `ui/online/` | The Online page, free-music albums and podcast shows |
 | `playback/PlaybackService.kt` | Media3 ExoPlayer + media session (notification, headset, resume) |
 | `playback/SmartShuffle.kt` | Shuffle order that respects the current song and "Play next" |
 | `playback/PlaybackExtras.kt` | Sleep timer and equalizer/effects |

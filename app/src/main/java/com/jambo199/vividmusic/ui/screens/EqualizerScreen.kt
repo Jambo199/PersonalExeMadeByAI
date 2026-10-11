@@ -2,39 +2,50 @@ package com.jambo199.vividmusic.ui.screens
 
 import android.content.Intent
 import android.media.audiofx.AudioEffect
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Equalizer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.jambo199.vividmusic.data.EqPreset
 import com.jambo199.vividmusic.data.EqSettings
 import com.jambo199.vividmusic.playback.AudioEffects
 import com.jambo199.vividmusic.ui.LocalNav
@@ -52,6 +63,8 @@ fun EqualizerScreen(viewModel: MainViewModel) {
     val nav = LocalNav.current
     val context = LocalContext.current
     val eq = settings.eq
+    var saving by remember { mutableStateOf(false) }
+    if (saving) SavePresetDialog(viewModel) { saving = false }
     fun update(transform: (EqSettings) -> EqSettings) = viewModel.updateSettings { it.copy(eq = transform(it.eq)) }
 
     val openSystemEq = {
@@ -128,6 +141,60 @@ fun EqualizerScreen(viewModel: MainViewModel) {
                     }
                 }
             }
+            item {
+                SectionHeader("Your presets") {
+                    TextButton(onClick = { saving = true }) {
+                        Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Save current")
+                    }
+                }
+            }
+            item {
+                if (settings.eqPresets.isEmpty()) {
+                    Text(
+                        "Shape the sound below, then save it here to switch back to it any time.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                } else {
+                    FlowRow(
+                        Modifier.padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        settings.eqPresets.forEach { p ->
+                            val active = eq.preset < 0 && eq.bandLevels.take(i.bandCount) == p.bandLevels.take(i.bandCount) &&
+                                eq.bassBoost == p.bassBoost && eq.virtualizer == p.virtualizer && eq.loudnessGain == p.loudnessGain
+                            InputChip(
+                                selected = active,
+                                onClick = {
+                                    update {
+                                        it.copy(
+                                            enabled = true,
+                                            preset = -1,
+                                            bandLevels = List(i.bandCount) { b -> p.bandLevels.getOrNull(b) ?: 0 },
+                                            bassBoost = p.bassBoost,
+                                            virtualizer = p.virtualizer,
+                                            loudnessGain = p.loudnessGain,
+                                        )
+                                    }
+                                },
+                                label = { Text(p.name) },
+                                trailingIcon = {
+                                    Icon(
+                                        Icons.Rounded.Close,
+                                        contentDescription = "Delete ${p.name}",
+                                        modifier = Modifier
+                                            .size(18.dp)
+                                            .clickable { viewModel.updateSettings { s -> s.copy(eqPresets = s.eqPresets - p) } },
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
+            }
             item { SectionHeader("Bands") }
             items(i.bandCount) { band ->
                 val level = eq.bandLevels.getOrNull(band) ?: 0
@@ -186,6 +253,24 @@ fun EqualizerScreen(viewModel: MainViewModel) {
             }
         }
     }
+}
+
+@Composable
+private fun SavePresetDialog(viewModel: MainViewModel, onDone: () -> Unit) {
+    NameDialog(
+        title = "Save preset",
+        initial = "",
+        confirm = "Save",
+        onDismiss = onDone,
+        onConfirm = { name ->
+            viewModel.updateSettings { s ->
+                val preset = EqPreset(name.trim(), s.eq.bandLevels, s.eq.bassBoost, s.eq.virtualizer, s.eq.loudnessGain)
+                s.copy(eqPresets = s.eqPresets.filterNot { it.name.equals(preset.name, ignoreCase = true) } + preset)
+            }
+            viewModel.toast("Preset saved")
+            onDone()
+        },
+    )
 }
 
 @Composable

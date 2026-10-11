@@ -21,6 +21,7 @@ import com.jambo199.vividmusic.data.HomeFeed
 import com.jambo199.vividmusic.data.HomeFeedBuilder
 import com.jambo199.vividmusic.data.Library
 import com.jambo199.vividmusic.data.LibraryState
+import com.jambo199.vividmusic.data.LibraryTab
 import com.jambo199.vividmusic.data.Lyrics
 import com.jambo199.vividmusic.data.MainSection
 import com.jambo199.vividmusic.data.OnlineLookup
@@ -285,10 +286,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** A screen to open, from a launcher shortcut (search, settings, equalizer, favorites), or "main". */
     val navRequest: StateFlow<String?> = _navRequest.asStateFlow()
 
-    private val _tabRequest = MutableStateFlow<Int?>(null)
+    private val _tabRequest = MutableStateFlow<LibraryTab?>(null)
 
     /** A library tab to switch to, from a launcher shortcut. */
-    val tabRequest: StateFlow<Int?> = _tabRequest.asStateFlow()
+    val tabRequest: StateFlow<LibraryTab?> = _tabRequest.asStateFlow()
 
     fun consumeNavRequest() {
         _navRequest.value = null
@@ -298,8 +299,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _tabRequest.value = null
     }
 
-    /** Opens the Library page on Songs (0), Albums (1), Artists (2) or Playlists (3). */
-    fun requestTab(tab: Int) {
+    /** Opens the Library page on [tab]. */
+    fun requestTab(tab: LibraryTab) {
         _tabRequest.value = tab
         showSection(MainSection.LIBRARY)
     }
@@ -323,10 +324,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             "home" -> showSection(MainSection.HOME)
             "folders" -> showSection(MainSection.FOLDERS)
             "online" -> showSection(MainSection.ONLINE)
-            "songs" -> requestTab(0)
-            "albums" -> requestTab(1)
-            "artists" -> requestTab(2)
-            "playlists" -> requestTab(3)
+            "songs" -> requestTab(LibraryTab.SONGS)
+            "albums" -> requestTab(LibraryTab.ALBUMS)
+            "artists" -> requestTab(LibraryTab.ARTISTS)
+            "playlists" -> requestTab(LibraryTab.PLAYLISTS)
             else -> _navRequest.value = action
         }
     }

@@ -81,6 +81,7 @@ import com.jambo199.vividmusic.data.Album
 import com.jambo199.vividmusic.data.AlbumSortField
 import com.jambo199.vividmusic.data.Artist
 import com.jambo199.vividmusic.data.ArtistSortField
+import com.jambo199.vividmusic.data.LibraryTab
 import com.jambo199.vividmusic.data.MainSection
 import com.jambo199.vividmusic.data.SongSortField
 import com.jambo199.vividmusic.data.pluralize
@@ -100,7 +101,6 @@ import com.jambo199.vividmusic.ui.components.UpdateBanner
 import com.jambo199.vividmusic.ui.online.OnlineScreen
 import kotlinx.coroutines.launch
 
-private val TABS = listOf("Songs", "Albums", "Artists", "Playlists")
 
 /** The screen behind the bottom navigation bar: Home, Library or Folders. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -220,12 +220,14 @@ fun MainScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
 @Composable
 private fun LibraryPages(viewModel: MainViewModel) {
     val scope = rememberCoroutineScope()
-    val pagerState = rememberPagerState(initialPage = viewModel.settings.value.libraryTab.coerceIn(0, TABS.lastIndex)) { TABS.size }
+    val settings by viewModel.settings.collectAsState()
+    val tabs = settings.libraryTabs.ifEmpty { listOf(LibraryTab.SONGS) }
+    val pagerState = rememberPagerState(initialPage = settings.libraryTab.coerceIn(0, tabs.lastIndex)) { tabs.size }
 
     val tabRequest by viewModel.tabRequest.collectAsState()
     LaunchedEffect(tabRequest) {
         tabRequest?.let {
-            pagerState.scrollToPage(it.coerceIn(0, TABS.lastIndex))
+            pagerState.scrollToPage(tabs.indexOf(it).coerceAtLeast(0))
             viewModel.consumeTabRequest()
         }
     }
@@ -236,23 +238,25 @@ private fun LibraryPages(viewModel: MainViewModel) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        PrimaryTabRow(
-            selectedTabIndex = pagerState.currentPage,
-            containerColor = MaterialTheme.colorScheme.surface,
-            divider = {},
-        ) {
-            TABS.forEachIndexed { index, title ->
-                Tab(
-                    selected = pagerState.currentPage == index,
-                    onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
-                    text = {
-                        Text(
-                            title,
-                            maxLines = 1,
-                            fontWeight = if (pagerState.currentPage == index) FontWeight.SemiBold else FontWeight.Normal,
-                        )
-                    },
-                )
+        if (tabs.size > 1) {
+            PrimaryTabRow(
+                selectedTabIndex = pagerState.currentPage.coerceIn(0, tabs.lastIndex),
+                containerColor = MaterialTheme.colorScheme.surface,
+                divider = {},
+            ) {
+                tabs.forEachIndexed { index, tab ->
+                    Tab(
+                        selected = pagerState.currentPage == index,
+                        onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
+                        text = {
+                            Text(
+                                tab.label,
+                                maxLines = 1,
+                                fontWeight = if (pagerState.currentPage == index) FontWeight.SemiBold else FontWeight.Normal,
+                            )
+                        },
+                    )
+                }
             }
         }
         HorizontalPager(
@@ -261,13 +265,13 @@ private fun LibraryPages(viewModel: MainViewModel) {
             modifier = Modifier.fillMaxSize(),
             // Short pages (few playlists) start at the top instead of floating mid-screen.
             verticalAlignment = Alignment.Top,
-            key = { TABS[it] },
+            key = { tabs.getOrNull(it)?.name ?: it },
         ) { page ->
-            when (page) {
-                0 -> SongsTab(viewModel)
-                1 -> AlbumsTab(viewModel)
-                2 -> ArtistsTab(viewModel)
-                else -> PlaylistsTab(viewModel)
+            when (tabs.getOrNull(page)) {
+                LibraryTab.ALBUMS -> AlbumsTab(viewModel)
+                LibraryTab.ARTISTS -> ArtistsTab(viewModel)
+                LibraryTab.PLAYLISTS -> PlaylistsTab(viewModel)
+                else -> SongsTab(viewModel)
             }
         }
     }

@@ -14,6 +14,9 @@ enum class FolderViewMode { TREE, FLAT }
 
 enum class PlayerBackground(val label: String) { BLUR("Blurred artwork"), GRADIENT("Colour gradient"), PLAIN("Plain") }
 
+/** The tabs on the Library page; which show, and their order, is a setting. */
+enum class LibraryTab(val label: String) { SONGS("Songs"), ALBUMS("Albums"), ARTISTS("Artists"), PLAYLISTS("Playlists") }
+
 /** The pages in the bottom navigation bar. */
 enum class MainSection(val label: String) { HOME("Home"), LIBRARY("Library"), FOLDERS("Folders"), ONLINE("Online") }
 
@@ -28,6 +31,15 @@ data class EqSettings(
     /** 0..1000 */
     val virtualizer: Int = 0,
     /** Extra loudness in millibels, 0..1500 */
+    val loudnessGain: Int = 0,
+)
+
+/** An equalizer setting you saved under a name. */
+data class EqPreset(
+    val name: String,
+    val bandLevels: List<Int>,
+    val bassBoost: Int = 0,
+    val virtualizer: Int = 0,
     val loudnessGain: Int = 0,
 )
 
@@ -55,8 +67,9 @@ data class Settings(
     val folderSongOrder: FolderSongOrder = FolderSongOrder.FILE_NAME,
     val albumGrid: Boolean = true,
     val section: MainSection = MainSection.HOME,
-    /** Songs, Albums, Artists or Playlists inside the Library page. */
+    /** Index of the open tab inside the Library page (among the visible tabs). */
     val libraryTab: Int = 0,
+    val libraryTabs: List<LibraryTab> = LibraryTab.entries,
     val skipSilence: Boolean = false,
     val normalization: Normalization = Normalization.OFF,
     /** Added to ReplayGain for tagged songs, in dB. */
@@ -66,6 +79,8 @@ data class Settings(
     val fadePlayPause: Boolean = true,
     /** Seconds to fade out the end of a song and fade in the next, 0 for off. */
     val songFadeSec: Int = 0,
+    /** With "repeat one", stop after each play instead of looping (Auxio's "pause on repeat"). */
+    val pauseOnRepeat: Boolean = false,
     /** Carry on podcasts, audiobooks and other long tracks where they were left. */
     val rememberPositions: Boolean = true,
     val stopOnTaskRemoved: Boolean = false,
@@ -81,6 +96,7 @@ data class Settings(
     /** Most recent first. */
     val searchHistory: List<String> = emptyList(),
     val eq: EqSettings = EqSettings(),
+    val eqPresets: List<EqPreset> = emptyList(),
 )
 
 /** Settings backed by SharedPreferences and exposed as a StateFlow so every screen reacts. */
@@ -167,12 +183,16 @@ class SettingsStore(context: Context) {
             albumGrid = prefs.getBoolean("albumGrid", d.albumGrid),
             section = enumOr(prefs.getString("section", null), d.section),
             libraryTab = prefs.getInt("libraryTab", d.libraryTab),
+            libraryTabs = prefs.getString("libraryTabs", null)
+                ?.split(',')?.mapNotNull { n -> LibraryTab.entries.firstOrNull { it.name == n } }?.distinct()
+                ?.ifEmpty { null } ?: d.libraryTabs,
             skipSilence = prefs.getBoolean("skipSilence", d.skipSilence),
             normalization = enumOr(prefs.getString("normalization", null), d.normalization),
             replayGainPreamp = prefs.getFloat("replayGainPreamp", d.replayGainPreamp),
             replayGainUntagged = prefs.getFloat("replayGainUntagged", d.replayGainUntagged),
             fadePlayPause = prefs.getBoolean("fadePlayPause", d.fadePlayPause),
             songFadeSec = prefs.getInt("songFadeSec", d.songFadeSec),
+            pauseOnRepeat = prefs.getBoolean("pauseOnRepeat", d.pauseOnRepeat),
             rememberPositions = prefs.getBoolean("rememberPositions", d.rememberPositions),
             stopOnTaskRemoved = prefs.getBoolean("stopOnTaskRemoved", d.stopOnTaskRemoved),
             keepScreenOn = prefs.getBoolean("keepScreenOn", d.keepScreenOn),
@@ -193,6 +213,7 @@ class SettingsStore(context: Context) {
                 virtualizer = prefs.getInt("eq.virtualizer", 0),
                 loudnessGain = prefs.getInt("eq.loudness", 0),
             ),
+            eqPresets = readEqPresets(),
         )
     }
 
@@ -220,12 +241,14 @@ class SettingsStore(context: Context) {
             .putBoolean("albumGrid", s.albumGrid)
             .putString("section", s.section.name)
             .putInt("libraryTab", s.libraryTab)
+            .putString("libraryTabs", s.libraryTabs.joinToString(",") { it.name })
             .putBoolean("skipSilence", s.skipSilence)
             .putString("normalization", s.normalization.name)
             .putFloat("replayGainPreamp", s.replayGainPreamp)
             .putFloat("replayGainUntagged", s.replayGainUntagged)
             .putBoolean("fadePlayPause", s.fadePlayPause)
             .putInt("songFadeSec", s.songFadeSec)
+            .putBoolean("pauseOnRepeat", s.pauseOnRepeat)
             .putBoolean("rememberPositions", s.rememberPositions)
             .putBoolean("stopOnTaskRemoved", s.stopOnTaskRemoved)
             .putBoolean("keepScreenOn", s.keepScreenOn)
@@ -243,7 +266,33 @@ class SettingsStore(context: Context) {
             .putInt("eq.bass", s.eq.bassBoost)
             .putInt("eq.virtualizer", s.eq.virtualizer)
             .putInt("eq.loudness", s.eq.loudnessGain)
+            .putString(
+                "eq.custom",
+                JSONArray(
+                    s.eqPresets.map { p ->
+                        JSONObject().put("name", p.name).put("bands", JSONArray(p.bandLevels))
+                            .put("bass", p.bassBoost).put("virtualizer", p.virtualizer).put("loudness", p.loudnessGain)
+                    },
+                ).toString(),
+            )
             .apply()
+    }
+
+    private fun readEqPresets(): List<EqPreset> = try {
+        val arr = JSONArray(prefs.getString("eq.custom", null) ?: "[]")
+        List(arr.length()) { i ->
+            val o = arr.getJSONObject(i)
+            val bands = o.optJSONArray("bands")
+            EqPreset(
+                name = o.optString("name"),
+                bandLevels = if (bands == null) emptyList() else List(bands.length()) { bands.optInt(it) },
+                bassBoost = o.optInt("bass"),
+                virtualizer = o.optInt("virtualizer"),
+                loudnessGain = o.optInt("loudness"),
+            )
+        }
+    } catch (e: Exception) {
+        emptyList()
     }
 
     private fun readList(key: String): List<String> = try {
