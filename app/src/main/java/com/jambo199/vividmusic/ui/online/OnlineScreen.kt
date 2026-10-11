@@ -20,6 +20,7 @@ import androidx.compose.material.icons.rounded.Podcasts
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
@@ -56,6 +57,7 @@ private val RADIO_GENRES = listOf(
 )
 
 /** Music from the internet: radio, free albums and concerts, and podcasts. No ads, no account. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnlineScreen(viewModel: MainViewModel) {
     var tab by rememberSaveable { mutableIntStateOf(0) }

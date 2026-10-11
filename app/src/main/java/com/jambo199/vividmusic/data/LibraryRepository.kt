@@ -71,7 +71,7 @@ class LibraryRepository(
         }
         scope.launch {
             settings.state
-                .map { it.minDurationSec to it.excludedFolders }
+                .map { Triple(it.minDurationSec, it.excludedFolders, it.artistSeparators) }
                 .distinctUntilChanged()
                 .drop(1)
                 .collect { scanMutex.withLock { publish(scanning = false) } }
@@ -192,7 +192,7 @@ class LibraryRepository(
             val filteredMs = msSongs.filter { song ->
                 (song.durationMs <= 0 || song.durationMs >= minMs) && excluded.none { isInside(song.folder, it) }
             }
-            buildLibrary(filteredMs, scans, minMs)
+            buildLibrary(filteredMs, scans, minMs, s.artistSeparators)
         }
         _state.update {
             it.copy(library = library, isScanning = scanning, hasLoadedOnce = true, scanMessage = if (scanning) it.scanMessage else null)
@@ -203,7 +203,7 @@ class LibraryRepository(
     private fun isInside(folder: String, parent: String): Boolean =
         folder == parent || folder.startsWith(parent.trimEnd('/') + "/")
 
-    private fun buildLibrary(msSongs: List<Song>, scans: List<FolderScanner.TreeScan>, minMs: Long): Library {
+    private fun buildLibrary(msSongs: List<Song>, scans: List<FolderScanner.TreeScan>, minMs: Long, separators: Set<String>): Library {
         // Songs from picked folders appear everywhere unless the same file is already indexed.
         val known = msSongs.mapTo(HashSet()) { it.fileName.lowercase() to it.sizeBytes }
         val pickedSongs = scans.flatMap { it.songs }
@@ -221,7 +221,14 @@ class LibraryRepository(
 
         val albumsBySong = HashMap<String, Album>()
         albums.forEach { album -> album.songs.forEach { albumsBySong[it.key] = album } }
-        val artists = allSongs.groupBy { it.displayArtist }.map { (name, songs) ->
+        // Each song goes under every artist in its tag; names that differ only in case are merged.
+        val byArtist = LinkedHashMap<String, Pair<String, MutableList<Song>>>()
+        for (song in allSongs) {
+            for (name in ArtistSeparators.split(song.displayArtist, separators)) {
+                byArtist.getOrPut(name.lowercase()) { name to ArrayList() }.second += song
+            }
+        }
+        val artists = byArtist.values.map { (name, songs) ->
             val artistAlbums = songs.mapNotNull { albumsBySong[it.key] }.distinctBy { it.id }
                 .sortedWith(compareBy<Album> { it.year }.thenBy { sortKey(it.title) })
             Artist(name = name, songs = songs.sortedWith(compareBy<Song> { sortKey(it.album) }.thenBy { it.trackNumber }), albums = artistAlbums)
@@ -235,6 +242,7 @@ class LibraryRepository(
             folders = folders,
             folderRoots = roots,
             byKey = (allSongs + pickedSongs).associateBy { it.key },
+            artistSeparators = separators,
         )
     }
 

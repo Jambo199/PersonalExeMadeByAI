@@ -167,7 +167,7 @@ fun AlbumScreen(viewModel: MainViewModel, albumId: Long) {
                         ).joinToString(" • "),
                     ),
                     placeholder = Icons.Rounded.Album,
-                    onSubtitleClick = if (library.artistsByName.containsKey(album.artist)) ({ nav.artist(album.artist) }) else null,
+                    onSubtitleClick = library.artistFor(album.artist)?.let { a -> { nav.artist(a.name) } },
                 )
                 PlayShuffleRow(
                     onPlay = { viewModel.playInOrder(songs, source) },
@@ -195,7 +195,7 @@ fun AlbumScreen(viewModel: MainViewModel, albumId: Long) {
                 }
             }
             val moreAlbums = if (album.artist == Song.UNKNOWN_ARTIST) emptyList()
-            else library.artistsByName[album.artist]?.albums.orEmpty().filter { it.id != album.id }
+            else library.artistFor(album.artist)?.albums.orEmpty().filter { it.id != album.id }
             if (moreAlbums.isNotEmpty()) {
                 item(key = "more") {
                     SectionHeader("More by ${album.artist}")

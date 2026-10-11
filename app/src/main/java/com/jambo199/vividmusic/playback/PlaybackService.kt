@@ -127,7 +127,7 @@ class PlaybackService : MediaLibraryService() {
         sessionPlayer = ShuffleAwarePlayer(
             exo,
             fadeMs = { if (AppGraph.settings.current.fadePlayPause) PLAY_PAUSE_FADE_MS else 0L },
-            targetVolume = { replayGain.volume(AppGraph.settings.current.normalization) },
+            targetVolume = { normalizedVolume() },
         )
         session = MediaLibrarySession.Builder(this, sessionPlayer!!, SessionCallback())
             .setSessionActivity(openPlayer)
@@ -210,7 +210,9 @@ class PlaybackService : MediaLibraryService() {
             AppGraph.settings.state.map { it.eq }.distinctUntilChanged().collect { AudioEffects.apply(it) }
         }
         scope.launch {
-            AppGraph.settings.state.map { it.normalization }.distinctUntilChanged().collect { applyNormalization() }
+            AppGraph.settings.state.map { Triple(it.normalization, it.replayGainPreamp, it.replayGainUntagged) }
+                .distinctUntilChanged()
+                .collect { applyNormalization() }
         }
         scope.launch {
             AppGraph.userData.state.map { it.favoriteSet }.distinctUntilChanged().collect { updateCustomLayout() }
@@ -448,7 +450,12 @@ class PlaybackService : MediaLibraryService() {
     /** Sets the volume for the song's ReplayGain tags (unless the sleep timer is fading out). */
     private fun applyNormalization() {
         if (!::exo.isInitialized || fading || sessionPlayer?.isFading == true) return
-        exo.volume = replayGain.volume(AppGraph.settings.current.normalization)
+        exo.volume = normalizedVolume()
+    }
+
+    private fun normalizedVolume(): Float {
+        val s = AppGraph.settings.current
+        return replayGain.volume(s.normalization, s.replayGainPreamp, s.replayGainUntagged)
     }
 
     private fun findReplayGain(tracks: Tracks): ReplayGain {

@@ -349,7 +349,7 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                                     color = controlColor.copy(alpha = 0.75f),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.clickable { nav.fromPlayer { artist(song.displayArtist) } },
+                                    modifier = Modifier.clickable { viewModel.library.value.artistFor(song.displayArtist)?.let { a -> nav.fromPlayer { artist(a.name) } } },
                                 )
                                 Text(
                                     song.displayAlbum,

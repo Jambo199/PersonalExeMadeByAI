@@ -7,15 +7,17 @@ enum class Normalization(val label: String) { OFF("Off"), TRACK("Per song"), ALB
 /** ReplayGain values read from a file's tags, in dB. */
 data class ReplayGain(val trackDb: Float? = null, val albumDb: Float? = null) {
     /**
-     * Player volume (0..1) that applies the gain. Songs are only ever turned down: turning
-     * quiet songs up would clip, so those just play at full volume.
+     * Player volume (0..1) that applies the gain, plus a [preampDb] for tagged songs and
+     * [untaggedDb] for songs without tags (like Auxio's adjustments). Songs are only ever turned
+     * down: turning quiet songs up would clip, so those just play at full volume.
      */
-    fun volume(mode: Normalization): Float {
-        val db = when (mode) {
-            Normalization.OFF -> null
+    fun volume(mode: Normalization, preampDb: Float = 0f, untaggedDb: Float = 0f): Float {
+        if (mode == Normalization.OFF) return 1f
+        val gain = when (mode) {
             Normalization.TRACK -> trackDb ?: albumDb
-            Normalization.ALBUM -> albumDb ?: trackDb
-        } ?: return 1f
+            else -> albumDb ?: trackDb
+        }
+        val db = if (gain != null) gain + preampDb else untaggedDb
         return 10f.pow(db / 20f).coerceIn(0.05f, 1f)
     }
 

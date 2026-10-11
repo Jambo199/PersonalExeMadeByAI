@@ -27,6 +27,15 @@ class ReplayGainTest {
     }
 
     @Test
+    fun adjustmentsForTaggedAndUntaggedSongs() {
+        // -12 dB tag + 6 dB pre-amp = -6 dB.
+        assertEquals(0.5f, ReplayGain(trackDb = -12f).volume(Normalization.TRACK, preampDb = 6.02f), 0.01f)
+        // Untagged songs use their own adjustment, and only when normalisation is on.
+        assertEquals(0.5f, ReplayGain().volume(Normalization.TRACK, untaggedDb = -6.02f), 0.01f)
+        assertEquals(1f, ReplayGain().volume(Normalization.OFF, untaggedDb = -6.02f), 0f)
+    }
+
+    @Test
     fun fallsBackToTheOtherGain() {
         assertEquals(0.5f, ReplayGain(albumDb = -6.02f).volume(Normalization.TRACK), 0.01f)
         assertEquals(0.5f, ReplayGain(trackDb = -6.02f).volume(Normalization.ALBUM), 0.01f)

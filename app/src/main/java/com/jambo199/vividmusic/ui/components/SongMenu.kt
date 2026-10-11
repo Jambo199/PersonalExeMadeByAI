@@ -142,8 +142,11 @@ fun SongMenuHost(state: SongMenuState, viewModel: MainViewModel) {
                         if (library.albumsById.containsKey(single.albumId)) {
                             MenuRow(Icons.Rounded.Album, "Go to album") { act { nav.fromPlayer { album(single.albumId) } } }
                         }
-                        if (library.artistsByName.containsKey(single.displayArtist)) {
-                            MenuRow(Icons.Rounded.Person, "Go to artist") { act { nav.fromPlayer { artist(single.displayArtist) } } }
+                        val artists = library.artistNamesOf(single).filter { library.artistsByName.containsKey(it) }
+                        artists.forEach { name ->
+                            MenuRow(Icons.Rounded.Person, if (artists.size == 1) "Go to artist" else "Go to $name") {
+                                act { nav.fromPlayer { artist(name) } }
+                            }
                         }
                         if (library.folders.containsKey(single.folder)) {
                             MenuRow(Icons.Rounded.Folder, "Go to folder") { act { nav.fromPlayer { folder(single.folder) } } }

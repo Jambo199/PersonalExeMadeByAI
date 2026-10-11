@@ -76,6 +76,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.jambo199.vividmusic.BuildConfig
+import com.jambo199.vividmusic.data.ArtistSeparators
 import com.jambo199.vividmusic.data.LibraryRepository
 import com.jambo199.vividmusic.data.Normalization
 import com.jambo199.vividmusic.data.PlayerBackground
@@ -254,6 +255,31 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 SettingRow(Icons.Rounded.Refresh, "Rescan library", "${library.songs.size} songs found") { viewModel.refreshLibrary() }
             }
 
+            item {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text("Split artists on", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "A song tagged \"A feat. B\" or \"A; B\" is listed under both artists. Turn on & or / only if your tags use them between names.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ArtistSeparators.OPTIONS.forEach { (sep, label) ->
+                            val on = sep in settings.artistSeparators
+                            FilterChip(
+                                selected = on,
+                                onClick = {
+                                    viewModel.updateSettings { s ->
+                                        s.copy(artistSeparators = if (on) s.artistSeparators - sep else s.artistSeparators + sep)
+                                    }
+                                },
+                                label = { Text(label) },
+                            )
+                        }
+                    }
+                }
+            }
+
             item { SectionHeader("Playback") }
             item { SettingRow(Icons.Rounded.Equalizer, "Equalizer", "Bass, treble, presets and effects") { nav.equalizer() } }
             item {
@@ -276,6 +302,14 @@ fun SettingsScreen(viewModel: MainViewModel) {
                                 onClick = { viewModel.updateSettings { it.copy(normalization = option) } },
                                 label = { Text(option.label) },
                             )
+                        }
+                    }
+                    if (settings.normalization != Normalization.OFF) {
+                        DbSlider("Adjustment for tagged songs", settings.replayGainPreamp, -15f..15f) { v ->
+                            viewModel.updateSettings { it.copy(replayGainPreamp = v) }
+                        }
+                        DbSlider("Adjustment for songs without tags", settings.replayGainUntagged, -15f..0f) { v ->
+                            viewModel.updateSettings { it.copy(replayGainUntagged = v) }
                         }
                     }
                 }
@@ -533,5 +567,27 @@ private fun openVivoBackgroundSettings(context: Context) {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         )
     } catch (_: Exception) {
+    }
+}
+
+/** A labelled slider in whole decibels that saves when you let go. */
+@Composable
+private fun DbSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
+    var current by remember(value) { mutableFloatStateOf(value) }
+    Column(Modifier.padding(top = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            Text(
+                (if (current > 0) "+" else "") + "%.0f dB".format(current),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Slider(
+            value = current,
+            onValueChange = { current = Math.round(it).toFloat() },
+            onValueChangeFinished = { onChange(current) },
+            valueRange = range,
+        )
     }
 }

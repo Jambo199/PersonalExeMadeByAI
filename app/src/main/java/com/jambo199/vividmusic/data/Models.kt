@@ -139,7 +139,16 @@ data class Library(
     /** Entry points of the folder tree (storage roots and picked folders). */
     val folderRoots: List<String> = emptyList(),
     val byKey: Map<String, Song> = emptyMap(),
+    /** How artist tags were split into artists (a setting). */
+    val artistSeparators: Set<String> = emptySet(),
 ) {
+    /** The artists a song is listed under ("A feat. B" can be both A and B). */
+    fun artistNamesOf(song: Song): List<String> = ArtistSeparators.split(song.displayArtist, artistSeparators)
+
+    /** The first of [names] that has an artist page. */
+    fun artistFor(names: String): Artist? =
+        artistsByName[names] ?: ArtistSeparators.split(names, artistSeparators).firstNotNullOfOrNull { artistsByName[it] }
+
     val albumsById: Map<Long, Album> by lazy { albums.associateBy { it.id } }
     val artistsByName: Map<String, Artist> by lazy { artists.associateBy { it.name } }
 

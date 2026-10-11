@@ -43,6 +43,8 @@ data class Settings(
     val minDurationSec: Int = 10,
     val excludedFolders: Set<String> = emptySet(),
     val pickedFolders: List<String> = emptyList(),
+    /** Splits artist tags into several artists; see [ArtistSeparators]. */
+    val artistSeparators: Set<String> = ArtistSeparators.DEFAULT,
     val songSort: SongSortField = SongSortField.TITLE,
     val songSortAscending: Boolean = true,
     val albumSort: AlbumSortField = AlbumSortField.TITLE,
@@ -57,6 +59,10 @@ data class Settings(
     val libraryTab: Int = 0,
     val skipSilence: Boolean = false,
     val normalization: Normalization = Normalization.OFF,
+    /** Added to ReplayGain for tagged songs, in dB. */
+    val replayGainPreamp: Float = 0f,
+    /** Applied to songs without ReplayGain tags, in dB. */
+    val replayGainUntagged: Float = 0f,
     val fadePlayPause: Boolean = true,
     /** Carry on podcasts, audiobooks and other long tracks where they were left. */
     val rememberPositions: Boolean = true,
@@ -147,6 +153,7 @@ class SettingsStore(context: Context) {
             minDurationSec = prefs.getInt("minDurationSec", d.minDurationSec),
             excludedFolders = prefs.getStringSet("excludedFolders", null)?.toSet() ?: d.excludedFolders,
             pickedFolders = readList("pickedFolders"),
+            artistSeparators = prefs.getStringSet("artistSeparators", null)?.toSet() ?: d.artistSeparators,
             songSort = enumOr(prefs.getString("songSort", null), d.songSort),
             songSortAscending = prefs.getBoolean("songSortAscending", d.songSortAscending),
             albumSort = enumOr(prefs.getString("albumSort", null), d.albumSort),
@@ -160,6 +167,8 @@ class SettingsStore(context: Context) {
             libraryTab = prefs.getInt("libraryTab", d.libraryTab),
             skipSilence = prefs.getBoolean("skipSilence", d.skipSilence),
             normalization = enumOr(prefs.getString("normalization", null), d.normalization),
+            replayGainPreamp = prefs.getFloat("replayGainPreamp", d.replayGainPreamp),
+            replayGainUntagged = prefs.getFloat("replayGainUntagged", d.replayGainUntagged),
             fadePlayPause = prefs.getBoolean("fadePlayPause", d.fadePlayPause),
             rememberPositions = prefs.getBoolean("rememberPositions", d.rememberPositions),
             stopOnTaskRemoved = prefs.getBoolean("stopOnTaskRemoved", d.stopOnTaskRemoved),
@@ -196,6 +205,7 @@ class SettingsStore(context: Context) {
             .putInt("minDurationSec", s.minDurationSec)
             .putStringSet("excludedFolders", s.excludedFolders)
             .putString("pickedFolders", JSONArray(s.pickedFolders).toString())
+            .putStringSet("artistSeparators", s.artistSeparators)
             .putString("songSort", s.songSort.name)
             .putBoolean("songSortAscending", s.songSortAscending)
             .putString("albumSort", s.albumSort.name)
@@ -209,6 +219,8 @@ class SettingsStore(context: Context) {
             .putInt("libraryTab", s.libraryTab)
             .putBoolean("skipSilence", s.skipSilence)
             .putString("normalization", s.normalization.name)
+            .putFloat("replayGainPreamp", s.replayGainPreamp)
+            .putFloat("replayGainUntagged", s.replayGainUntagged)
             .putBoolean("fadePlayPause", s.fadePlayPause)
             .putBoolean("rememberPositions", s.rememberPositions)
             .putBoolean("stopOnTaskRemoved", s.stopOnTaskRemoved)
