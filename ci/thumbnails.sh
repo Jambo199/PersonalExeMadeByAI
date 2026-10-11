@@ -5,10 +5,11 @@ set -uo pipefail
 DIR="${1:-screenshots}"
 shift || true
 names=("$@")
-[ ${#names[@]} -eq 0 ] && names=(00a-update-available 00b-update-installer 02-songs 02b-multi-select 05-folders 07-folder-neon 09-player 11-lyrics 12-queue 13-notification 16-synced-lyrics 20b-dark-albums 20c-dark-artists 20d-dark-folders 20e-dark-playlists 20f-dark-settings 21-dark-player 22-landscape)
+[ ${#names[@]} -eq 0 ] && names=(02-home 02a-songs 02b-multi-select 05-folders 07-folder-neon 08-playlists 09-player 14-mini-player 14b-home-after-listening 14c-bottom-nav-library 20-dark-home 20b-dark-albums 20d-dark-folders 21-dark-player 22-landscape 22b-landscape-home 23-after-restart)
 for n in "${names[@]}"; do
   f="$DIR/$n.png"
   [ -f "$f" ] || { echo "THUMB $n missing"; continue; }
-  ffmpeg -hide_banner -loglevel error -y -i "$f" -vf "scale=240:-2" -q:v 9 "/tmp/$n.jpg"
+  w=240; [[ $n == *home* ]] && w=360   # Home has the most detail worth checking
+  ffmpeg -hide_banner -loglevel error -y -i "$f" -vf "scale=$w:-2" -q:v 9 "/tmp/$n.jpg"
   echo "THUMB $n $(stat -c %s "/tmp/$n.jpg") $(base64 -w0 "/tmp/$n.jpg")"
 done

@@ -1,5 +1,10 @@
 package com.jambo199.vividmusic.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,7 +54,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryScrollableTabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -62,7 +67,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -75,6 +80,7 @@ import com.jambo199.vividmusic.data.Album
 import com.jambo199.vividmusic.data.AlbumSortField
 import com.jambo199.vividmusic.data.Artist
 import com.jambo199.vividmusic.data.ArtistSortField
+import com.jambo199.vividmusic.data.MainSection
 import com.jambo199.vividmusic.data.SongSortField
 import com.jambo199.vividmusic.data.pluralize
 import com.jambo199.vividmusic.data.scrollLabel
@@ -92,35 +98,27 @@ import com.jambo199.vividmusic.ui.components.SortMenu
 import com.jambo199.vividmusic.ui.components.UpdateBanner
 import kotlinx.coroutines.launch
 
-private val TABS = listOf("Songs", "Albums", "Artists", "Folders", "Playlists")
+private val TABS = listOf("Songs", "Albums", "Artists", "Playlists")
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+/** The screen behind the bottom navigation bar: Home, Library or Folders. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
+fun MainScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
     val nav = LocalNav.current
-    val settings by viewModel.settings.collectAsState()
+    val section by viewModel.section.collectAsState()
     val libraryState by viewModel.libraryState.collectAsState()
-    val pagerState = rememberPagerState(initialPage = settings.lastTab.coerceIn(0, TABS.lastIndex)) { TABS.size }
-    val scope = rememberCoroutineScope()
     var menuOpen by remember { mutableStateOf(false) }
-
-    val tabRequest by viewModel.tabRequest.collectAsState()
-    LaunchedEffect(tabRequest) {
-        tabRequest?.let {
-            pagerState.scrollToPage(it.coerceIn(0, TABS.lastIndex))
-            viewModel.consumeTabRequest()
-        }
-    }
-
-    LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }.collect { page ->
-            if (page != viewModel.settings.value.lastTab) viewModel.updateSettings { it.copy(lastTab = page) }
-        }
-    }
+    // Keeps each page's scroll position while you switch between them.
+    val pages = rememberSaveableStateHolder()
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
-            title = { Text("Vivid Music", fontWeight = FontWeight.Bold) },
+            title = {
+                Text(
+                    if (section == MainSection.HOME) "Vivid Music" else section.label,
+                    fontWeight = FontWeight.Bold,
+                )
+            },
             actions = {
                 IconButton(onClick = { nav.search() }) { Icon(Icons.Rounded.Search, contentDescription = "Search") }
                 IconButton(onClick = { menuOpen = true }) { Icon(Icons.Rounded.MoreVert, contentDescription = "More") }
@@ -177,20 +175,6 @@ fun LibraryScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
             onUpdate = { viewModel.startUpdate() },
             onDismiss = { viewModel.dismissUpdateBanner() },
         )
-        PrimaryScrollableTabRow(
-            selectedTabIndex = pagerState.currentPage,
-            edgePadding = 12.dp,
-            containerColor = MaterialTheme.colorScheme.surface,
-            divider = {},
-        ) {
-            TABS.forEachIndexed { index, title ->
-                Tab(
-                    selected = pagerState.currentPage == index,
-                    onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
-                    text = { Text(title, fontWeight = if (pagerState.currentPage == index) FontWeight.SemiBold else FontWeight.Normal) },
-                )
-            }
-        }
         if (libraryState.isScanning || libraryState.scanMessage != null) {
             Column(Modifier.fillMaxWidth()) {
                 LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
@@ -204,11 +188,67 @@ fun LibraryScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                 }
             }
         }
+        AnimatedContent(
+            targetState = section,
+            transitionSpec = { fadeIn(tween(200, delayMillis = 60)) togetherWith fadeOut(tween(120)) },
+            modifier = Modifier.fillMaxSize(),
+            label = "section",
+        ) { page ->
+            pages.SaveableStateProvider(page.name) {
+                when (page) {
+                    MainSection.HOME -> HomeScreen(viewModel)
+                    MainSection.LIBRARY -> LibraryPages(viewModel)
+                    MainSection.FOLDERS -> FoldersTab(viewModel)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Composable
+private fun LibraryPages(viewModel: MainViewModel) {
+    val scope = rememberCoroutineScope()
+    val pagerState = rememberPagerState(initialPage = viewModel.settings.value.libraryTab.coerceIn(0, TABS.lastIndex)) { TABS.size }
+
+    val tabRequest by viewModel.tabRequest.collectAsState()
+    LaunchedEffect(tabRequest) {
+        tabRequest?.let {
+            pagerState.scrollToPage(it.coerceIn(0, TABS.lastIndex))
+            viewModel.consumeTabRequest()
+        }
+    }
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }.collect { page ->
+            if (page != viewModel.settings.value.libraryTab) viewModel.updateSettings { it.copy(libraryTab = page) }
+        }
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        PrimaryTabRow(
+            selectedTabIndex = pagerState.currentPage,
+            containerColor = MaterialTheme.colorScheme.surface,
+            divider = {},
+        ) {
+            TABS.forEachIndexed { index, title ->
+                Tab(
+                    selected = pagerState.currentPage == index,
+                    onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
+                    text = {
+                        Text(
+                            title,
+                            maxLines = 1,
+                            fontWeight = if (pagerState.currentPage == index) FontWeight.SemiBold else FontWeight.Normal,
+                        )
+                    },
+                )
+            }
+        }
         HorizontalPager(
             state = pagerState,
             beyondViewportPageCount = 1,
             modifier = Modifier.fillMaxSize(),
-            // Short pages (few folders/playlists) start at the top instead of floating mid-screen.
+            // Short pages (few playlists) start at the top instead of floating mid-screen.
             verticalAlignment = Alignment.Top,
             key = { TABS[it] },
         ) { page ->
@@ -216,7 +256,6 @@ fun LibraryScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                 0 -> SongsTab(viewModel)
                 1 -> AlbumsTab(viewModel)
                 2 -> ArtistsTab(viewModel)
-                3 -> FoldersTab(viewModel)
                 else -> PlaylistsTab(viewModel)
             }
         }
@@ -240,7 +279,7 @@ private fun SongsTab(viewModel: MainViewModel) {
             EmptyState(
                 icon = Icons.Rounded.LibraryMusic,
                 title = "No songs found",
-                message = "Put music files on your phone or SD card, or add a folder from the Folders tab.",
+                message = "Put music files on your phone or SD card, or add a folder from the Folders page.",
             )
         }
         return

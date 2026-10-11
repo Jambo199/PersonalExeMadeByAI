@@ -10,7 +10,7 @@ import androidx.navigation.NavHostController
 import com.jambo199.vividmusic.data.Song
 
 object Routes {
-    const val LIBRARY = "library"
+    const val MAIN = "main"
     const val NOW_PLAYING = "now_playing"
     const val SEARCH = "search"
     const val SETTINGS = "settings"

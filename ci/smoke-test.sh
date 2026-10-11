@@ -132,7 +132,8 @@ adb shell pm grant $PKG android.permission.READ_MEDIA_AUDIO
 adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS
 adb shell am force-stop $PKG
 launch
-shot 02-songs 6
+shot 02-home 6
+shortcut songs; shot 02a-songs 3
 if longtap "Alpha Wave"; then
   sleep 1
   tap "Beta Drift"
@@ -162,6 +163,9 @@ shot 13-notification 3
 adb shell cmd statusbar collapse
 adb shell input keyevent KEYCODE_BACK
 shot 14-mini-player 3
+shortcut home; shot 14b-home-after-listening 3
+tap "Library" && shot 14c-bottom-nav-library 2
+tap "Home"
 
 echo "== Lyrics song"
 shortcut search
@@ -177,7 +181,8 @@ shortcut favorites; shot 19-favourites 3
 
 echo "== Dark mode and landscape"
 adb shell cmd uimode night yes
-shortcut songs;  shot 20-dark-songs 4
+shortcut home;      shot 20-dark-home 4
+shortcut songs;     shot 20a-dark-songs 3
 shortcut albums;    shot 20b-dark-albums 3
 shortcut artists;   shot 20c-dark-artists 3
 shortcut folders;   shot 20d-dark-folders 3
@@ -187,6 +192,7 @@ shortcut player; shot 21-dark-player 4
 adb shell settings put system accelerometer_rotation 0
 adb shell settings put system user_rotation 1
 shot 22-landscape 4
+shortcut home; shot 22b-landscape-home 3
 adb shell settings put system user_rotation 0
 adb shell cmd uimode night no
 

@@ -15,9 +15,12 @@ import com.jambo199.vividmusic.AppGraph
 import com.jambo199.vividmusic.data.Album
 import com.jambo199.vividmusic.data.Artist
 import com.jambo199.vividmusic.data.FolderNode
+import com.jambo199.vividmusic.data.HomeFeed
+import com.jambo199.vividmusic.data.HomeFeedBuilder
 import com.jambo199.vividmusic.data.Library
 import com.jambo199.vividmusic.data.LibraryState
 import com.jambo199.vividmusic.data.Lyrics
+import com.jambo199.vividmusic.data.MainSection
 import com.jambo199.vividmusic.data.Playlist
 import com.jambo199.vividmusic.data.Settings
 import com.jambo199.vividmusic.data.SmartPlaylists
@@ -100,6 +103,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun checkForUpdates() = AppGraph.updates.check(manual = true)
 
+    private val _navRequest = MutableStateFlow<String?>(null)
+
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val messages: SharedFlow<String> = _messages.asSharedFlow()
 
@@ -134,6 +139,45 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     ) { lib, (field, asc) -> lib.artists.sortedWith(artistComparator(field, asc)) }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    // region home
+
+    private val homeSeed = MutableStateFlow(System.currentTimeMillis())
+
+    /** History as it was when the quick picks were last shuffled, so they stay put while you listen. */
+    @Volatile private var quickPicksHistory = AppGraph.userData.current
+
+    val home: StateFlow<HomeFeed> = combine(library, userData.debounce(300), homeSeed) { lib, data, seed ->
+        HomeFeedBuilder.build(lib, data, seed, quickPicksHistory)
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Eagerly, HomeFeed())
+
+    /** New quick picks and discoveries. */
+    fun refreshHome() {
+        quickPicksHistory = userData.value
+        homeSeed.value = System.currentTimeMillis()
+    }
+
+    val section: StateFlow<MainSection> = settings.map { it.section }.distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, settings.value.section)
+
+    fun selectSection(section: MainSection) = updateSettings { it.copy(section = section) }
+
+    private val _reselect = MutableSharedFlow<MainSection>(extraBufferCapacity = 1)
+
+    /** Fires when the page that's already open is tapped again in the navigation bar. */
+    val reselect: SharedFlow<MainSection> = _reselect.asSharedFlow()
+
+    fun reselectSection(section: MainSection) {
+        _reselect.tryEmit(section)
+    }
+
+    /** Switches page and closes whatever is open on top of the main screen. */
+    fun showSection(section: MainSection) {
+        selectSection(section)
+        _navRequest.value = "main"
+    }
+
+    // endregion
 
     // region search
 
@@ -196,9 +240,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _openPlayer.value = false
     }
 
-    private val _navRequest = MutableStateFlow<String?>(null)
-
-    /** A screen to open, from a launcher shortcut (search, settings, equalizer, favorites). */
+    /** A screen to open, from a launcher shortcut (search, settings, equalizer, favorites), or "main". */
     val navRequest: StateFlow<String?> = _navRequest.asStateFlow()
 
     private val _tabRequest = MutableStateFlow<Int?>(null)
@@ -214,8 +256,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _tabRequest.value = null
     }
 
+    /** Opens the Library page on Songs (0), Albums (1), Artists (2) or Playlists (3). */
     fun requestTab(tab: Int) {
         _tabRequest.value = tab
+        showSection(MainSection.LIBRARY)
     }
 
     /** Handles launcher shortcuts and other "open at" requests. */
@@ -234,11 +278,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
             "player" -> requestOpenPlayer()
-            "folders" -> requestTab(3)
-            "playlists" -> requestTab(4)
+            "home" -> showSection(MainSection.HOME)
+            "folders" -> showSection(MainSection.FOLDERS)
             "songs" -> requestTab(0)
             "albums" -> requestTab(1)
             "artists" -> requestTab(2)
+            "playlists" -> requestTab(3)
             else -> _navRequest.value = action
         }
     }

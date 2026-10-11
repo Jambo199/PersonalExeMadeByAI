@@ -11,6 +11,9 @@ enum class ThemeMode(val label: String) { SYSTEM("Follow system"), LIGHT("Light"
 
 enum class FolderViewMode { TREE, FLAT }
 
+/** The pages in the bottom navigation bar. */
+enum class MainSection(val label: String) { HOME("Home"), LIBRARY("Library"), FOLDERS("Folders") }
+
 data class EqSettings(
     val enabled: Boolean = false,
     /** Index of the device preset, or -1 for custom band levels. */
@@ -43,7 +46,9 @@ data class Settings(
     val folderViewMode: FolderViewMode = FolderViewMode.TREE,
     val folderSongOrder: FolderSongOrder = FolderSongOrder.FILE_NAME,
     val albumGrid: Boolean = true,
-    val lastTab: Int = 0,
+    val section: MainSection = MainSection.HOME,
+    /** Songs, Albums, Artists or Playlists inside the Library page. */
+    val libraryTab: Int = 0,
     val skipSilence: Boolean = false,
     val stopOnTaskRemoved: Boolean = false,
     val keepScreenOn: Boolean = false,
@@ -98,7 +103,8 @@ class SettingsStore(context: Context) {
             folderViewMode = enumOr(prefs.getString("folderViewMode", null), d.folderViewMode),
             folderSongOrder = enumOr(prefs.getString("folderSongOrder", null), d.folderSongOrder),
             albumGrid = prefs.getBoolean("albumGrid", d.albumGrid),
-            lastTab = prefs.getInt("lastTab", d.lastTab),
+            section = enumOr(prefs.getString("section", null), d.section),
+            libraryTab = prefs.getInt("libraryTab", d.libraryTab),
             skipSilence = prefs.getBoolean("skipSilence", d.skipSilence),
             stopOnTaskRemoved = prefs.getBoolean("stopOnTaskRemoved", d.stopOnTaskRemoved),
             keepScreenOn = prefs.getBoolean("keepScreenOn", d.keepScreenOn),
@@ -139,7 +145,8 @@ class SettingsStore(context: Context) {
             .putString("folderViewMode", s.folderViewMode.name)
             .putString("folderSongOrder", s.folderSongOrder.name)
             .putBoolean("albumGrid", s.albumGrid)
-            .putInt("lastTab", s.lastTab)
+            .putString("section", s.section.name)
+            .putInt("libraryTab", s.libraryTab)
             .putBoolean("skipSilence", s.skipSilence)
             .putBoolean("stopOnTaskRemoved", s.stopOnTaskRemoved)
             .putBoolean("keepScreenOn", s.keepScreenOn)
