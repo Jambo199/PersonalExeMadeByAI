@@ -17,6 +17,7 @@ import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.extractor.metadata.id3.BinaryFrame
+import androidx.media3.extractor.metadata.id3.InternalFrame
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import androidx.media3.session.CommandButton
@@ -35,6 +36,7 @@ import com.jambo199.vividmusic.AppGraph
 import com.jambo199.vividmusic.MainActivity
 import com.jambo199.vividmusic.R
 import com.jambo199.vividmusic.data.EmbeddedLyrics
+import com.jambo199.vividmusic.data.ReplayGain
 import com.jambo199.vividmusic.data.Song
 import com.jambo199.vividmusic.widget.WidgetUpdater
 import kotlinx.coroutines.CoroutineScope
@@ -62,6 +64,8 @@ class PlaybackService : MediaLibraryService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var consecutiveErrors = 0
     private var countedCurrent = false
+    private var replayGain = ReplayGain()
+    private var fading = false
     private var unsavedListeningMs = 0L
     private var saveQueueJob: Job? = null
     private var saveStateJob: Job? = null
@@ -178,6 +182,9 @@ class PlaybackService : MediaLibraryService() {
             AppGraph.settings.state.map { it.eq }.distinctUntilChanged().collect { AudioEffects.apply(it) }
         }
         scope.launch {
+            AppGraph.settings.state.map { it.normalization }.distinctUntilChanged().collect { applyNormalization() }
+        }
+        scope.launch {
             AppGraph.userData.state.map { it.favoriteSet }.distinctUntilChanged().collect { updateCustomLayout() }
         }
         scope.launch {
@@ -187,6 +194,7 @@ class PlaybackService : MediaLibraryService() {
                     val remaining = mode.endElapsedMs - SystemClock.elapsedRealtime()
                     if (remaining > FADE_MS) delay(remaining - FADE_MS)
                     try {
+                        fading = true
                         val start = exo.volume
                         val steps = 30
                         for (i in 1..steps) {
@@ -195,7 +203,8 @@ class PlaybackService : MediaLibraryService() {
                         }
                         exo.pause()
                     } finally {
-                        exo.volume = 1f
+                        fading = false
+                        applyNormalization()
                     }
                     SleepTimer.cancel()
                 }
@@ -293,6 +302,8 @@ class PlaybackService : MediaLibraryService() {
 
         override fun onTracksChanged(tracks: Tracks) {
             AppGraph.lyrics.onEmbeddedLyrics(exo.currentMediaItem?.mediaId, findEmbeddedLyrics(tracks))
+            replayGain = findReplayGain(tracks)
+            applyNormalization()
         }
 
         override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -325,6 +336,36 @@ class PlaybackService : MediaLibraryService() {
         -> "format not supported"
         PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED -> "file is damaged"
         else -> error.errorCodeName.lowercase().replace('_', ' ')
+    }
+
+    /** Sets the volume for the song's ReplayGain tags (unless the sleep timer is fading out). */
+    private fun applyNormalization() {
+        if (!::exo.isInitialized || fading) return
+        exo.volume = replayGain.volume(AppGraph.settings.current.normalization)
+    }
+
+    private fun findReplayGain(tracks: Tracks): ReplayGain {
+        var track: Float? = null
+        var album: Float? = null
+        fun take(key: String?, value: String?) {
+            when (key?.uppercase()) {
+                ReplayGain.TRACK_KEY -> track = track ?: ReplayGain.parseDb(value)
+                ReplayGain.ALBUM_KEY -> album = album ?: ReplayGain.parseDb(value)
+            }
+        }
+        for (group in tracks.groups) {
+            for (i in 0 until group.length) {
+                val metadata = group.getTrackFormat(i).metadata ?: continue
+                for (j in 0 until metadata.length()) {
+                    when (val entry = metadata.get(j)) {
+                        is TextInformationFrame -> if (entry.id == "TXXX") take(entry.description, entry.values.firstOrNull())
+                        is VorbisComment -> take(entry.key, entry.value)
+                        is InternalFrame -> take(entry.description, entry.text)
+                    }
+                }
+            }
+        }
+        return ReplayGain(track, album)
     }
 
     private fun findEmbeddedLyrics(tracks: Tracks): String? {

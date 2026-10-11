@@ -30,7 +30,7 @@ Every new build installs over the old one and keeps your playlists, favourites a
 ### Updates
 
 Once it's installed you don't need to come back here: each time Vivid Music opens it checks the
-release page, and if there's a newer build it shows **Update available** at the top of the library.
+release page, and if there's a newer build it shows **Update available** at the top of the screen.
 Tap it – the app downloads the new version, checks it's genuine (same app, newer build, matching
 checksum) and opens Android's install screen; tap **Update** there. The first time, Android asks you
 to allow *Install unknown apps* for Vivid Music – switch it on and go back, and the install continues.
@@ -49,8 +49,15 @@ You can also lock the app in the recent-apps screen (pull the card down).
 
 ## Features
 
+**Home**
+- A greeting with *Shuffle all*, and tiles for Favourites, Recently played, Most played and Recently added
+- **Quick picks** – a mix of what you play most, your favourites and songs you haven't heard in a while
+- **Keep listening**, **Forgotten favourites**, **Recently added**, your **top artists** and albums you haven't played yet
+- **Your listening** stats: time listened, plays, a last-7-days chart, most played songs, artists and albums, and a library summary
+- A bottom bar to switch between Home, Library and Folders (a side rail in landscape)
+
 **Library**
-- Songs, Albums, Artists, Folders and Playlists tabs, all with album-art thumbnails
+- Songs, Albums, Artists and Playlists tabs, all with album-art thumbnails
 - Sort songs by title, artist, album, date added, length, year or file name (A–Z fast scroller)
 - Album grid or list, artist pages with their albums, album pages with disc/track order
 - Search across songs, albums, artists and folders (ignores accents and case)
@@ -75,14 +82,18 @@ You can also lock the app in the recent-apps screen (pull the card down).
 - Playback speed and pitch
 - Sleep timer (minutes or end of song) with a gentle fade-out
 - Equalizer with device presets, per-band sliders, bass boost, surround and loudness
+- Volume normalisation from ReplayGain tags (per song or per album)
 - Pauses when headphones are unplugged; handles calls and other apps' audio
 - Resumes your queue and position after closing the app or restarting the phone
 - "Open with" support: play audio files straight from your file manager, WhatsApp, Downloads…
 
 **Now playing**
-- Big artwork that tints the screen with its colours; swipe it to skip
+- Big artwork over a blurred copy of itself (or a colour gradient); swipe it to skip
 - Synced lyrics (embedded lyrics or `.lrc` files) that follow the song – tap a line to jump there;
   you can also link an `.lrc` file to any song
+- Songs without lyrics are looked up on [LRCLIB](https://lrclib.net) when you open the lyrics
+  (only the title, artist, album and length are sent; turn it off in Settings)
+- Mini player: tap or swipe up to open, swipe sideways to skip
 - Drag-to-reorder queue, remove songs, save the queue as a playlist
 - Audio quality badge (format, sample rate / bitrate)
 
@@ -92,13 +103,16 @@ You can also lock the app in the recent-apps screen (pull the card down).
 - Automatic Favourites, Recently added, Recently played and Most played
 
 **Everything else**
-- Material You colours from your wallpaper (Android 12+) or 8 accent colours
+- Colours that follow the album art of the song that's playing, Material You colours from your
+  wallpaper (Android 12+), or 18 accent colours
 - Light / dark / system theme and a pure-black AMOLED mode
 - Landscape layout
 - Long-press songs to **select several** – play, queue, add to a playlist, share or delete them together
 - Song details (bitrate, sample rate, size, path), share, and delete from device
 - **Home-screen widget** with artwork and previous / play-pause / next buttons
 - Home-screen shortcuts: long-press the icon for Shuffle all, Favourites, Folders and Search
+- **Backup and restore** of settings, playlists, favourites and listening history to one file –
+  songs are matched by file path, so it also works on a new phone
 
 ## Building it yourself
 
@@ -129,6 +143,10 @@ Kotlin sources live in `app/src/main/java/com/jambo199/vividmusic/`.
 | `data/LibraryRepository.kt` | Builds albums, artists and the folder tree; watches for changes |
 | `data/ArtworkLoader.kt` | Finds thumbnails (system thumbnail, embedded art, folder images) |
 | `data/Lyrics.kt` | LRC parsing and lyrics lookup |
+| `data/OnlineLyrics.kt` | LRCLIB look-ups, kept on the phone |
+| `data/HomeFeed.kt` | Quick picks and the other Home rows |
+| `data/Stats.kt` | Numbers for the listening stats screen |
+| `data/Backup.kt` | Backup file and restoring it |
 | `playback/PlaybackService.kt` | Media3 ExoPlayer + media session (notification, headset, resume) |
 | `playback/SmartShuffle.kt` | Shuffle order that respects the current song and "Play next" |
 | `playback/PlaybackExtras.kt` | Sleep timer and equalizer/effects |

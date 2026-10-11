@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
+import org.json.JSONObject
 
 enum class ThemeMode(val label: String) { SYSTEM("Follow system"), LIGHT("Light"), DARK("Dark") }
 
@@ -55,6 +56,7 @@ data class Settings(
     /** Songs, Albums, Artists or Playlists inside the Library page. */
     val libraryTab: Int = 0,
     val skipSilence: Boolean = false,
+    val normalization: Normalization = Normalization.OFF,
     val stopOnTaskRemoved: Boolean = false,
     val keepScreenOn: Boolean = false,
     val rememberSpeed: Boolean = true,
@@ -90,6 +92,43 @@ class SettingsStore(context: Context) {
 
     fun removePickedFolder(uri: String) = update { it.copy(pickedFolders = it.pickedFolders - uri) }
 
+    /** Every saved setting with its type, for a backup. */
+    fun export(): JSONObject {
+        val out = JSONObject()
+        prefs.all.forEach { (key, value) ->
+            val entry = when (value) {
+                is Boolean -> JSONObject().put("t", "b").put("v", value)
+                is Int -> JSONObject().put("t", "i").put("v", value)
+                is Long -> JSONObject().put("t", "l").put("v", value)
+                is Float -> JSONObject().put("t", "f").put("v", value.toDouble())
+                is String -> JSONObject().put("t", "s").put("v", value)
+                is Set<*> -> JSONObject().put("t", "set").put("v", JSONArray(value.map { it.toString() }))
+                else -> null
+            }
+            if (entry != null) out.put(key, entry)
+        }
+        return out
+    }
+
+    /** Replaces the settings with ones from a backup. */
+    @Synchronized
+    fun restore(saved: JSONObject) {
+        val edit = prefs.edit().clear()
+        saved.keys().forEach { key ->
+            val e = saved.optJSONObject(key) ?: return@forEach
+            when (e.optString("t")) {
+                "b" -> edit.putBoolean(key, e.optBoolean("v"))
+                "i" -> edit.putInt(key, e.optInt("v"))
+                "l" -> edit.putLong(key, e.optLong("v"))
+                "f" -> edit.putFloat(key, e.optDouble("v").toFloat())
+                "s" -> edit.putString(key, e.optString("v"))
+                "set" -> edit.putStringSet(key, e.optJSONArray("v").toStringList().toSet())
+            }
+        }
+        edit.commit()
+        _state.value = read()
+    }
+
     private fun read(): Settings {
         val d = Settings()
         return Settings(
@@ -115,6 +154,7 @@ class SettingsStore(context: Context) {
             section = enumOr(prefs.getString("section", null), d.section),
             libraryTab = prefs.getInt("libraryTab", d.libraryTab),
             skipSilence = prefs.getBoolean("skipSilence", d.skipSilence),
+            normalization = enumOr(prefs.getString("normalization", null), d.normalization),
             stopOnTaskRemoved = prefs.getBoolean("stopOnTaskRemoved", d.stopOnTaskRemoved),
             keepScreenOn = prefs.getBoolean("keepScreenOn", d.keepScreenOn),
             rememberSpeed = prefs.getBoolean("rememberSpeed", d.rememberSpeed),
@@ -160,6 +200,7 @@ class SettingsStore(context: Context) {
             .putString("section", s.section.name)
             .putInt("libraryTab", s.libraryTab)
             .putBoolean("skipSilence", s.skipSilence)
+            .putString("normalization", s.normalization.name)
             .putBoolean("stopOnTaskRemoved", s.stopOnTaskRemoved)
             .putBoolean("keepScreenOn", s.keepScreenOn)
             .putBoolean("rememberSpeed", s.rememberSpeed)

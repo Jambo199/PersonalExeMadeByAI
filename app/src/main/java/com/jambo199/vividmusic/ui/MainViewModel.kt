@@ -14,6 +14,7 @@ import androidx.lifecycle.viewModelScope
 import com.jambo199.vividmusic.AppGraph
 import com.jambo199.vividmusic.data.Album
 import com.jambo199.vividmusic.data.Artist
+import com.jambo199.vividmusic.data.Backup
 import com.jambo199.vividmusic.data.FolderNode
 import com.jambo199.vividmusic.data.HomeFeed
 import com.jambo199.vividmusic.data.HomeFeedBuilder
@@ -31,6 +32,7 @@ import com.jambo199.vividmusic.data.UserData
 import com.jambo199.vividmusic.data.albumComparator
 import com.jambo199.vividmusic.data.artistComparator
 import com.jambo199.vividmusic.data.folderSongComparator
+import com.jambo199.vividmusic.data.pluralize
 import com.jambo199.vividmusic.data.searchKey
 import com.jambo199.vividmusic.data.songComparator
 import com.jambo199.vividmusic.playback.PlaybackState
@@ -57,6 +59,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONException
+import org.json.JSONObject
 
 data class SearchResults(
     val query: String = "",
@@ -471,6 +475,49 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
             toast(if (ok) "Exported ${songs.size} songs" else "Couldn't save the playlist file")
+        }
+    }
+
+    /** Saves settings, playlists, favourites, history and lyrics links to [target]. */
+    fun exportBackup(target: Uri) {
+        val context = getApplication<Application>()
+        viewModelScope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                try {
+                    AppGraph.userData.flush()
+                    val json = Backup.build(AppGraph.settings, AppGraph.userData, AppGraph.lyrics, library.value)
+                    context.contentResolver.openOutputStream(target, "wt")?.use { it.write(json.toString(2).toByteArray()) } != null
+                } catch (e: Exception) {
+                    false
+                }
+            }
+            toast(if (ok) "Backup saved" else "Couldn't save the backup")
+        }
+    }
+
+    /** Replaces settings, playlists, favourites and history with a backup file. */
+    fun restoreBackup(source: Uri) {
+        val context = getApplication<Application>()
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val text = context.contentResolver.openInputStream(source)?.use { it.readBytes().toString(Charsets.UTF_8) }
+                        ?: throw IllegalArgumentException("Couldn't open that file")
+                    val json = try {
+                        JSONObject(text)
+                    } catch (e: JSONException) {
+                        throw IllegalArgumentException("That file isn't a Vivid Music backup")
+                    }
+                    Backup.restore(json, AppGraph.settings, AppGraph.userData, AppGraph.lyrics, library.value)
+                }
+            }
+            result.onSuccess { r ->
+                AppGraph.library.refreshAll()
+                val missing = if (r.songsMissing > 0) " • ${pluralize(r.songsMissing, "song")} not on this phone" else ""
+                toast("Backup restored: ${pluralize(r.playlists, "playlist")}$missing")
+            }.onFailure { e ->
+                toast((e as? IllegalArgumentException)?.message ?: "Couldn't restore that backup")
+            }
         }
     }
 

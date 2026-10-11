@@ -141,7 +141,39 @@ class UserDataStore(context: Context, private val scope: CoroutineScope) {
     private fun load(): UserData {
         if (!file.exists()) return UserData()
         return try {
-            val root = JSONObject(file.readText())
+            parse(JSONObject(file.readText()))
+        } catch (e: Exception) {
+            Log.e(TAG, "Could not read user data", e)
+            UserData()
+        }
+    }
+
+    @Synchronized
+    private fun save(data: UserData) {
+        try {
+            file.writeTextAtomically(toJson(data).toString())
+        } catch (e: Exception) {
+            Log.e(TAG, "Could not save user data", e)
+        }
+    }
+
+    /** Everything, for a backup. */
+    fun export(): JSONObject = toJson(current)
+
+    /** Replaces everything with a backup, after its song keys were matched to this phone's. */
+    fun restore(data: UserData) {
+        saveJob?.cancel()
+        synchronized(this) { _state.value = data }
+        save(data)
+    }
+
+    companion object {
+        private const val TAG = "UserDataStore"
+        private const val MAX_RECENT = 200
+        const val DAYS_KEPT = 30
+        private const val DAY_MS = 24L * 60 * 60 * 1000
+
+        fun parse(root: JSONObject): UserData {
             val playlists = root.optJSONArray("playlists")?.let { arr ->
                 List(arr.length()) { i ->
                     val o = arr.getJSONObject(i)
@@ -155,7 +187,7 @@ class UserDataStore(context: Context, private val scope: CoroutineScope) {
             }.orEmpty()
             val counts = HashMap<String, Int>()
             root.optJSONObject("playCounts")?.let { o -> o.keys().forEach { k -> counts[k] = o.optInt(k) } }
-            UserData(
+            return UserData(
                 playlists = playlists,
                 favorites = root.optJSONArray("favorites").toStringList(),
                 recent = root.optJSONArray("recent").toStringList(),
@@ -165,15 +197,9 @@ class UserDataStore(context: Context, private val scope: CoroutineScope) {
                 dailyMs = root.optJSONObject("dailyMs")?.let { o -> o.keys().asSequence().associateWith { o.optLong(it) } }.orEmpty(),
                 statsSince = root.optLong("statsSince"),
             )
-        } catch (e: Exception) {
-            Log.e(TAG, "Could not read user data", e)
-            UserData()
         }
-    }
 
-    @Synchronized
-    private fun save(data: UserData) {
-        try {
+        fun toJson(data: UserData): JSONObject {
             val root = JSONObject()
             root.put("playlists", JSONArray().apply {
                 data.playlists.forEach { p ->
@@ -187,17 +213,30 @@ class UserDataStore(context: Context, private val scope: CoroutineScope) {
             root.put("listenedMs", data.listenedMs)
             root.put("dailyMs", JSONObject().apply { data.dailyMs.forEach { (k, v) -> put(k, v) } })
             root.put("statsSince", data.statsSince)
-            file.writeTextAtomically(root.toString())
-        } catch (e: Exception) {
-            Log.e(TAG, "Could not save user data", e)
+            return root
         }
-    }
 
-    companion object {
-        private const val TAG = "UserDataStore"
-        private const val MAX_RECENT = 200
-        const val DAYS_KEPT = 30
-        private const val DAY_MS = 24L * 60 * 60 * 1000
+        /** Every song key the data mentions. */
+        fun keysIn(data: UserData): Set<String> = buildSet {
+            addAll(data.favorites)
+            addAll(data.recent)
+            addAll(data.playCounts.keys)
+            data.playlists.forEach { addAll(it.songKeys) }
+        }
+
+        /** The same data with song keys swapped through [map] (keys not in it stay). */
+        fun remap(data: UserData, map: Map<String, String>): UserData {
+            if (map.isEmpty()) return data
+            fun k(key: String) = map[key] ?: key
+            val counts = HashMap<String, Int>()
+            data.playCounts.forEach { (key, n) -> counts.merge(k(key), n, Int::plus) }
+            return data.copy(
+                favorites = data.favorites.map(::k).distinct(),
+                recent = data.recent.map(::k).distinct(),
+                playCounts = counts,
+                playlists = data.playlists.map { p -> p.copy(songKeys = p.songKeys.map(::k)) },
+            )
+        }
 
         /** Local calendar day, sortable as text. */
         fun dayKey(time: Long): String {

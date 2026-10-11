@@ -175,6 +175,16 @@ class LyricsRepository(
 
     fun hasAssignment(songKey: String) = songKey in assignments
 
+    /** Linked lyrics files, for a backup. */
+    fun exportAssignments(): JSONObject = JSONObject(HashMap(assignments))
+
+    fun restoreAssignments(saved: JSONObject, remap: Map<String, String>) {
+        assignments.clear()
+        saved.keys().forEach { k -> assignments[remap[k] ?: k] = saved.optString(k) }
+        saveAssignments()
+        reload()
+    }
+
     private fun reload() {
         val key = currentKey
         val embeddedText = embedded

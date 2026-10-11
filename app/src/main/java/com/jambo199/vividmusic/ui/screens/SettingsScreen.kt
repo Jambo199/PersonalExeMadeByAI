@@ -30,6 +30,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Backup
 import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.Brightness6
 import androidx.compose.material.icons.rounded.Check
@@ -43,6 +44,7 @@ import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
@@ -75,6 +77,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.jambo199.vividmusic.BuildConfig
 import com.jambo199.vividmusic.data.LibraryRepository
+import com.jambo199.vividmusic.data.Normalization
 import com.jambo199.vividmusic.data.PlayerBackground
 import com.jambo199.vividmusic.data.ThemeMode
 import com.jambo199.vividmusic.ui.LocalNav
@@ -94,6 +97,13 @@ fun SettingsScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
     var themeDialog by remember { mutableStateOf(false) }
     var hiddenDialog by remember { mutableStateOf(false) }
+    var confirmRestore by remember { mutableStateOf(false) }
+    val backupSaver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) viewModel.exportBackup(uri)
+    }
+    val backupPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) viewModel.restoreBackup(uri)
+    }
     var minDuration by remember(settings.minDurationSec) { mutableFloatStateOf(settings.minDurationSec.toFloat()) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) viewModel.addPickedFolder(uri)
@@ -252,6 +262,25 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 }
             }
             item {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text("Volume normalisation", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Evens out loudness between songs using their ReplayGain tags. Songs without tags play as they are.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Normalization.entries.forEach { option ->
+                            FilterChip(
+                                selected = settings.normalization == option,
+                                onClick = { viewModel.updateSettings { it.copy(normalization = option) } },
+                                label = { Text(option.label) },
+                            )
+                        }
+                    }
+                }
+            }
+            item {
                 SwitchRow(null, "Remember playback speed", "Keep speed and pitch between songs and restarts", settings.rememberSpeed) { v ->
                     viewModel.updateSettings { it.copy(rememberSpeed = v) }
                 }
@@ -330,6 +359,18 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 }
             }
 
+            item { SectionHeader("Backup") }
+            item {
+                SettingRow(
+                    Icons.Rounded.Backup,
+                    "Back up",
+                    "Save settings, playlists, favourites and listening history to a file",
+                ) { backupSaver.launch("vivid-music-backup-${java.time.LocalDate.now()}.json") }
+            }
+            item {
+                SettingRow(Icons.Rounded.Restore, "Restore", "Load a backup file, here or on a new phone") { confirmRestore = true }
+            }
+
             item { SectionHeader("About") }
             item {
                 SettingRow(Icons.Rounded.DeleteSweep, "Clear listening history", "Resets Recently played and Most played") { viewModel.clearHistory() }
@@ -338,6 +379,21 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 SettingRow(Icons.Rounded.Info, "Vivid Music ${BuildConfig.VERSION_NAME}", "Your personal music player") {}
             }
         }
+    }
+
+    if (confirmRestore) {
+        AlertDialog(
+            onDismissRequest = { confirmRestore = false },
+            title = { Text("Restore a backup?") },
+            text = { Text("Your current settings, playlists, favourites and listening history are replaced by the ones in the backup.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmRestore = false
+                    backupPicker.launch(arrayOf("application/json", "text/plain", "application/octet-stream", "*/*"))
+                }) { Text("Choose file") }
+            },
+            dismissButton = { TextButton(onClick = { confirmRestore = false }) { Text("Cancel") } },
+        )
     }
 
     if (themeDialog) {
