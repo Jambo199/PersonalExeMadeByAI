@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Delete
@@ -38,7 +39,6 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
-import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -191,6 +191,21 @@ fun AlbumScreen(viewModel: MainViewModel, albumId: Long) {
                         onLongClick = { selection.start(song, songs) },
                         onMore = { menu.open(song) },
                     )
+                }
+            }
+            val moreAlbums = if (album.artist == Song.UNKNOWN_ARTIST) emptyList()
+            else library.artistsByName[album.artist]?.albums.orEmpty().filter { it.id != album.id }
+            if (moreAlbums.isNotEmpty()) {
+                item(key = "more") {
+                    SectionHeader("More by ${album.artist}")
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        items(moreAlbums, key = { it.id }) { other ->
+                            AlbumCard(other, Modifier.width(148.dp)) { nav.album(other.id) }
+                        }
+                    }
                 }
             }
         }
