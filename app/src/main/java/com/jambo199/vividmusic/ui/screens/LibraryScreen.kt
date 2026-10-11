@@ -6,7 +6,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -30,12 +33,13 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Sort
-import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Alarm
+import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.Equalizer
@@ -51,20 +55,18 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.ViewList
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Tab
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -81,6 +83,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.jambo199.vividmusic.data.Album
 import com.jambo199.vividmusic.data.AlbumSortField
 import com.jambo199.vividmusic.data.Artist
@@ -118,16 +121,28 @@ fun MainScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
     val pages = rememberSaveableStateHolder()
 
     Column(Modifier.fillMaxSize()) {
-        TopAppBar(
-            title = {
-                Text(
-                    if (section == MainSection.HOME) "Vivid Music" else section.label,
-                    fontWeight = FontWeight.Bold,
-                )
-            },
-            actions = {
-                IconButton(onClick = { nav.search() }) { Icon(Icons.Rounded.Search, contentDescription = "Search") }
-                IconButton(onClick = { menuOpen = true }) { Icon(Icons.Rounded.MoreVert, contentDescription = "More") }
+        // A big, bold page title with round buttons, the same on every page.
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(start = 20.dp, end = 12.dp, top = 8.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                if (section == MainSection.HOME) "Vivid Music" else section.label,
+                style = if (section == MainSection.HOME) {
+                    MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                } else {
+                    MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Black, letterSpacing = (-0.5).sp)
+                },
+                maxLines = 1,
+                modifier = Modifier.weight(1f),
+            )
+            RoundIconButton(Icons.Rounded.Search, "Search") { nav.search() }
+            Spacer(Modifier.width(8.dp))
+            Box {
+                RoundIconButton(Icons.Rounded.MoreVert, "More") { menuOpen = true }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                     DropdownMenuItem(
                         text = { Text("Shuffle all") },
@@ -210,9 +225,8 @@ fun MainScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                         },
                     )
                 }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
-        )
+            }
+        }
         val update by viewModel.update.collectAsState()
         val updateDismissed by viewModel.updateBannerDismissed.collectAsState()
         UpdateBanner(
@@ -275,30 +289,41 @@ private fun LibraryPages(viewModel: MainViewModel) {
 
     Column(Modifier.fillMaxSize()) {
         if (tabs.size > 1) {
-            PrimaryTabRow(
-                selectedTabIndex = pagerState.currentPage.coerceIn(0, tabs.lastIndex),
-                containerColor = MaterialTheme.colorScheme.surface,
-                divider = {},
+            // The tabs as pills; the one you're on is filled.
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 tabs.forEachIndexed { index, tab ->
-                    Tab(
-                        selected = pagerState.currentPage == index,
+                    val selected = pagerState.currentPage == index
+                    Surface(
                         onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
-                        text = {
-                            Text(
-                                tab.label,
-                                maxLines = 1,
-                                fontWeight = if (pagerState.currentPage == index) FontWeight.SemiBold else FontWeight.Normal,
-                            )
-                        },
-                    )
+                        shape = RoundedCornerShape(50),
+                        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                    ) {
+                        Text(
+                            tab.label,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                        )
+                    }
                 }
             }
         }
+        // The pages sit on a rounded sheet.
         HorizontalPager(
             state = pagerState,
             beyondViewportPageCount = 1,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
             // Short pages (few playlists) start at the top instead of floating mid-screen.
             verticalAlignment = Alignment.Top,
             key = { tabs.getOrNull(it)?.name ?: it },
@@ -342,13 +367,20 @@ private fun SongsTab(viewModel: MainViewModel) {
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                        .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    FilledTonalButton(onClick = { viewModel.shuffle(songs, "All songs") }) {
+                    Button(
+                        onClick = { viewModel.shuffle(songs, "All songs") },
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        ),
+                    ) {
                         Icon(Icons.Rounded.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Shuffle ${songs.size}")
+                        Text("Shuffle ${songs.size}", fontWeight = FontWeight.SemiBold)
                     }
                     Spacer(Modifier.weight(1f))
                     Box {
@@ -585,6 +617,21 @@ fun ArtistRow(artist: Artist, onClick: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+/** A round button on a soft tint, for page headers. */
+@Composable
+fun RoundIconButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.size(44.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = label, modifier = Modifier.size(22.dp))
         }
     }
 }

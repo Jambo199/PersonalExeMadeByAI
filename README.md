@@ -115,7 +115,11 @@ You can also lock the app in the recent-apps screen (pull the card down).
 - "Open with" support: play audio files straight from your file manager, WhatsApp, Downloads…
 
 **Now playing**
-- Big artwork over a blurred copy of itself (or a colour gradient); swipe it to skip
+- A clean, rounded look: the player takes on the artwork's colour, with a **wavy progress bar** that
+  ripples while the song plays, big rounded play/skip buttons and a pill of quick controls
+  (shuffle, repeat, favourite, sleep, speed, queue). Prefer the old style? Settings › Player
+  background also has blurred artwork, a gradient, the aurora or plain
+- Big rounded artwork; swipe it to skip
 - Synced lyrics (embedded lyrics or `.lrc` files) that follow the song – tap a line to jump there;
   you can also link an `.lrc` file to any song
 - Songs without lyrics are looked up on [LRCLIB](https://lrclib.net) when you open the lyrics

@@ -12,7 +12,13 @@ enum class ThemeMode(val label: String) { SYSTEM("Follow system"), LIGHT("Light"
 
 enum class FolderViewMode { TREE, FLAT }
 
-enum class PlayerBackground(val label: String) { BLUR("Blurred artwork"), GRADIENT("Colour gradient"), AURORA("Aurora"), PLAIN("Plain") }
+enum class PlayerBackground(val label: String) {
+    SOLID("Artwork colour"),
+    BLUR("Blurred artwork"),
+    GRADIENT("Colour gradient"),
+    AURORA("Aurora"),
+    PLAIN("Plain"),
+}
 
 /** How the player shows the artwork. */
 enum class ArtworkStyle(val label: String) { SQUARE("Square"), VINYL("Vinyl record") }
@@ -72,7 +78,7 @@ data class Settings(
     val accentIndex: Int = 0,
     /** Take the app's colours from the playing song's artwork. */
     val artworkColors: Boolean = true,
-    val playerBackground: PlayerBackground = PlayerBackground.BLUR,
+    val playerBackground: PlayerBackground = PlayerBackground.SOLID,
     val visualizer: VisualizerStyle = VisualizerStyle.BARS,
     val artworkStyle: ArtworkStyle = ArtworkStyle.SQUARE,
     /** The artwork gently bounces on the beat. */
@@ -151,6 +157,13 @@ data class Settings(
 /** Settings backed by SharedPreferences and exposed as a StateFlow so every screen reacts. */
 class SettingsStore(context: Context) {
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+
+    init {
+        // The new look: switch the player to the artwork-colour background once, on updating.
+        if (prefs.getInt("uiVersion", 1) < 2) {
+            prefs.edit().putString("playerBackground", PlayerBackground.SOLID.name).putInt("uiVersion", 2).apply()
+        }
+    }
     private val _state = MutableStateFlow(read())
     val state: StateFlow<Settings> = _state.asStateFlow()
     val current: Settings get() = _state.value

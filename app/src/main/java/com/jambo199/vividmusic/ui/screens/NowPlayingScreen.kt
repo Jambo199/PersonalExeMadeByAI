@@ -8,6 +8,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -61,14 +62,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -102,6 +99,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -123,12 +121,13 @@ import com.jambo199.vividmusic.ui.LocalSongMenu
 import com.jambo199.vividmusic.ui.MainViewModel
 import com.jambo199.vividmusic.ui.components.AddToPlaylistDialog
 import com.jambo199.vividmusic.ui.components.Artwork
+import com.jambo199.vividmusic.ui.components.AuroraBackground
 import com.jambo199.vividmusic.ui.components.RingVisualizer
 import com.jambo199.vividmusic.ui.components.ShareSongDialog
 import com.jambo199.vividmusic.ui.components.Visualizer
+import com.jambo199.vividmusic.ui.components.WavySeekBar
 import com.jambo199.vividmusic.ui.components.qualityBadge
 import com.jambo199.vividmusic.ui.components.readTechnicalInfo
-import com.jambo199.vividmusic.ui.components.AuroraBackground
 import com.jambo199.vividmusic.ui.components.rememberSpectrum
 import com.jambo199.vividmusic.ui.theme.rememberArtworkColor
 import kotlinx.coroutines.Dispatchers
@@ -178,25 +177,29 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
     val blurBackground = blurArtwork || aurora
     val dark = themeDark || blurBackground
     val artColor = rememberArtworkColor(song)
-    val baseBg = if (blurBackground) Color(0xFF101010) else MaterialTheme.colorScheme.background
     val accentTarget = artColor ?: MaterialTheme.colorScheme.primary
     val accent by animateColorAsState(accentTarget, tween(700), label = "accent")
+    // "Artwork colour": the whole player in a deep (or, in the light theme, soft) shade of the artwork.
+    val solid = settings.playerBackground == PlayerBackground.SOLID
+    val solidColor = if (themeDark) lerpToward(accent, Color(0xFF0C0C10), 0.62f) else lerpToward(accent, Color.White, 0.78f)
+    val baseBg = when {
+        blurBackground -> Color(0xFF101010)
+        solid -> solidColor
+        else -> MaterialTheme.colorScheme.background
+    }
     val topBg by animateColorAsState(
         when (settings.playerBackground) {
             PlayerBackground.PLAIN -> baseBg
+            PlayerBackground.SOLID -> lerpToward(solidColor, accent, if (themeDark) 0.12f else 0.1f)
             else -> (artColor ?: MaterialTheme.colorScheme.primaryContainer).copy(alpha = if (dark) 0.55f else 0.4f).compositeOver(baseBg)
         },
         tween(700),
         label = "bg",
     )
     val controlColor = if (dark) Color.White else Color(0xFF1A1A1A)
-    val sliderColor = if (artColor != null) {
-        if (dark) lerpToward(accent, Color.White, if (blurBackground) 0.4f else 0.25f) else lerpToward(accent, Color.Black, 0.25f)
-    } else if (blurBackground) {
-        Color.White
-    } else {
-        MaterialTheme.colorScheme.primary
-    }
+    // The play button and everything "on": a light tint of the artwork on dark, a deep one on light.
+    val playColor = if (dark) lerpToward(accent, Color.White, if (artColor != null) 0.55f else 0.3f) else lerpToward(accent, Color.Black, 0.15f)
+    val onPlayColor = if (playColor.luminance() > 0.5f) Color(0xFF1A1A1A) else Color.White
 
     // Light status bar icons over the dark blurred background, even in the light theme.
     val window = (view.context as? Activity)?.window
@@ -260,32 +263,42 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
             val landscape = maxWidth > maxHeight
             Column(Modifier.fillMaxSize()) {
-                // Top bar
+                // Top bar: round buttons, like the rest of the player.
+                val hasLyrics = lyrics?.songKey == song.key
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = { nav.back() }) {
-                        Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Close player", tint = controlColor, modifier = Modifier.size(30.dp))
-                    }
-                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    PlayerIconButton(Icons.Rounded.KeyboardArrowDown, "Close player", controlColor, CircleShape) { nav.back() }
+                    Column(Modifier.weight(1f).padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            "PLAYING FROM",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = controlColor.copy(alpha = 0.7f),
+                            "Now Playing",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = controlColor,
                         )
                         Text(
                             source.ifBlank { "Your library" },
-                            style = MaterialTheme.typography.labelLarge,
-                            color = controlColor,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = controlColor.copy(alpha = 0.7f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
+                    PlayerIconButton(
+                        Icons.AutoMirrored.Rounded.Notes,
+                        "Lyrics",
+                        controlColor,
+                        RoundedCornerShape(16.dp),
+                        active = showLyrics,
+                        accent = playColor,
+                        dot = hasLyrics && !showLyrics,
+                    ) { showLyrics = !showLyrics }
+                    Spacer(Modifier.width(8.dp))
                     Box {
-                        IconButton(onClick = { menuOpen = true }) { Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = controlColor) }
+                        PlayerIconButton(Icons.Rounded.MoreVert, "More", controlColor, RoundedCornerShape(16.dp)) { menuOpen = true }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                             DropdownMenuItem(text = { Text("Add to playlist…") }, onClick = {
                                 menuOpen = false
@@ -383,74 +396,49 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                 }
 
                 val controls: @Composable (Modifier) -> Unit = { mod ->
-                    Column(mod, verticalArrangement = Arrangement.Center) {
-                        // Title + favourite
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    song.title,
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    color = controlColor,
-                                    maxLines = 1,
-                                    modifier = Modifier.basicMarquee(),
-                                )
-                                Text(
-                                    song.displayArtist,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = controlColor.copy(alpha = 0.75f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.clickable { viewModel.library.value.artistFor(song.displayArtist)?.let { a -> nav.fromPlayer { artist(a.name) } } },
-                                )
-                                Text(
-                                    song.displayAlbum,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = controlColor.copy(alpha = 0.6f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.clickable { nav.fromPlayer { album(song.albumId) } },
-                                )
-                            }
-                            val fav = song.key in userData.favoriteSet
-                            val favScale by animateFloatAsState(if (fav) 1.15f else 1f, spring(dampingRatio = 0.35f), label = "fav")
-                            // Songs streamed from NCS aren't in the library to favourite.
-                            if (!song.isOnline) IconButton(onClick = { viewModel.toggleFavorite(song) }) {
-                                Icon(
-                                    if (fav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                    contentDescription = if (fav) "Remove from favourites" else "Add to favourites",
-                                    tint = if (fav) Color(0xFFFF4F7B) else controlColor,
-                                    modifier = Modifier
-                                        .size(28.dp)
-                                        .graphicsLayer {
-                                            scaleX = favScale
-                                            scaleY = favScale
-                                        },
-                                )
-                            }
-                        }
-                        Spacer(Modifier.height(12.dp))
+                    Column(mod, verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                        // Title and artist, centred.
+                        Text(
+                            song.title,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = controlColor,
+                            maxLines = 1,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.basicMarquee(),
+                        )
+                        Text(
+                            song.displayArtist,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = controlColor.copy(alpha = 0.75f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { viewModel.library.value.artistFor(song.displayArtist)?.let { a -> nav.fromPlayer { artist(a.name) } } }
+                                .padding(horizontal = 6.dp),
+                        )
+                        Spacer(Modifier.height(14.dp))
 
-                        // Seek bar
+                        // The wavy seek bar
                         val duration = playback.durationMs.coerceAtLeast(1L)
-                        val sliderValue = if (dragging) dragValue else (position.toFloat() / duration).coerceIn(0f, 1f)
-                        Slider(
-                            value = sliderValue,
-                            onValueChange = {
+                        WavySeekBar(
+                            progress = if (dragging) dragValue else (position.toFloat() / duration).coerceIn(0f, 1f),
+                            playing = playback.isPlaying,
+                            activeColor = playColor,
+                            trackColor = controlColor.copy(alpha = 0.22f),
+                            onSeeking = {
                                 dragging = true
                                 dragValue = it
                             },
-                            onValueChangeFinished = {
-                                viewModel.player.seekTo((dragValue * duration).toLong())
-                                position = (dragValue * duration).toLong()
+                            onSeek = {
+                                viewModel.player.seekTo((it * duration).toLong())
+                                position = (it * duration).toLong()
                                 dragging = false
                             },
-                            colors = SliderDefaults.colors(
-                                thumbColor = sliderColor,
-                                activeTrackColor = sliderColor,
-                                inactiveTrackColor = controlColor.copy(alpha = 0.2f),
-                            ),
                         )
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             val shown = if (dragging) (dragValue * duration).toLong() else position
                             Text(formatDuration(shown), style = MaterialTheme.typography.labelMedium, color = controlColor.copy(alpha = 0.75f))
                             Spacer(Modifier.weight(1f))
@@ -459,150 +447,168 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                                 // Tap to stop looping.
                                 Surface(
                                     onClick = { AbRepeat.clear() },
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = sliderColor,
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = playColor,
                                 ) {
                                     Text(
                                         "A-B " + formatDuration(loop.startMs) + (loop.endMs?.let { "–" + formatDuration(it) } ?: "…") + "  ✕",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = if (sliderColor.luminance() > 0.5f) Color.Black else Color.White,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        color = onPlayColor,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                     )
                                 }
                             } else {
                                 qualityBadge(tech, song)?.let { badge ->
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = controlColor.copy(alpha = 0.1f),
-                                    ) {
+                                    Surface(shape = RoundedCornerShape(8.dp), color = controlColor.copy(alpha = 0.1f)) {
                                         Text(
                                             badge,
                                             style = MaterialTheme.typography.labelSmall,
                                             color = controlColor.copy(alpha = 0.8f),
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                         )
                                     }
                                 }
                             }
                             Spacer(Modifier.weight(1f))
                             Text(
-                                "-" + formatDuration((playback.durationMs - shown).coerceAtLeast(0)),
+                                formatDuration(playback.durationMs.coerceAtLeast(0)),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = controlColor.copy(alpha = 0.75f),
                             )
                         }
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(14.dp))
 
-                        // Transport controls
+                        // Big rounded transport buttons; play/pause is the wide one and rounds off when paused.
                         Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            IconButton(onClick = { viewModel.player.toggleShuffle() }) {
-                                Icon(
-                                    Icons.Rounded.Shuffle,
-                                    contentDescription = if (playback.shuffle) "Shuffle on" else "Shuffle off",
-                                    tint = if (playback.shuffle) sliderColor else controlColor.copy(alpha = 0.6f),
-                                )
-                            }
-                            IconButton(onClick = { viewModel.player.previous() }, modifier = Modifier.size(56.dp)) {
-                                Icon(Icons.Rounded.SkipPrevious, contentDescription = "Previous", tint = controlColor, modifier = Modifier.size(40.dp))
-                            }
-                            FilledIconButton(
-                                onClick = { viewModel.player.togglePlayPause() },
+                            val sideShape = RoundedCornerShape(26.dp)
+                            Surface(
+                                onClick = { viewModel.player.previous() },
+                                shape = sideShape,
+                                color = controlColor.copy(alpha = 0.12f),
                                 modifier = Modifier.size(76.dp),
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = sliderColor,
-                                    contentColor = if (sliderColor.luminance() > 0.5f) Color.Black else Color.White,
-                                ),
                             ) {
-                                if (playback.isBuffering && playback.playWhenReady) {
-                                    CircularProgressIndicator(Modifier.size(32.dp), strokeWidth = 3.dp, color = androidx.compose.material3.LocalContentColor.current)
-                                } else {
-                                    AnimatedContent(
-                                        targetState = playback.playWhenReady,
-                                        transitionSpec = { (scaleIn() + fadeIn()) togetherWith fadeOut() },
-                                        label = "playPause",
-                                    ) { playing ->
-                                        Icon(
-                                            if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                            contentDescription = if (playing) "Pause" else "Play",
-                                            modifier = Modifier.size(44.dp),
-                                        )
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Rounded.SkipPrevious, contentDescription = "Previous", tint = controlColor, modifier = Modifier.size(36.dp))
+                                }
+                            }
+                            val corner by animateDpAsState(if (playback.playWhenReady) 26.dp else 40.dp, spring(dampingRatio = 0.6f), label = "playShape")
+                            Surface(
+                                onClick = { viewModel.player.togglePlayPause() },
+                                shape = RoundedCornerShape(corner),
+                                color = playColor,
+                                contentColor = onPlayColor,
+                                modifier = Modifier.size(width = 112.dp, height = 84.dp),
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    if (playback.isBuffering && playback.playWhenReady) {
+                                        CircularProgressIndicator(Modifier.size(32.dp), strokeWidth = 3.dp, color = onPlayColor)
+                                    } else {
+                                        AnimatedContent(
+                                            targetState = playback.playWhenReady,
+                                            transitionSpec = { (scaleIn() + fadeIn()) togetherWith fadeOut() },
+                                            label = "playPause",
+                                        ) { playing ->
+                                            Icon(
+                                                if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                                contentDescription = if (playing) "Pause" else "Play",
+                                                modifier = Modifier.size(44.dp),
+                                            )
+                                        }
                                     }
                                 }
                             }
-                            IconButton(onClick = { viewModel.player.next() }, modifier = Modifier.size(56.dp), enabled = playback.hasNext || playback.repeatMode != Player.REPEAT_MODE_OFF) {
-                                Icon(Icons.Rounded.SkipNext, contentDescription = "Next", tint = controlColor, modifier = Modifier.size(40.dp))
+                            val canNext = playback.hasNext || playback.repeatMode != Player.REPEAT_MODE_OFF
+                            Surface(
+                                onClick = { viewModel.player.next() },
+                                enabled = canNext,
+                                shape = sideShape,
+                                color = controlColor.copy(alpha = 0.12f),
+                                modifier = Modifier.size(76.dp),
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Rounded.SkipNext,
+                                        contentDescription = "Next",
+                                        tint = controlColor.copy(alpha = if (canNext) 1f else 0.35f),
+                                        modifier = Modifier.size(36.dp),
+                                    )
+                                }
                             }
-                            IconButton(onClick = { viewModel.player.cycleRepeat() }) {
-                                Icon(
+                        }
+                        Spacer(Modifier.height(16.dp))
+
+                        // A pill of the other controls.
+                        Surface(shape = RoundedCornerShape(50), color = controlColor.copy(alpha = 0.08f)) {
+                            Row(
+                                Modifier.padding(6.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                ToolButton(
+                                    Icons.Rounded.Shuffle,
+                                    if (playback.shuffle) "Shuffle on" else "Shuffle off",
+                                    active = playback.shuffle,
+                                    color = controlColor,
+                                    accent = playColor,
+                                    onAccent = onPlayColor,
+                                ) { viewModel.player.toggleShuffle() }
+                                ToolButton(
                                     if (playback.repeatMode == Player.REPEAT_MODE_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
-                                    contentDescription = when (playback.repeatMode) {
+                                    when (playback.repeatMode) {
                                         Player.REPEAT_MODE_ONE -> "Repeat one"
                                         Player.REPEAT_MODE_ALL -> "Repeat all"
                                         else -> "Repeat off"
                                     },
-                                    tint = if (playback.repeatMode != Player.REPEAT_MODE_OFF) sliderColor else controlColor.copy(alpha = 0.6f),
+                                    active = playback.repeatMode != Player.REPEAT_MODE_OFF,
+                                    color = controlColor,
+                                    accent = playColor,
+                                    onAccent = onPlayColor,
+                                ) { viewModel.player.cycleRepeat() }
+                                // Songs streamed from NCS aren't in the library to favourite.
+                                if (!song.isOnline) {
+                                    val fav = song.key in userData.favoriteSet
+                                    ToolButton(
+                                        if (fav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                        if (fav) "Remove from favourites" else "Add to favourites",
+                                        active = fav,
+                                        color = controlColor,
+                                        accent = playColor,
+                                        onAccent = onPlayColor,
+                                    ) { viewModel.toggleFavorite(song) }
+                                }
+                                ToolButton(
+                                    Icons.Rounded.Bedtime,
+                                    when (sleep) {
+                                        is SleepTimer.Mode.At -> "Sleep timer: " + sleepLabel()
+                                        SleepTimer.Mode.EndOfSong -> "Sleep timer: end of song"
+                                        SleepTimer.Mode.Off -> "Sleep"
+                                    },
+                                    active = sleep != SleepTimer.Mode.Off,
+                                    color = controlColor,
+                                    accent = playColor,
+                                    onAccent = onPlayColor,
+                                    onClick = onSleepTimer,
                                 )
+                                ToolButton(
+                                    Icons.Rounded.Speed,
+                                    if (playback.speed == 1f) "Speed" else "Speed " + formatSpeed(playback.speed),
+                                    active = playback.speed != 1f || playback.pitch != 1f,
+                                    color = controlColor,
+                                    accent = playColor,
+                                    onAccent = onPlayColor,
+                                ) { showSpeed = true }
+                                ToolButton(
+                                    Icons.AutoMirrored.Rounded.QueueMusic,
+                                    "Queue",
+                                    active = false,
+                                    color = controlColor,
+                                    accent = playColor,
+                                    onAccent = onPlayColor,
+                                ) { showQueue = true }
                             }
-                        }
-                        Spacer(Modifier.height(12.dp))
-
-                        // Extras
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            val hasLyrics = lyrics?.songKey == song.key
-                            ExtraButton(
-                                icon = Icons.AutoMirrored.Rounded.Notes,
-                                label = "Lyrics",
-                                active = showLyrics,
-                                dot = hasLyrics && !showLyrics,
-                                color = controlColor,
-                                accent = sliderColor,
-                                showLabel = !landscape,
-                            ) { showLyrics = !showLyrics }
-                            ExtraButton(
-                                icon = Icons.Rounded.Bedtime,
-                                label = when (sleep) {
-                                    is SleepTimer.Mode.At -> sleepLabel()
-                                    SleepTimer.Mode.EndOfSong -> "End"
-                                    SleepTimer.Mode.Off -> "Sleep"
-                                },
-                                active = sleep != SleepTimer.Mode.Off,
-                                color = controlColor,
-                                accent = sliderColor,
-                                showLabel = !landscape,
-                                onClick = onSleepTimer,
-                            )
-                            ExtraButton(
-                                icon = Icons.Rounded.Speed,
-                                label = if (playback.speed == 1f) "Speed" else formatSpeed(playback.speed),
-                                active = playback.speed != 1f || playback.pitch != 1f,
-                                color = controlColor,
-                                accent = sliderColor,
-                                showLabel = !landscape,
-                            ) { showSpeed = true }
-                            ExtraButton(
-                                icon = Icons.Rounded.Equalizer,
-                                label = "EQ",
-                                active = settings.eq.enabled,
-                                color = controlColor,
-                                accent = sliderColor,
-                                showLabel = !landscape,
-                            ) { nav.equalizer() }
-                            ExtraButton(
-                                icon = Icons.AutoMirrored.Rounded.QueueMusic,
-                                label = "Queue",
-                                active = false,
-                                color = controlColor,
-                                accent = sliderColor,
-                                showLabel = !landscape,
-                            ) { showQueue = true }
                         }
                     }
                 }
@@ -623,7 +629,7 @@ fun NowPlayingScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                         Modifier
                             .weight(1f)
                             .fillMaxWidth()
-                            .padding(horizontal = 28.dp, vertical = 12.dp),
+                            .padding(horizontal = 32.dp, vertical = 12.dp),
                     )
                     controls(
                         Modifier
@@ -693,44 +699,64 @@ private fun BlurredArtwork(song: Song) {
     )
 }
 
+/** A round (or rounded-square) button on a faint tint, for the player's top bar. */
 @Composable
-private fun ExtraButton(
+private fun PlayerIconButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
-    active: Boolean,
     color: Color,
-    accent: Color,
+    shape: androidx.compose.ui.graphics.Shape,
+    active: Boolean = false,
+    accent: Color = color,
     dot: Boolean = false,
-    showLabel: Boolean = true,
     onClick: () -> Unit,
 ) {
-    Column(
-        Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Surface(
+        onClick = onClick,
+        shape = shape,
+        color = if (active) accent else color.copy(alpha = 0.12f),
+        modifier = Modifier.size(48.dp),
     ) {
-        Box {
-            Icon(icon, contentDescription = label, tint = if (active) accent else color.copy(alpha = 0.75f))
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                icon,
+                contentDescription = label,
+                tint = if (active) (if (accent.luminance() > 0.5f) Color.Black else Color.White) else color,
+                modifier = Modifier.size(26.dp),
+            )
             if (dot) {
                 Box(
                     Modifier
                         .align(Alignment.TopEnd)
+                        .padding(9.dp)
                         .size(7.dp)
                         .clip(CircleShape)
                         .background(accent),
                 )
             }
         }
-        if (showLabel) {
-            Spacer(Modifier.height(2.dp))
-            Text(
-                label,
-                style = MaterialTheme.typography.labelSmall,
-                color = if (active) accent else color.copy(alpha = 0.75f),
-                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
-            )
+    }
+}
+
+/** One of the rounded squares in the player's control pill; filled with [accent] when on. */
+@Composable
+private fun ToolButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    active: Boolean,
+    color: Color,
+    accent: Color,
+    onAccent: Color,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = if (active) accent else color.copy(alpha = 0.08f),
+        modifier = Modifier.size(width = 46.dp, height = 44.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = label, tint = if (active) onAccent else color.copy(alpha = 0.85f), modifier = Modifier.size(22.dp))
         }
     }
 }
@@ -759,7 +785,7 @@ private fun SwipeableArtwork(
     LaunchedEffect(song.key) { offset.snapTo(0f) }
     val scale by animateFloatAsState(if (isPlaying) 1f else 0.86f, spring(dampingRatio = 0.6f, stiffness = 300f), label = "artScale")
     val spectrum = rememberSpectrum(enabled = visualizer != VisualizerStyle.OFF || beatPulse, playing = isPlaying, speed = speed)
-    val shape = RoundedCornerShape(20.dp)
+    val shape = RoundedCornerShape(28.dp)
     // The record turns while playing and stays where it got to when paused.
     val spin = remember { Animatable(0f) }
     LaunchedEffect(isPlaying, vinyl) {
@@ -848,7 +874,7 @@ private fun SwipeableArtwork(
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                         .fillMaxHeight(0.4f)
-                        .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
+                        .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
                         .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.55f)))),
                 ) {
                     Visualizer(

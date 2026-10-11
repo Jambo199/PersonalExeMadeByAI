@@ -35,8 +35,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
@@ -190,12 +190,21 @@ fun SongRow(
     onLongClick: (() -> Unit)? = onMore,
     trailing: (@Composable () -> Unit)? = null,
 ) {
+    // Each song is a soft rounded card; the playing one is tinted.
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+            .padding(horizontal = 12.dp, vertical = 3.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                when {
+                    selected -> MaterialTheme.colorScheme.secondaryContainer
+                    isCurrent -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                    else -> MaterialTheme.colorScheme.surfaceContainer
+                },
+            )
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+            .padding(start = 10.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (selected) {
@@ -222,12 +231,12 @@ fun SongRow(
             }
         } else {
             Box(contentAlignment = Alignment.Center) {
-                Artwork(song, Modifier.size(52.dp))
+                Artwork(song, Modifier.size(52.dp), shape = RoundedCornerShape(14.dp))
                 if (isCurrent) {
                     Box(
                         Modifier
                             .size(52.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .background(Color.Black.copy(alpha = 0.45f)),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -241,8 +250,8 @@ fun SongRow(
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                color = if (isCurrent) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -265,8 +274,15 @@ fun SongRow(
             )
         }
         if (onMore != null) {
-            IconButton(onClick = onMore) {
-                Icon(Icons.Rounded.MoreVert, contentDescription = "More options for ${song.title}")
+            Surface(
+                onClick = onMore,
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.7f),
+                modifier = Modifier.size(38.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.MoreVert, contentDescription = "More options for ${song.title}", modifier = Modifier.size(20.dp))
+                }
             }
         } else {
             Spacer(Modifier.width(12.dp))

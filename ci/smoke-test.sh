@@ -380,7 +380,7 @@ shortcut settings
 tap "Aurora" || { adb shell input swipe 540 1700 540 1000 400; sleep 1; tap "Aurora"; }
 shortcut player; shot 21c-aurora 5
 shortcut settings
-tap "Blurred artwork" || { adb shell input swipe 540 1700 540 1000 400; sleep 1; tap "Blurred artwork"; }
+tap "Artwork colour" || { adb shell input swipe 540 1700 540 1000 400; sleep 1; tap "Artwork colour"; }
 
 echo "== Share what's playing"
 shortcut player

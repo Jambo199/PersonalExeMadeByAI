@@ -55,7 +55,6 @@ import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.Spa
 import androidx.compose.material.icons.rounded.Style
 import androidx.compose.material.icons.rounded.Whatshot
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -79,6 +78,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.jambo199.vividmusic.data.Album
 import com.jambo199.vividmusic.data.Artist
 import com.jambo199.vividmusic.data.DailyMix
@@ -140,7 +140,11 @@ fun HomeScreen(viewModel: MainViewModel) {
 
     LazyColumn(state = listState, contentPadding = PaddingValues(bottom = bottom + 16.dp)) {
         item(key = "greeting") {
-            Greeting(feed) { viewModel.shuffle(library.songs, "All songs") }
+            Greeting(
+                feed,
+                onShuffle = { viewModel.shuffle(library.songs, "All songs") },
+                onPlayPicks = { viewModel.play(feed.quickPicks, 0, "Quick picks") },
+            )
         }
         item(key = "tiles") {
             ShortcutTiles { nav.playlist(it) }
@@ -304,24 +308,81 @@ private fun greeting(): String = when (Calendar.getInstance().get(Calendar.HOUR_
     else -> "Late night tunes"
 }
 
+/** A big, bold greeting with a round shuffle button, over a playful collage of your covers. */
 @Composable
-private fun Greeting(feed: HomeFeed, onShuffle: () -> Unit) {
-    Row(
+private fun Greeting(feed: HomeFeed, onShuffle: () -> Unit, onPlayPicks: () -> Unit) {
+    Column(
         Modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 16.dp, top = 4.dp, bottom = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(start = 20.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(greeting(), style = MaterialTheme.typography.headlineMedium)
-            Text(
-                "${pluralize(feed.songCount, "song")} • ${formatTotalDuration(feed.totalDurationMs)} of music",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    greeting().replace(' ', '\n'),
+                    fontSize = 50.sp,
+                    lineHeight = 50.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = (-1).sp,
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "${pluralize(feed.songCount, "song")} • ${formatTotalDuration(feed.totalDurationMs)} of music",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Surface(
+                onClick = onShuffle,
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(96.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.Shuffle, contentDescription = "Shuffle all", modifier = Modifier.size(40.dp))
+                }
+            }
         }
-        FilledIconButton(onClick = onShuffle, modifier = Modifier.size(56.dp)) {
-            Icon(Icons.Rounded.Shuffle, contentDescription = "Shuffle all")
+        // A pill and two circles of cover art from your quick picks; tap to play them.
+        val covers = remember(feed.quickPicks) { feed.quickPicks.distinctBy { it.albumId }.take(3) }
+        if (covers.size == 3) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .padding(top = 8.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .clickable(onClickLabel = "Play quick picks", onClick = onPlayPicks),
+                contentAlignment = Alignment.Center,
+            ) {
+                Artwork(
+                    covers[0],
+                    Modifier
+                        .size(width = 230.dp, height = 132.dp)
+                        .graphicsLayer { rotationZ = -24f },
+                    shape = RoundedCornerShape(66.dp),
+                    iconSize = 48.dp,
+                )
+                Artwork(
+                    covers[1],
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .offset(x = 18.dp, y = 6.dp)
+                        .size(84.dp),
+                    shape = CircleShape,
+                    iconSize = 32.dp,
+                )
+                Artwork(
+                    covers[2],
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .offset(x = (-22).dp, y = (-4).dp)
+                        .size(76.dp),
+                    shape = CircleShape,
+                    iconSize = 28.dp,
+                )
+            }
         }
     }
 }
