@@ -52,6 +52,7 @@ data class Settings(
     val playbackPitch: Float = 1f,
     val swipeArtworkToSkip: Boolean = true,
     val showLyricsWhenAvailable: Boolean = false,
+    val autoCheckUpdates: Boolean = true,
     val eq: EqSettings = EqSettings(),
 )
 
@@ -106,6 +107,7 @@ class SettingsStore(context: Context) {
             playbackPitch = prefs.getFloat("playbackPitch", d.playbackPitch),
             swipeArtworkToSkip = prefs.getBoolean("swipeArtworkToSkip", d.swipeArtworkToSkip),
             showLyricsWhenAvailable = prefs.getBoolean("showLyricsWhenAvailable", d.showLyricsWhenAvailable),
+            autoCheckUpdates = prefs.getBoolean("autoCheckUpdates", d.autoCheckUpdates),
             eq = EqSettings(
                 enabled = prefs.getBoolean("eq.enabled", false),
                 preset = prefs.getInt("eq.preset", -1),
@@ -146,6 +148,7 @@ class SettingsStore(context: Context) {
             .putFloat("playbackPitch", s.playbackPitch)
             .putBoolean("swipeArtworkToSkip", s.swipeArtworkToSkip)
             .putBoolean("showLyricsWhenAvailable", s.showLyricsWhenAvailable)
+            .putBoolean("autoCheckUpdates", s.autoCheckUpdates)
             .putBoolean("eq.enabled", s.eq.enabled)
             .putInt("eq.preset", s.eq.preset)
             .putString("eq.bands", s.eq.bandLevels.joinToString(","))

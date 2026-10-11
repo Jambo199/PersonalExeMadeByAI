@@ -89,6 +89,7 @@ import com.jambo199.vividmusic.ui.components.LocalBottomPadding
 import com.jambo199.vividmusic.ui.components.LocalSelection
 import com.jambo199.vividmusic.ui.components.SongRow
 import com.jambo199.vividmusic.ui.components.SortMenu
+import com.jambo199.vividmusic.ui.components.UpdateBanner
 import kotlinx.coroutines.launch
 
 private val TABS = listOf("Songs", "Albums", "Artists", "Folders", "Playlists")
@@ -167,6 +168,14 @@ fun LibraryScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+        )
+        val update by viewModel.update.collectAsState()
+        val updateDismissed by viewModel.updateBannerDismissed.collectAsState()
+        UpdateBanner(
+            state = update,
+            dismissed = updateDismissed,
+            onUpdate = { viewModel.startUpdate() },
+            onDismiss = { viewModel.dismissUpdateBanner() },
         )
         PrimaryScrollableTabRow(
             selectedTabIndex = pagerState.currentPage,

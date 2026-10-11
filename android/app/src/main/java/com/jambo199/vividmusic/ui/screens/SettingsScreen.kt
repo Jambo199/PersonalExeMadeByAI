@@ -42,6 +42,7 @@ import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -78,12 +79,14 @@ import com.jambo199.vividmusic.ui.MainViewModel
 import com.jambo199.vividmusic.ui.components.LocalBottomPadding
 import com.jambo199.vividmusic.ui.components.SectionHeader
 import com.jambo199.vividmusic.ui.theme.AccentColors
+import com.jambo199.vividmusic.update.UpdateState
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(viewModel: MainViewModel) {
     val settings by viewModel.settings.collectAsState()
     val library by viewModel.library.collectAsState()
+    val update by viewModel.update.collectAsState()
     val nav = LocalNav.current
     val context = LocalContext.current
     var themeDialog by remember { mutableStateOf(false) }
@@ -250,6 +253,32 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     "vivo background & auto-start settings",
                     "If music stops when the screen is off, allow \"High background power consumption\" and auto-start for Vivid Music",
                 ) { openVivoBackgroundSettings(context) }
+            }
+
+            item { SectionHeader("App updates") }
+            item {
+                val subtitle = when (val u = update) {
+                    UpdateState.Checking -> "Checking…"
+                    UpdateState.UpToDate -> "You have the latest version (${BuildConfig.VERSION_NAME})"
+                    is UpdateState.Available -> "Version ${u.info.versionName} is available – tap to update"
+                    is UpdateState.Downloading -> "Downloading version ${u.info.versionName}… ${(u.progress * 100).toInt()}%"
+                    is UpdateState.Ready -> "Version ${u.info.versionName} downloaded – tap to install"
+                    is UpdateState.Failed -> u.message
+                    UpdateState.Idle -> "Installed: ${BuildConfig.VERSION_NAME}"
+                }
+                SettingRow(Icons.Rounded.SystemUpdate, "Check for updates", subtitle) {
+                    when (update) {
+                        is UpdateState.Available, is UpdateState.Ready -> viewModel.startUpdate()
+                        is UpdateState.Failed -> if ((update as UpdateState.Failed).info != null) viewModel.startUpdate() else viewModel.checkForUpdates()
+                        is UpdateState.Downloading, UpdateState.Checking -> Unit
+                        else -> viewModel.checkForUpdates()
+                    }
+                }
+            }
+            item {
+                SwitchRow(null, "Check automatically", "Look for a new version each time the app opens", settings.autoCheckUpdates) { v ->
+                    viewModel.updateSettings { it.copy(autoCheckUpdates = v) }
+                }
             }
 
             item { SectionHeader("About") }

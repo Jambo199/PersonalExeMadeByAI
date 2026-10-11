@@ -27,6 +27,16 @@ Then on the phone:
 
 Every new build installs over the old one and keeps your playlists, favourites and settings.
 
+### Updates
+
+Once it's installed you don't need to come back here: each time Vivid Music opens it checks the
+release page, and if there's a newer build it shows **Update available** at the top of the library.
+Tap it – the app downloads the new version, checks it's genuine (same app, newer build, matching
+checksum) and opens Android's install screen; tap **Update** there. The first time, Android asks you
+to allow *Install unknown apps* for Vivid Music – switch it on and go back, and the install continues.
+You can also check by hand, or turn the automatic check off, in **Settings → App updates**. The check
+only downloads a tiny `version.json` from GitHub; nothing about you or your music is sent.
+
 ### vivo tips (keep music playing with the screen off)
 
 vivo's battery saver can stop background apps. In Vivid Music go to **Settings → Background playback (vivo)**:

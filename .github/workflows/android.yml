@@ -46,6 +46,21 @@ jobs:
           name: vivid-music-apk
           path: dist/*.apk
 
+      # An otherwise identical build numbered 1, so the emulator test can watch the in-app
+      # updater find this run's predecessor on the release page and install it.
+      - name: Build an old-numbered copy for the updater test
+        env:
+          VERSION_CODE: 1
+        run: |
+          ./gradlew --no-daemon assembleRelease
+          mkdir -p ../dist-old
+          cp app/build/outputs/apk/release/app-release.apk ../dist-old/VividMusic-old.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vivid-music-old-apk
+          path: dist-old/*.apk
+
   emulator-test:
     needs: build
     runs-on: ubuntu-latest
@@ -59,6 +74,11 @@ jobs:
         with:
           name: vivid-music-apk
           path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: vivid-music-old-apk
+          path: dist-old
 
       - name: Enable KVM
         run: |
@@ -78,7 +98,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -camera-back none
-          script: bash android/ci/smoke-test.sh "$(ls dist/*.apk | head -1)" testmedia screenshots
+          script: bash android/ci/smoke-test.sh "$(ls dist/*.apk | head -1)" testmedia screenshots "$(ls dist-old/*.apk | head -1)"
 
       - name: Pack screenshots
         if: always()
@@ -108,6 +128,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       TAG: vivid-music-latest
+      NOTES: ${{ github.event.head_commit.message }}
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -123,7 +144,13 @@ jobs:
       - name: Publish pre-release with the APK
         run: |
           cp dist/*.apk VividMusic.apk
-          files="VividMusic.apk"
+          # Read by the app's updater: build number plus a checksum it verifies after download.
+          jq -n --argjson code ${{ github.run_number }} --arg name "1.0.${{ github.run_number }}" \
+            --arg sha "$(sha256sum VividMusic.apk | cut -d' ' -f1)" --argjson size "$(stat -c %s VividMusic.apk)" \
+            --arg notes "$NOTES" --arg commit "${GITHUB_SHA::7}" \
+            '{versionCode: $code, versionName: $name, apk: "VividMusic.apk", sha256: $sha, size: $size, notes: $notes, commit: $commit}' > version.json
+          cat version.json
+          files="VividMusic.apk version.json"
           if [ -f shots/screenshots.zip ]; then cp shots/screenshots.zip screenshots.zip; files="$files screenshots.zip"; fi
           cat > notes.md <<NOTES
           **Vivid Music for Android – build ${{ github.run_number }}** (\`${GITHUB_SHA::7}\`, emulator test: ${{ needs.emulator-test.result }})
@@ -134,6 +161,8 @@ jobs:
           3. Tap **Install**, then open **Vivid Music** and allow access to music.
 
           On vivo phones: Settings → Battery → Background power consumption management → Vivid Music → **Allow**, so music keeps playing with the screen off.
+
+          Already have Vivid Music? It checks this page when it opens and offers the update itself.
 
           \`screenshots.zip\` has previews from the automated emulator test.
           NOTES

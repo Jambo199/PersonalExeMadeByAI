@@ -7,6 +7,10 @@ plugins {
 // CI passes the workflow run number so every published APK installs over the previous one.
 val buildNumber = (System.getenv("VERSION_CODE") ?: "1").toIntOrNull() ?: 1
 
+// Where the in-app updater looks for new builds (the rolling pre-release CI publishes).
+val updateRepo = System.getenv("GITHUB_REPOSITORY") ?: "Jambo199/PersonalExeMadeByAI"
+val updateBaseUrl = "https://github.com/$updateRepo/releases/download/vivid-music-latest/"
+
 android {
     namespace = "com.jambo199.vividmusic"
     compileSdk = 35
@@ -17,6 +21,7 @@ android {
         targetSdk = 35
         versionCode = buildNumber
         versionName = "1.0.$buildNumber"
+        buildConfigField("String", "UPDATE_BASE_URL", "\"$updateBaseUrl\"")
         vectorDrawables.useSupportLibrary = true
     }
 

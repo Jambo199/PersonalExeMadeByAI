@@ -34,6 +34,7 @@ import com.jambo199.vividmusic.playback.PlayerConnection
 import com.jambo199.vividmusic.playback.PlayerEvents
 import com.jambo199.vividmusic.playback.QueueEntry
 import com.jambo199.vividmusic.playback.SleepTimer
+import com.jambo199.vividmusic.update.UpdateState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -81,6 +82,23 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val queueSource: StateFlow<String> = player.source
     val lyrics: StateFlow<Lyrics?> = AppGraph.lyrics.current
     val sleepTimer: StateFlow<SleepTimer.Mode> = SleepTimer.mode
+    val update: StateFlow<UpdateState> = AppGraph.updates.state
+
+    private val _updateBannerDismissed = MutableStateFlow(false)
+
+    /** "Later" hides the update card until the app is opened again. */
+    val updateBannerDismissed: StateFlow<Boolean> = _updateBannerDismissed.asStateFlow()
+
+    fun dismissUpdateBanner() {
+        _updateBannerDismissed.value = true
+    }
+
+    fun startUpdate() {
+        _updateBannerDismissed.value = false
+        AppGraph.updates.download()
+    }
+
+    fun checkForUpdates() = AppGraph.updates.check(manual = true)
 
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val messages: SharedFlow<String> = _messages.asSharedFlow()

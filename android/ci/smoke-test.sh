@@ -5,6 +5,7 @@ set -uo pipefail
 APK="$1"
 MEDIA="$2"
 OUT="$3"
+OLD_APK="${4:-}"   # same app numbered build 1, for testing the in-app updater
 PKG=com.jambo199.vividmusic
 HERE="$(cd "$(dirname "$0")" && pwd)"
 mkdir -p "$OUT"
@@ -86,6 +87,28 @@ for i in $(seq 1 30); do
   fi
   sleep 2
 done
+
+if [ -n "$OLD_APK" ] && [ -f "$OLD_APK" ]; then
+  echo "== In-app updater (installed as build 1; the release page has a newer build)"
+  adb install -r "$OLD_APK" > /dev/null
+  adb shell pm grant $PKG android.permission.READ_MEDIA_AUDIO
+  adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS
+  adb shell appops set $PKG REQUEST_INSTALL_PACKAGES allow
+  launch
+  shot 00a-update-available 8
+  if tap "Update"; then
+    for _ in $(seq 1 40); do
+      sleep 2
+      adb shell dumpsys window | grep -q "mCurrentFocus.*packageinstaller" && break
+    done
+    shot 00b-update-installer 2
+    adb shell dumpsys window | grep -E "mCurrentFocus" | head -1
+  fi
+  adb logcat -d | grep -E "UpdateManager" | tail -5
+  adb shell input keyevent KEYCODE_BACK
+  adb shell input keyevent KEYCODE_HOME
+  adb uninstall $PKG > /dev/null
+fi
 
 echo "== Installing"
 adb install -r "$APK"

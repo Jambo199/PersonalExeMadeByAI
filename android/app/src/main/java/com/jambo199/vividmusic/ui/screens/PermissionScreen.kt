@@ -105,7 +105,7 @@ fun PermissionScreen(viewModel: MainViewModel, onSkip: () -> Unit) {
             Spacer(Modifier.height(12.dp))
             Text(
                 "Allow access to your music so Vivid Music can find your songs, albums, folders and artwork. " +
-                    "Nothing ever leaves your phone.",
+                    "Your music stays on your phone.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

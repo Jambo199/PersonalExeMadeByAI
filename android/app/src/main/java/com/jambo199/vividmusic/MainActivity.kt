@@ -25,6 +25,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         if (savedInstanceState == null) handleIntent(intent)
+        AppGraph.updates.checkOnLaunch(AppGraph.settings.current.autoCheckUpdates)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -41,6 +42,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.onResume()
+        AppGraph.updates.onResume()
     }
 
     override fun onStop() {
