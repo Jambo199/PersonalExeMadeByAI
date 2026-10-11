@@ -431,6 +431,11 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 }
             }
             item {
+                SwitchRow(null, "Shake to skip", "Give your phone two firm shakes to jump to the next song (while music plays)", settings.shakeToSkip) { v ->
+                    viewModel.updateSettings { it.copy(shakeToSkip = v) }
+                }
+            }
+            item {
                 SwitchRow(null, "Open lyrics automatically", "Show lyrics instead of artwork when the player opens", settings.showLyricsWhenAvailable) { v ->
                     viewModel.updateSettings { it.copy(showLyricsWhenAvailable = v) }
                 }

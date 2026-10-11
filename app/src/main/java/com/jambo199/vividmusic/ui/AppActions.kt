@@ -22,6 +22,8 @@ object Routes {
     const val PLAYLIST = "playlist/{id}"
     const val GENRE = "genre/{name}"
     const val NCS_ARTIST = "ncs_artist/{path}"
+    const val QUIZ = "quiz"
+    const val WRAPPED = "wrapped"
 }
 
 @Stable
@@ -37,6 +39,8 @@ class NavActions(private val nav: NavHostController) {
     fun settings() = nav.navigate(Routes.SETTINGS) { launchSingleTop = true }
     fun equalizer() = nav.navigate(Routes.EQUALIZER) { launchSingleTop = true }
     fun stats() = nav.navigate(Routes.STATS) { launchSingleTop = true }
+    fun quiz() = nav.navigate(Routes.QUIZ) { launchSingleTop = true }
+    fun wrapped() = nav.navigate(Routes.WRAPPED) { launchSingleTop = true }
     fun back() {
         nav.popBackStack()
     }

@@ -57,6 +57,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -91,6 +92,8 @@ class PlaybackService : MediaLibraryService() {
     private var songFade = 1f
     private var autoAdvanced = false
     private var saveQueueJob: Job? = null
+    private val playingNow = MutableStateFlow(false)
+    private var shake: ShakeDetector? = null
     private var saveStateJob: Job? = null
 
     override fun onCreate() {
@@ -211,6 +214,7 @@ class PlaybackService : MediaLibraryService() {
         AppGraph.userData.flush()
         AudioEffects.release(this)
         AudioEffects.releaseReverb()
+        shake?.stop()
         session?.run {
             player.release()
             release()
@@ -231,6 +235,20 @@ class PlaybackService : MediaLibraryService() {
         }
         scope.launch {
             AppGraph.settings.state.map { it.eq }.distinctUntilChanged().collect { AudioEffects.apply(it) }
+        }
+        // Shake to skip listens to the motion sensor only while music plays.
+        scope.launch {
+            combine(AppGraph.settings.state.map { it.shakeToSkip }.distinctUntilChanged(), playingNow) { on, playing -> on && playing }
+                .distinctUntilChanged()
+                .collect { active ->
+                    val detector = shake ?: ShakeDetector(this@PlaybackService) {
+                        if (exo.hasNextMediaItem()) {
+                            exo.seekToNext()
+                            PlayerEvents.post("Shaken: next song")
+                        }
+                    }.also { shake = it }
+                    if (active) detector.start() else detector.stop()
+                }
         }
         scope.launch {
             AppGraph.settings.state.map { it.reverb }.distinctUntilChanged().collect { r ->
@@ -452,6 +470,7 @@ class PlaybackService : MediaLibraryService() {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             Spectrum.onPlaying(isPlaying)
+            playingNow.value = isPlaying
             if (isPlaying) {
                 consecutiveErrors = 0
             } else {

@@ -289,6 +289,21 @@ fi
 adb logcat -d | grep -E "NcsViewModel" | tail -14
 adb logcat -d | grep -E "NcsViewModel|ExoPlayerImplInternal.*rror|DownloadManager" | tail -5
 
+echo "== Fun: Guess the song and Wrapped"
+shortcut quiz; shot 46-quiz 4
+if tap "Start"; then
+  shot 47-quiz-question 5
+  first_choice=$(text_after "Which song is this?")
+  echo "first choice: $first_choice"
+  if [ -n "$first_choice" ] && tap "$first_choice"; then shot 48-quiz-answer 2; fi
+fi
+adb shell input keyevent KEYCODE_BACK
+shortcut wrapped; shot 49-wrapped 3
+adb shell input tap 900 1400; shot 50-wrapped-minutes 2
+for _ in 1 2 3 4 5 6 7 8; do adb shell input tap 900 1400; sleep 0.5; done
+shot 51-wrapped-summary 2
+adb shell input keyevent KEYCODE_BACK
+
 echo "== Other screens"
 shortcut settings;  shot 17-settings 3
 shortcut equalizer; shot 18-equalizer 3

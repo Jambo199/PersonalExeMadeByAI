@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FiberNew
 import androidx.compose.material.icons.rounded.History
@@ -38,6 +39,7 @@ import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Quiz
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.Whatshot
@@ -190,6 +192,22 @@ fun HomeScreen(viewModel: MainViewModel) {
         }
 
         item(key = "stats") { StatsCard(viewModel) { nav.stats() } }
+        item(key = "wrapped") {
+            GradientCard(
+                "Your Wrapped",
+                "Your top songs, artists and listening personality",
+                Icons.Rounded.AutoAwesome,
+                listOf(Color(0xFF12005E), Color(0xFFD500F9)),
+            ) { nav.wrapped() }
+        }
+        item(key = "quiz") {
+            GradientCard(
+                "Guess the song",
+                "Hear a few seconds, name the tune. How many can you get?",
+                Icons.Rounded.Quiz,
+                listOf(Color(0xFF7C4DFF), Color(0xFFE040FB)),
+            ) { nav.quiz() }
+        }
     }
 }
 
@@ -477,6 +495,34 @@ private fun StatsCard(viewModel: MainViewModel, onOpen: () -> Unit) {
                 )
             }
             Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null)
+        }
+    }
+}
+
+/** A colourful card leading to one of the fun pages (Wrapped, the quiz). */
+@Composable
+private fun GradientCard(title: String, subtitle: String, icon: ImageVector, colors: List<Color>, onOpen: () -> Unit) {
+    Surface(
+        onClick = onOpen,
+        shape = RoundedCornerShape(16.dp),
+        color = Color.Transparent,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 12.dp),
+    ) {
+        Row(
+            Modifier
+                .background(Brush.linearGradient(colors))
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, color = Color.White)
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Color.White)
+            }
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = Color.White)
         }
     }
 }

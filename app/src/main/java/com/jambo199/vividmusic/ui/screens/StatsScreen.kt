@@ -25,8 +25,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -94,6 +96,11 @@ fun StatsScreen(viewModel: MainViewModel) {
                     Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    Button(onClick = { nav.wrapped() }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Rounded.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("See your Wrapped")
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         StatCard(formatTotalDuration(stats.listenedMs), "listened", Modifier.weight(1f))
                         StatCard(stats.plays.toString(), if (stats.plays == 1) "play" else "plays", Modifier.weight(1f))

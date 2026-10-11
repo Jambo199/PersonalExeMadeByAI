@@ -42,6 +42,7 @@ import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Quiz
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
@@ -147,6 +148,14 @@ fun MainScreen(viewModel: MainViewModel, onSleepTimer: () -> Unit) {
                         onClick = {
                             menuOpen = false
                             nav.equalizer()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Guess the song") },
+                        leadingIcon = { Icon(Icons.Rounded.Quiz, null) },
+                        onClick = {
+                            menuOpen = false
+                            nav.quiz()
                         },
                     )
                     DropdownMenuItem(

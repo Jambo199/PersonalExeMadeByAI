@@ -104,6 +104,8 @@ data class Settings(
     val playbackSpeed: Float = 1f,
     val playbackPitch: Float = 1f,
     val swipeArtworkToSkip: Boolean = true,
+    /** A firm shake of the phone skips to the next song. */
+    val shakeToSkip: Boolean = false,
     val showLyricsWhenAvailable: Boolean = false,
     /** Look up lyrics on LRCLIB when you open the lyrics of a song that has none. */
     val onlineLyrics: Boolean = true,
@@ -223,6 +225,7 @@ class SettingsStore(context: Context) {
             playbackSpeed = prefs.getFloat("playbackSpeed", d.playbackSpeed),
             playbackPitch = prefs.getFloat("playbackPitch", d.playbackPitch),
             swipeArtworkToSkip = prefs.getBoolean("swipeArtworkToSkip", d.swipeArtworkToSkip),
+            shakeToSkip = prefs.getBoolean("shakeToSkip", d.shakeToSkip),
             showLyricsWhenAvailable = prefs.getBoolean("showLyricsWhenAvailable", d.showLyricsWhenAvailable),
             onlineLyrics = prefs.getBoolean("onlineLyrics", d.onlineLyrics),
             sessionLyrics = prefs.getBoolean("sessionLyrics", d.sessionLyrics),
@@ -283,6 +286,7 @@ class SettingsStore(context: Context) {
             .putFloat("playbackSpeed", s.playbackSpeed)
             .putFloat("playbackPitch", s.playbackPitch)
             .putBoolean("swipeArtworkToSkip", s.swipeArtworkToSkip)
+            .putBoolean("shakeToSkip", s.shakeToSkip)
             .putBoolean("showLyricsWhenAvailable", s.showLyricsWhenAvailable)
             .putBoolean("onlineLyrics", s.onlineLyrics)
             .putBoolean("sessionLyrics", s.sessionLyrics)

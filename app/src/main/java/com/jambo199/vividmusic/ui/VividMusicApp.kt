@@ -54,6 +54,7 @@ import com.jambo199.vividmusic.ui.components.SelectionBar
 import com.jambo199.vividmusic.ui.components.SelectionState
 import com.jambo199.vividmusic.ui.components.SongMenuHost
 import com.jambo199.vividmusic.ui.online.NcsArtistScreen
+import com.jambo199.vividmusic.ui.quiz.QuizScreen
 import com.jambo199.vividmusic.ui.screens.AlbumScreen
 import com.jambo199.vividmusic.ui.screens.ArtistScreen
 import com.jambo199.vividmusic.ui.screens.EqualizerScreen
@@ -67,6 +68,7 @@ import com.jambo199.vividmusic.ui.screens.SearchScreen
 import com.jambo199.vividmusic.ui.screens.SettingsScreen
 import com.jambo199.vividmusic.ui.screens.SleepTimerDialog
 import com.jambo199.vividmusic.ui.screens.StatsScreen
+import com.jambo199.vividmusic.ui.screens.WrappedScreen
 import kotlinx.coroutines.launch
 
 private val NAV_ROUTES = setOf(Routes.MAIN, Routes.ALBUM, Routes.ARTIST, Routes.FOLDER, Routes.PLAYLIST, Routes.STATS, Routes.GENRE, Routes.NCS_ARTIST)
@@ -101,7 +103,8 @@ fun VividMusicApp(viewModel: MainViewModel) {
     val backStack by navController.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
     val showSelection = selection.active
-    val showMini = playback.song != null && route != Routes.NOW_PLAYING && !showSelection
+    // The quiz plays its own clips and Wrapped is full screen, so the mini player would only get in the way.
+    val showMini = playback.song != null && route != Routes.NOW_PLAYING && route != Routes.QUIZ && route != Routes.WRAPPED && !showSelection
     val section by viewModel.section.collectAsState()
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     // The navigation bar stays while browsing (albums, folders...) and hides for the player,
@@ -134,6 +137,8 @@ fun VividMusicApp(viewModel: MainViewModel) {
             "settings" -> nav.settings()
             "equalizer" -> nav.equalizer()
             "stats" -> nav.stats()
+            "quiz" -> nav.quiz()
+            "wrapped" -> nav.wrapped()
             "favorites" -> nav.playlist(com.jambo199.vividmusic.data.SmartPlaylists.FAVORITES)
             "queue" -> nav.nowPlaying()
         }
@@ -197,6 +202,8 @@ fun VividMusicApp(viewModel: MainViewModel) {
                     composable(Routes.SETTINGS) { SettingsScreen(viewModel) }
                     composable(Routes.EQUALIZER) { EqualizerScreen(viewModel) }
                     composable(Routes.STATS) { StatsScreen(viewModel) }
+                    composable(Routes.QUIZ) { QuizScreen() }
+                    composable(Routes.WRAPPED) { WrappedScreen(viewModel) }
                     composable(Routes.ALBUM, arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
                         AlbumScreen(viewModel, entry.arguments?.getLong("id") ?: 0L)
                     }
