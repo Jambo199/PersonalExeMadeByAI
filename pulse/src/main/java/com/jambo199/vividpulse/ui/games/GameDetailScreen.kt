@@ -147,7 +147,7 @@ fun GameDetailScreen(appId: Int, back: () -> Unit) {
                     known?.peakToday?.let {
                         Text("Peak today ${Format.grouped(it)}", style = MaterialTheme.typography.bodyMedium.merge(Numbers), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    if (players.size >= 2) {
+                    if (players.size >= 3) {
                         Spacer(Modifier.height(10.dp))
                         val low = (players.minOrNull() ?: 0f) * 0.995f
                         LiveChart(

@@ -3,9 +3,18 @@
 # reviewed from the job log.
 set -uo pipefail
 DIR="${1:-screenshots}"
-for f in "$DIR"/*.png; do
-  [ -f "$f" ] || continue
-  n=$(basename "$f" .png)
-  ffmpeg -hide_banner -loglevel error -y -i "$f" -vf "scale=300:-2" -q:v 9 "/tmp/$n.jpg"
-  echo "THUMB $n $(stat -c %s "/tmp/$n.jpg") $(base64 -w0 "/tmp/$n.jpg")"
-done
+python3 -m pip install --quiet --disable-pip-version-check pillow > /dev/null 2>&1 || true
+python3 - "$DIR" <<'PY'
+import base64, io, pathlib, sys
+from PIL import Image
+for f in sorted(pathlib.Path(sys.argv[1]).glob("*.png")):
+    try:
+        im = Image.open(f).convert("RGB")
+        im.thumbnail((300, 1000))
+        buf = io.BytesIO()
+        im.save(buf, "JPEG", quality=55)
+        data = buf.getvalue()
+        print(f"THUMB {f.stem} {len(data)} {base64.b64encode(data).decode()}")
+    except Exception as e:
+        print(f"THUMB {f.stem} failed: {e}")
+PY

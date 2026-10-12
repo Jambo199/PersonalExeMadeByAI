@@ -159,11 +159,11 @@ private fun CpuHero(live: LiveState?, modifier: Modifier, onClick: () -> Unit) {
                     visible = 40,
                 )
                 Spacer(Modifier.height(10.dp))
-                Row(Modifier.fillMaxWidth().height(34.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Row(Modifier.fillMaxWidth().height(34.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                     val loads = cpu?.coreLoad.orEmpty()
                     cores.forEachIndexed { i, _ ->
                         val l = loads.getOrNull(i) ?: 0f
-                        VerticalMeter(l, Accents.load(l), Modifier.weight(1f).fillMaxHeight())
+                        VerticalMeter(l, Accents.load(l), Modifier.width(10.dp).fillMaxHeight())
                     }
                 }
             }

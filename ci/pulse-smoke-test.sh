@@ -38,6 +38,7 @@ tap() { # tap the element labelled $1
   return 1
 }
 swipe_up() { adb shell input swipe 540 1800 540 700 350; }
+swipe_down() { adb shell input swipe 540 700 540 1900 350; }
 
 adb shell input keyevent KEYCODE_WAKEUP
 adb shell wm dismiss-keyguard || true
@@ -72,6 +73,7 @@ texts
 swipe_up; shot 21-games-scrolled 2
 for t in "Top sellers" "Deals" "Free on Epic"; do
   open_page games; sleep 1
+  swipe_down; swipe_down; sleep 1
   tap "$t" && shot "22-games-${t// /-}" 8
 done
 open_page "game/730"; shot 25-game-detail 8

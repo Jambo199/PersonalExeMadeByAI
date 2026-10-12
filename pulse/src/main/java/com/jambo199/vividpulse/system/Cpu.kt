@@ -92,8 +92,10 @@ class CpuReader {
     private fun online(i: Int): Boolean = i == 0 || SysFs.read("/sys/devices/system/cpu/cpu$i/online", remember = false) != "0"
 
     private fun curFreq(i: Int): Long? =
-        SysFs.readLong("/sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq", remember = false)
-            ?: SysFs.readLong("/sys/devices/system/cpu/cpu$i/cpufreq/cpuinfo_cur_freq", remember = false)
+        (
+            SysFs.readLong("/sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq", remember = false)
+                ?: SysFs.readLong("/sys/devices/system/cpu/cpu$i/cpufreq/cpuinfo_cur_freq", remember = false)
+            )?.takeIf { it > 0 && cores.getOrNull(i)?.maxKHz?.let { max -> max > 0 } != false }
 
     /** Real usage from /proc/stat, on the rare phones that still allow it. */
     private fun readStatUsage(): Pair<Float, Map<String, Float>>? {

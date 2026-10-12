@@ -178,8 +178,8 @@ fun SpeedTestScreen(back: () -> Unit) {
                     Spacer(Modifier.height(4.dp))
                     history.forEach { h ->
                         InfoRow(
-                            DateUtils.getRelativeTimeSpanString(h.at).toString(),
-                            "↓ ${mbps(h.down)}   ↑ ${mbps(h.up)}   ${h.ping.roundToInt()} ms",
+                            if (System.currentTimeMillis() - h.at < 60_000) "Just now" else DateUtils.getRelativeTimeSpanString(h.at).toString(),
+                            "↓ ${mbps(h.down)} · ↑ ${mbps(h.up)} · ${h.ping.roundToInt()} ms",
                         )
                     }
                 }

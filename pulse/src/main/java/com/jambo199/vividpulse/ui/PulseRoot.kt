@@ -36,6 +36,7 @@ import androidx.compose.material.icons.rounded.Smartphone
 import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -123,9 +124,8 @@ fun PulseRoot(requests: MutableStateFlow<String?>) {
             requests.value = null
             if (isTab(r)) {
                 nav.navigate(r) {
-                    popUpTo(Tab.LIVE.route) { saveState = r != Tab.LIVE.route }
+                    popUpTo(Tab.LIVE.route)
                     launchSingleTop = true
-                    restoreState = true
                 }
             } else {
                 nav.navigate(r) { launchSingleTop = true }
@@ -140,7 +140,8 @@ fun PulseRoot(requests: MutableStateFlow<String?>) {
     val back: () -> Unit = { nav.popBackStack() }
     val open: (String) -> Unit = { nav.navigate(it) { launchSingleTop = true } }
 
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    Box(Modifier.fillMaxSize()) {
         SharedTransitionLayout {
             CompositionLocalProvider(LocalSharedScope provides this) {
                 NavHost(
@@ -195,6 +196,7 @@ fun PulseRoot(requests: MutableStateFlow<String?>) {
                 }
             }
         }
+    }
     }
 }
 

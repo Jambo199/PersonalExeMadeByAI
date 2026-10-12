@@ -115,7 +115,7 @@ class DeviceSpecs(private val context: Context, private val cpu: CpuReader) {
                     socModel?.takeIf { it != socName }?.let { SpecRow("Chip model", it) },
                     SpecRow("CPU", "${cpu.cores.size} cores"),
                 ) + cpu.clusters.map { c ->
-                    SpecRow(c.name, "${c.cores.size} × ${c.part ?: "core"} @ ${Format.mhz(c.maxKHz / 1000)}")
+                    SpecRow(c.name, "${c.cores.size} × ${c.part ?: "core"}" + (c.maxKHz.takeIf { it > 0 }?.let { " @ ${Format.mhz(it / 1000)}" } ?: ""))
                 } + listOfNotNull(
                     SpecRow("Instruction sets", Build.SUPPORTED_ABIS.joinToString()),
                     cpu.clusters.firstOrNull()?.governor?.let { SpecRow("Governor", it) },

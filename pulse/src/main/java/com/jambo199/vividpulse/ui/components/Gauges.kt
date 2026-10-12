@@ -155,11 +155,9 @@ fun Speedometer(mbps: Float, accent: Accent, modifier: Modifier = Modifier, cont
             val angle = Math.toRadians((start + sweep * fraction).toDouble())
             val len = arcSize.width / 2 - stroke * 0.2f
             val tip = Offset(center.x + (len * cos(angle)).toFloat(), center.y + (len * sin(angle)).toFloat())
-            val back = Offset(center.x - (len * 0.12f * cos(angle)).toFloat(), center.y - (len * 0.12f * sin(angle)).toFloat())
+            val back = Offset(center.x + (len * 0.58f * cos(angle)).toFloat(), center.y + (len * 0.58f * sin(angle)).toFloat())
             drawLine(accent.end.copy(alpha = 0.35f), back, tip, 10.dp.toPx(), StrokeCap.Round)
             drawLine(Color.White, back, tip, 3.5.dp.toPx(), StrokeCap.Round)
-            drawCircle(Color.White, 7.dp.toPx(), center)
-            drawCircle(accent.end, 3.5.dp.toPx(), center)
         }
         content()
     }

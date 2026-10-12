@@ -90,7 +90,7 @@ fun CpuScreen(back: () -> Unit) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         val fastest = cpu?.curKHz?.filterNotNull()?.maxOrNull()
                         Stat("Fastest core", fastest?.let { Format.mhz(it / 1000) } ?: "—")
-                        Stat("Top speed", Format.mhz(reader.maxKHz / 1000))
+                        Stat("Top speed", reader.maxKHz.takeIf { it > 0 }?.let { Format.mhz(it / 1000) } ?: "—")
                         Stat("Cores awake", "${cpu?.curKHz?.count { it != null } ?: 0} of ${reader.cores.size}")
                     }
                 }
@@ -163,7 +163,7 @@ private fun ClusterCard(cluster: Cluster, live: LiveState?, modifier: Modifier) 
             Column(Modifier.weight(1f)) {
                 Text(cluster.name, style = MaterialTheme.typography.titleLarge)
                 Text(
-                    "${cluster.cores.size} × ${cluster.part ?: "core"} · up to ${Format.mhz(cluster.maxKHz / 1000)}",
+                    "${cluster.cores.size} × ${cluster.part ?: "core"}" + (cluster.maxKHz.takeIf { it > 0 }?.let { " · up to ${Format.mhz(it / 1000)}" } ?: ""),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
