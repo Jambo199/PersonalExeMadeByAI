@@ -1,6 +1,7 @@
 package com.jambo199.vividpulse.ui.live
 
 import android.content.Intent
+import android.os.SystemClock
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -65,6 +67,7 @@ import com.jambo199.vividpulse.ui.rememberSpecs
 import com.jambo199.vividpulse.ui.theme.Accents
 import com.jambo199.vividpulse.ui.theme.Numbers
 import com.jambo199.vividpulse.util.Format
+import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -75,6 +78,13 @@ fun LiveScreen(open: (String) -> Unit) {
     val specs = rememberSpecs()
     val context = LocalContext.current
     val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    // How long since the phone was switched on, and how much of that it spent asleep.
+    val uptime by produceState(uptimeText()) {
+        while (true) {
+            delay(30_000)
+            value = uptimeText()
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         AmbientGlow(listOf(Accents.cpu, Accents.memory, Accents.upload), Modifier.fillMaxWidth().height(420.dp))
@@ -102,6 +112,12 @@ fun LiveScreen(open: (String) -> Unit) {
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 2,
+                        )
+                        Text(
+                            uptime,
+                            style = MaterialTheme.typography.labelMedium.merge(Numbers),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                            modifier = Modifier.padding(top = 2.dp),
                         )
                     }
                     RoundButton(Icons.Rounded.Settings, "Settings", { open(Routes.SETTINGS) })
@@ -327,6 +343,13 @@ private fun StorageCard(live: LiveState?, modifier: Modifier, onClick: () -> Uni
             )
         }
     }
+}
+
+private fun uptimeText(): String {
+    val on = SystemClock.elapsedRealtime()
+    val awake = SystemClock.uptimeMillis()
+    val asleep = ((on - awake) * 100 / on.coerceAtLeast(1)).toInt()
+    return "On for ${Format.duration(on)} · asleep $asleep% of it"
 }
 
 fun heatWord(headroom: Float): String = when {

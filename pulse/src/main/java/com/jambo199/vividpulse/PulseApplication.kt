@@ -3,6 +3,7 @@ package com.jambo199.vividpulse
 import android.app.Application
 import com.jambo199.vividpulse.data.SettingsStore
 import com.jambo199.vividpulse.games.GamesRepository
+import com.jambo199.vividpulse.games.WatchStore
 import com.jambo199.vividpulse.system.DeviceSpecs
 import com.jambo199.vividpulse.system.LiveMonitor
 import com.jambo199.vividpulse.update.UpdateManager
@@ -26,6 +27,7 @@ object Graph {
     val settings by lazy { SettingsStore(app) }
     val monitor by lazy { LiveMonitor(app) }
     val games by lazy { GamesRepository(app) }
+    val watching by lazy { WatchStore(app) }
     val updates by lazy { UpdateManager(app, scope) }
 
     private val specsLazy = lazy { DeviceSpecs(app, monitor.cpu) }

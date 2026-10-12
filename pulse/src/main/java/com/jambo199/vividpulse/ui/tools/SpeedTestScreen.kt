@@ -1,6 +1,16 @@
 package com.jambo199.vividpulse.ui.tools
 
 import android.content.Context
+import android.content.Intent
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import com.jambo199.vividpulse.tools.ServerInfo
+import com.jambo199.vividpulse.tools.SpeedServer
+import com.jambo199.vividpulse.ui.components.RoundButton
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.text.format.DateUtils
@@ -71,6 +81,11 @@ fun SpeedTestScreen(back: () -> Unit) {
     val running = state.phase != SpeedPhase.IDLE && state.phase != SpeedPhase.DONE && state.phase != SpeedPhase.FAILED
     val mobile = remember { onMobileData(context) }
     DisposableEffect(Unit) { onDispose { job?.cancel() } }
+    val server by produceState<ServerInfo?>(null) { value = SpeedServer.lookup() }
+    val haptics = LocalHapticFeedback.current
+    LaunchedEffect(state.phase) {
+        if (state.phase == SpeedPhase.DONE) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+    }
 
     fun start() {
         job?.cancel()
@@ -85,7 +100,16 @@ fun SpeedTestScreen(back: () -> Unit) {
     }
 
     val accent = if (state.phase == SpeedPhase.UPLOAD) Accents.upload else Accents.download
-    DetailPage("Speed test", back, subtitle = "Using Cloudflare's speed test servers") {
+    DetailPage(
+        "Speed test",
+        back,
+        subtitle = server?.place?.let { "Cloudflare server in $it" } ?: "Using Cloudflare's speed test servers",
+        actions = {
+            if (state.phase == SpeedPhase.DONE) {
+                RoundButton(Icons.Rounded.Share, "Share result", { shareResult(context, state, server) })
+            }
+        },
+    ) {
         item {
             GlassCard(Modifier.fillMaxWidth().sharedCard("tool-speedtest"), accent = accent) {
                 Speedometer(
@@ -161,6 +185,10 @@ fun SpeedTestScreen(back: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                server?.provider?.let {
+                    Spacer(Modifier.height(4.dp))
+                    Text("Your provider: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 if (mobile) {
                     Spacer(Modifier.height(8.dp))
                     Text(
@@ -186,6 +214,17 @@ fun SpeedTestScreen(back: () -> Unit) {
             }
         }
     }
+}
+
+private fun shareResult(context: Context, s: SpeedState, server: ServerInfo?) {
+    val text = buildString {
+        append("My internet speed: ↓ ${mbps(s.downMbps ?: 0f)} · ↑ ${mbps(s.upMbps ?: 0f)}")
+        s.pingMs?.let { append(" · ${it.roundToInt()} ms") }
+        server?.place?.let { append(" (Cloudflare $it)") }
+        append(" – tested with Vivid Pulse")
+    }
+    val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+    runCatching { context.startActivity(Intent.createChooser(send, "Share result").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
 }
 
 private fun mbps(v: Float): String = if (v >= 100) "${v.roundToInt()} Mbps" else String.format(Locale.US, "%.1f Mbps", v)

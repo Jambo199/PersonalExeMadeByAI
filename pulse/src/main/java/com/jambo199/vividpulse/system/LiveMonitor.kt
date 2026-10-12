@@ -32,7 +32,46 @@ data class LiveState(
     val rxHistory: List<Float>,
     val txHistory: List<Float>,
     val storage: StorageSample,
+    /** The current stretch of charging, or of running on battery. */
+    val session: PowerSession?,
 )
+
+/** A stretch of charging (or of running on battery) seen while the app was open. */
+data class PowerSession(
+    val charging: Boolean,
+    /** SystemClock.elapsedRealtime() when it began (or when the app first saw it). */
+    val startedAt: Long,
+    val startLevel: Float,
+    val level: Float,
+    val peakWatts: Float,
+    val energyWh: Float,
+    /** False when it was already under way when the app opened. */
+    val seenStart: Boolean,
+) {
+    val levelChange: Float get() = level - startLevel
+
+    /** Percent per hour gained (charging) or used (on battery); null until there's enough to go on. */
+    fun percentPerHour(nowElapsed: Long): Float? {
+        val hours = (nowElapsed - startedAt) / 3_600_000f
+        if (hours < 0.05f || levelChange == 0f) return null
+        return kotlin.math.abs(levelChange) / hours
+    }
+
+    companion object {
+        /** The session after a new reading: the same one carried on, or a new one if the plug changed. */
+        fun next(prev: PowerSession?, plugged: Boolean, level: Float, watts: Float, nowElapsed: Long, sinceLastMs: Long, firstReading: Boolean): PowerSession {
+            val w = kotlin.math.abs(watts)
+            if (prev == null || prev.charging != plugged) {
+                return PowerSession(plugged, nowElapsed, level, level, w, 0f, seenStart = !firstReading)
+            }
+            return prev.copy(
+                level = level,
+                peakWatts = maxOf(prev.peakWatts, w),
+                energyWh = prev.energyWh + w * sinceLastMs / 3_600_000f,
+            )
+        }
+    }
+}
 
 /**
  * Reads the phone's vitals every [intervalMs] while [run] is collecting (the app is on screen),
@@ -70,11 +109,22 @@ class LiveMonitor(context: Context) {
         val b = battery.sample()
         val t = thermal.sample()
         val n = network.sample()
+        val now = SystemClock.uptimeMillis()
+        val session = PowerSession.next(
+            prev?.session,
+            plugged = b.plug != null,
+            level = b.level,
+            watts = b.watts ?: 0f,
+            nowElapsed = SystemClock.elapsedRealtime(),
+            // Gaps while the app was in the background don't count towards energy.
+            sinceLastMs = (prev?.let { now - it.sampledAt } ?: 0L).coerceAtMost(5_000L),
+            firstReading = prev == null,
+        )
         val cores = c.coreLoad.indices.map { i ->
             (prev?.coreHistory?.getOrNull(i) ?: emptyList()).pushed(c.coreLoad[i] ?: 0f)
         }
         return LiveState(
-            sampledAt = SystemClock.uptimeMillis(),
+            sampledAt = now,
             intervalMs = interval,
             cpu = c,
             cpuHistory = prev?.cpuHistory.orEmpty().pushed(c.load ?: 0f),
@@ -92,6 +142,7 @@ class LiveMonitor(context: Context) {
             rxHistory = prev?.rxHistory.orEmpty().pushed(n.rxPerSec.toFloat()),
             txHistory = prev?.txHistory.orEmpty().pushed(n.txPerSec.toFloat()),
             storage = storageSample,
+            session = session,
         )
     }
 

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Speed
@@ -23,6 +24,9 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,12 +40,14 @@ import com.jambo199.vividpulse.data.ThemeMode
 import com.jambo199.vividpulse.ui.components.CardTitle
 import com.jambo199.vividpulse.ui.components.DetailPage
 import com.jambo199.vividpulse.ui.components.GlassCard
+import com.jambo199.vividpulse.ui.components.WhatsNewSheet
 import com.jambo199.vividpulse.ui.components.bouncyClick
 import com.jambo199.vividpulse.ui.components.entrance
 import com.jambo199.vividpulse.ui.theme.Accent
 import com.jambo199.vividpulse.ui.theme.Accents
 import com.jambo199.vividpulse.ui.theme.LocalPulseColors
 import com.jambo199.vividpulse.update.UpdateState
+import android.text.format.DateUtils
 import java.util.Locale
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -49,6 +55,7 @@ import java.util.Locale
 fun SettingsScreen(back: () -> Unit) {
     val settings by Graph.settings.state.collectAsStateWithLifecycle()
     val update by Graph.updates.state.collectAsStateWithLifecycle()
+    var showNotes by remember { mutableStateOf(false) }
     DetailPage("Settings", back, subtitle = "Vivid Pulse ${BuildConfig.VERSION_NAME}") {
         item {
             GlassCard(Modifier.fillMaxWidth().entrance(0), accent = Accents.memory) {
@@ -76,6 +83,19 @@ fun SettingsScreen(back: () -> Unit) {
                         CardTitle(Icons.Rounded.Thermostat, "Fahrenheit", Accents.thermal)
                     }
                     Switch(settings.fahrenheit, { v -> Graph.settings.update { it.copy(fahrenheit = v) } })
+                }
+                Spacer(Modifier.height(14.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        CardTitle(Icons.Rounded.LightMode, "Keep the screen on", Accents.storage)
+                        Text(
+                            "While Vivid Pulse is open: handy for watching a charge or temperatures while you play",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp, end = 8.dp),
+                        )
+                    }
+                    Switch(settings.keepScreenOn, { v -> Graph.settings.update { it.copy(keepScreenOn = v) } })
                 }
             }
         }
@@ -119,9 +139,31 @@ fun SettingsScreen(back: () -> Unit) {
                 ) {
                     Text(text, style = MaterialTheme.typography.labelLarge, color = Color.White)
                 }
+                val checked = Graph.updates.lastCheckedAt
+                if (checked > 0) {
+                    Text(
+                        "Last checked " + DateUtils.getRelativeTimeSpanString(checked, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
                 Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Check when the app opens", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Column(Modifier.weight(1f)) {
+                        Text("Check automatically", style = MaterialTheme.typography.bodyMedium)
+                        Text("When the app opens, and every few hours while it's open", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     Switch(settings.autoCheckUpdates, { v -> Graph.settings.update { it.copy(autoCheckUpdates = v) } })
+                }
+                val notes = remember { Graph.updates.whatsNew() }
+                if (notes != null) {
+                    Text(
+                        "What's new in ${notes.versionName}",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = Accents.battery.start,
+                        modifier = Modifier.padding(top = 8.dp).clip(CircleShape).bouncyClick { showNotes = true }.padding(vertical = 8.dp),
+                    )
+                    if (showNotes) WhatsNewSheet(notes) { showNotes = false }
                 }
             }
         }

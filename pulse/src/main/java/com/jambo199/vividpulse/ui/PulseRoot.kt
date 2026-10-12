@@ -20,6 +20,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -63,7 +64,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.jambo199.vividpulse.Graph
 import com.jambo199.vividpulse.ui.components.LocalPageScope
+import com.jambo199.vividpulse.ui.components.UpdateBanner
+import com.jambo199.vividpulse.ui.components.WhatsNewSheet
+import com.jambo199.vividpulse.update.UpdateState
 import com.jambo199.vividpulse.ui.components.LocalSharedScope
 import com.jambo199.vividpulse.ui.components.bouncyClick
 import com.jambo199.vividpulse.ui.device.CamerasScreen
@@ -137,6 +143,10 @@ fun PulseRoot(requests: MutableStateFlow<String?>) {
     val tab = Tab.entries.firstOrNull { it.route == route }
     var lastTab by remember { mutableStateOf(Tab.LIVE) }
     LaunchedEffect(tab) { if (tab != null) lastTab = tab }
+    val update by Graph.updates.state.collectAsStateWithLifecycle()
+    val snoozed by Graph.updates.snoozed.collectAsStateWithLifecycle()
+    // Once, the first time the app opens after an update it installed.
+    var whatsNew by remember { mutableStateOf(Graph.updates.takeWhatsNew()) }
     val back: () -> Unit = { nav.popBackStack() }
     val open: (String) -> Unit = { nav.navigate(it) { launchSingleTop = true } }
 
@@ -180,24 +190,33 @@ fun PulseRoot(requests: MutableStateFlow<String?>) {
                 }
             }
         }
-        AnimatedVisibility(
-            visible = tab != null,
-            enter = slideInVertically(spring(dampingRatio = 0.8f, stiffness = 400f)) { it } + fadeIn(),
-            exit = slideOutVertically(tween(220)) { it } + fadeOut(tween(180)),
-            modifier = Modifier.align(Alignment.BottomCenter),
-        ) {
-            BottomBar(tab ?: lastTab) { t ->
-                if (t != tab) {
-                    nav.navigate(t.route) {
-                        popUpTo(Tab.LIVE.route) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
+        Column(Modifier.align(Alignment.BottomCenter), horizontalAlignment = Alignment.CenterHorizontally) {
+            UpdateBanner(
+                state = if (tab != null) update else UpdateState.Idle,
+                snoozed = snoozed,
+                onUpdate = { Graph.updates.download() },
+                onLater = { Graph.updates.snooze() },
+                modifier = Modifier.padding(bottom = 10.dp),
+            )
+            AnimatedVisibility(
+                visible = tab != null,
+                enter = slideInVertically(spring(dampingRatio = 0.8f, stiffness = 400f)) { it } + fadeIn(),
+                exit = slideOutVertically(tween(220)) { it } + fadeOut(tween(180)),
+            ) {
+                BottomBar(tab ?: lastTab) { t ->
+                    if (t != tab) {
+                        nav.navigate(t.route) {
+                            popUpTo(Tab.LIVE.route) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 }
             }
         }
     }
     }
+    whatsNew?.let { WhatsNewSheet(it) { whatsNew = null } }
 }
 
 private fun NavGraphBuilder.page(route: String, content: @Composable (NavBackStackEntry) -> Unit) {

@@ -2,6 +2,7 @@ package com.jambo199.vividpulse
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -14,6 +15,8 @@ import com.jambo199.vividpulse.ui.PulseRoot
 import com.jambo199.vividpulse.ui.theme.PulseTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -28,6 +31,11 @@ class MainActivity : ComponentActivity() {
             val settings by Graph.settings.state.collectAsStateWithLifecycle()
             PulseTheme(settings.theme) {
                 PulseRoot(route)
+            }
+        }
+        lifecycleScope.launch {
+            Graph.settings.state.map { it.keepScreenOn }.distinctUntilChanged().collect { on ->
+                if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
         }
         // Read the phone's vitals only while the app is on screen.
@@ -49,6 +57,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         Graph.updates.onResume()
+        Graph.updates.checkIfStale(Graph.settings.current.autoCheckUpdates)
     }
 
     companion object {

@@ -21,6 +21,8 @@ data class Settings(
     val autoCheckUpdates: Boolean = true,
     /** Where Steam prices are shown for: a two-letter country code, or "" for this phone's region. */
     val steamCountry: String = "",
+    /** Keep the screen awake while the app is open (watching a charge, temperatures…). */
+    val keepScreenOn: Boolean = false,
 )
 
 class SettingsStore(context: Context) {
@@ -38,6 +40,7 @@ class SettingsStore(context: Context) {
             .putBoolean("fahrenheit", next.fahrenheit)
             .putBoolean("autoCheckUpdates", next.autoCheckUpdates)
             .putString("steamCountry", next.steamCountry)
+            .putBoolean("keepScreenOn", next.keepScreenOn)
             .apply()
     }
 
@@ -49,6 +52,7 @@ class SettingsStore(context: Context) {
             fahrenheit = prefs.getBoolean("fahrenheit", d.fahrenheit),
             autoCheckUpdates = prefs.getBoolean("autoCheckUpdates", d.autoCheckUpdates),
             steamCountry = prefs.getString("steamCountry", d.steamCountry).orEmpty(),
+            keepScreenOn = prefs.getBoolean("keepScreenOn", d.keepScreenOn),
         )
     }
 

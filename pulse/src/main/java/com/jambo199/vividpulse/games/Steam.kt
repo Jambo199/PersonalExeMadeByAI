@@ -96,6 +96,36 @@ object Steam {
 
     fun headerFallback(appId: Int) = "${ASSETS}steam/apps/$appId/header.jpg"
 
+    fun searchUrl(term: String, country: String) =
+        "https://store.steampowered.com/api/storesearch/?term=${Http.encode(term)}&l=english&cc=$country"
+
+    /** Store search results: games only, with their price. */
+    fun parseSearch(json: String): List<Game> {
+        val items = JSONObject(json).optJSONArray("items") ?: return emptyList()
+        return (0 until items.length()).mapNotNull { i ->
+            val o = items.getJSONObject(i)
+            val appId = o.optInt("id", 0)
+            if (appId <= 0 || o.optString("type", "app") != "app") return@mapNotNull null
+            val price = o.optJSONObject("price")
+            val currency = price?.optString("currency")?.ifBlank { null }
+            val final = price?.optLong("final", -1) ?: -1
+            val initial = price?.optLong("initial", -1) ?: -1
+            Game(
+                appId = appId,
+                name = o.optString("name"),
+                imageUrl = o.optString("tiny_image").ifBlank { headerFallback(appId) },
+                rank = i + 1,
+                price = when {
+                    price == null -> null
+                    final == 0L -> "Free"
+                    else -> money(final, currency)
+                },
+                originalPrice = if (initial > final && final >= 0) money(initial, currency) else null,
+                discountPercent = if (initial > 0 && final in 0 until initial) ((initial - final) * 100 / initial).toInt() else 0,
+            )
+        }
+    }
+
     private fun context(country: String) = JSONObject()
         .put("language", "english")
         .put("country_code", country)

@@ -4,6 +4,7 @@
 set -uo pipefail
 APK="$1"
 OUT="$2"
+OLD_APK="${3:-}"   # the same app numbered build 1, for testing the in-app updater
 PKG=com.jambo199.vividpulse
 HERE="$(cd "$(dirname "$0")" && pwd)"
 mkdir -p "$OUT"
@@ -45,6 +46,30 @@ adb shell wm dismiss-keyguard || true
 adb shell settings put global hide_error_dialogs 1 || true
 adb logcat -c
 
+if [ -n "$OLD_APK" ] && [ -f "$OLD_APK" ]; then
+  echo "== In-app updater (installed as build 1; the release page has a newer build)"
+  adb install -r "$OLD_APK" > /dev/null
+  adb shell appops set $PKG REQUEST_INSTALL_PACKAGES allow
+  adb shell am start -W -n "$PKG/.MainActivity" > /dev/null
+  sleep 2
+  # The Tools page holds still, so its screen can be read while the banner shows.
+  open_page tools
+  shot 00a-update-available 8
+  texts
+  if tap "Update" exact; then
+    for _ in $(seq 1 40); do
+      sleep 2
+      adb shell dumpsys window | grep -q "mCurrentFocus.*packageinstaller" && break
+    done
+    shot 00b-update-installer 2
+    adb shell dumpsys window | grep -E "mCurrentFocus" | head -1
+  fi
+  adb logcat -d | grep -E "UpdateManager" | tail -5
+  adb shell input keyevent KEYCODE_BACK
+  adb shell input keyevent KEYCODE_HOME
+  adb uninstall $PKG > /dev/null
+fi
+
 echo "== Installing"
 adb install -r "$APK"
 adb shell am start -W -n "$PKG/.MainActivity"
@@ -76,6 +101,23 @@ for t in "Top sellers" "Deals" "Free on Epic"; do
   swipe_down; swipe_down; sleep 1
   tap "$t" && shot "22-games-${t// /-}" 8
 done
+echo "-- search and watch a game"
+open_page games; sleep 1
+swipe_down; swipe_down; sleep 1
+if tap "Search games"; then
+  sleep 1
+  adb shell input text "elden"
+  shot 23-games-search 5
+  texts
+  if tap "ELDEN RING" top; then
+    sleep 6
+    tap "Watch this game" && shot 24-game-watched 2
+    adb shell input keyevent KEYCODE_BACK
+    sleep 1
+    tap "Close search"
+    shot 24b-games-your-games 6
+  fi
+fi
 open_page "game/730"; shot 25-game-detail 8
 swipe_up; shot 26-game-detail-scrolled 3
 open_page "game/1086940"; shot 27-game-detail-2 8
@@ -97,6 +139,7 @@ adb shell input keyevent KEYCODE_BACK
 
 echo "== Settings and light theme"
 open_page settings; shot 40-settings 3
+swipe_up; shot 40b-settings-more 2
 tap "Light" exact && sleep 1
 open_page live; shot 41-light-live 5
 open_page games; shot 42-light-games 4

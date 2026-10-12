@@ -11,6 +11,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 enum class GamesTab(val label: String, val chart: Chart?) {
@@ -45,9 +50,49 @@ class GamesViewModel : ViewModel() {
 
     fun chart(c: Chart): StateFlow<ListState<Game>> = charts.getValue(c)
 
+    /** Starred games, and how many people are playing each right now. */
+    val watching: StateFlow<List<Game>> = Graph.watching.games
+    private val _watchPlayers = MutableStateFlow<Map<Int, Long>>(emptyMap())
+    val watchPlayers: StateFlow<Map<Int, Long>> = _watchPlayers.asStateFlow()
+
+    private val _query = MutableStateFlow("")
+    val query: StateFlow<String> = _query.asStateFlow()
+    private val _results = MutableStateFlow(ListState<Game>())
+    val results: StateFlow<ListState<Game>> = _results.asStateFlow()
+
     init {
         load(GamesTab.MOST_PLAYED, force = false)
         viewModelScope.launch { _online.value = repo.steamOnline() }
+        viewModelScope.launch { watching.collectLatest { refreshWatched() } }
+        viewModelScope.launch {
+            // Search a moment after typing stops (a newer query cancels the wait).
+            _query.collectLatest { q ->
+                if (q.isBlank()) {
+                    _results.value = ListState()
+                    return@collectLatest
+                }
+                delay(350)
+                _results.value = _results.value.copy(loading = true, error = null)
+                _results.value = try {
+                    ListState(repo.search(q), fetchedAt = System.currentTimeMillis())
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    ListState(error = e.friendlyMessage())
+                }
+            }
+        }
+    }
+
+    fun search(q: String) {
+        _query.value = q
+    }
+
+    private suspend fun refreshWatched() = coroutineScope {
+        val ids = watching.value.map { it.appId }
+        if (ids.isEmpty()) return@coroutineScope
+        val counts = ids.map { id -> async { id to repo.playersNow(id) } }.awaitAll()
+        _watchPlayers.value = counts.mapNotNull { (id, n) -> n?.let { id to it } }.toMap()
     }
 
     fun select(t: GamesTab) {
@@ -57,6 +102,7 @@ class GamesViewModel : ViewModel() {
 
     fun refresh() {
         load(_tab.value, force = true)
+        viewModelScope.launch { refreshWatched() }
         viewModelScope.launch { repo.steamOnline()?.let { _online.value = it } }
     }
 

@@ -32,7 +32,12 @@ data class UpdateInfo(
     val sha256: String,
     val sizeBytes: Long,
     val notes: String,
+    /** The build's list of changes, one per line. */
+    val changes: List<String> = emptyList(),
 )
+
+/** What changed in the version that's installed now, shown once after an update. */
+data class WhatsNew(val versionName: String, val title: String, val changes: List<String>)
 
 sealed interface UpdateState {
     data object Idle : UpdateState
@@ -56,6 +61,14 @@ class UpdateManager(private val context: Context, private val scope: CoroutineSc
     private var job: Job? = null
     private var checkedThisLaunch = false
     private var installWhenAllowed = false
+    private val prefs = context.getSharedPreferences("updates", Context.MODE_PRIVATE)
+
+    /** The version whose banner was put off with "Later" (until the app is next opened). */
+    private val _snoozed = MutableStateFlow<Int?>(null)
+    val snoozed: StateFlow<Int?> = _snoozed.asStateFlow()
+
+    /** When the last check finished, or 0. */
+    val lastCheckedAt: Long get() = prefs.getLong("lastCheck", 0L)
 
     init {
         // Downloads for builds that are now installed (or older) are no longer needed.
@@ -72,6 +85,34 @@ class UpdateManager(private val context: Context, private val scope: CoroutineSc
         check(manual = false)
     }
 
+    /** Called when the app comes back to the screen: checks again if it's been a while. */
+    fun checkIfStale(enabled: Boolean) {
+        if (!enabled || !checkedThisLaunch) return
+        val s = _state.value
+        if (s is UpdateState.Downloading || s is UpdateState.Ready || s is UpdateState.Checking) return
+        if (System.currentTimeMillis() - lastCheckedAt > RECHECK_MS) check(manual = false)
+    }
+
+    fun snooze() {
+        (_state.value as? UpdateState.Available)?.let { _snoozed.value = it.info.versionCode }
+    }
+
+    /** The notes for the version that's installed now, if this phone downloaded it through the app. */
+    fun whatsNew(): WhatsNew? {
+        if (prefs.getInt("notesFor", -1) != BuildConfig.VERSION_CODE) return null
+        val title = prefs.getString("notesTitle", null) ?: return null
+        val changes = prefs.getString("notesChanges", "").orEmpty().lines().filter { it.isNotBlank() }
+        return WhatsNew(BuildConfig.VERSION_NAME, title, changes)
+    }
+
+    /** [whatsNew], but only the first time the app opens after updating. */
+    fun takeWhatsNew(): WhatsNew? {
+        val notes = whatsNew() ?: return null
+        if (prefs.getInt("notesShown", -1) == BuildConfig.VERSION_CODE) return null
+        prefs.edit().putInt("notesShown", BuildConfig.VERSION_CODE).apply()
+        return notes
+    }
+
     fun check(manual: Boolean) {
         val current = _state.value
         if (current is UpdateState.Downloading || current is UpdateState.Checking) return
@@ -82,6 +123,7 @@ class UpdateManager(private val context: Context, private val scope: CoroutineSc
             _state.value = result.fold(
                 onSuccess = { info ->
                     Log.i(TAG, "Latest build ${info.versionCode}, installed ${BuildConfig.VERSION_CODE}")
+                    prefs.edit().putLong("lastCheck", System.currentTimeMillis()).apply()
                     if (info.versionCode > BuildConfig.VERSION_CODE) {
                         val downloaded = apkFile(info)
                         if (downloaded.isFile && downloaded.length() > 0) {
@@ -117,6 +159,12 @@ class UpdateManager(private val context: Context, private val scope: CoroutineSc
             _state.value = UpdateState.Downloading(info, 0f)
             try {
                 val file = withContext(Dispatchers.IO) { downloadAndVerify(info) }
+                // Kept so the new version can say what's new the first time it opens.
+                prefs.edit()
+                    .putInt("notesFor", info.versionCode)
+                    .putString("notesTitle", info.notes)
+                    .putString("notesChanges", info.changes.joinToString("\n"))
+                    .apply()
                 _state.value = UpdateState.Ready(info, file)
                 install()
             } catch (e: CancellationException) {
@@ -177,6 +225,7 @@ class UpdateManager(private val context: Context, private val scope: CoroutineSc
             sha256 = o.optString("sha256").lowercase(),
             sizeBytes = o.optLong("size"),
             notes = o.optString("notes"),
+            changes = UpdateNotes.changes(o.optString("changes")),
         )
     }
 
@@ -257,5 +306,23 @@ class UpdateManager(private val context: Context, private val scope: CoroutineSc
 
     companion object {
         private const val TAG = "UpdateManager"
+        private const val RECHECK_MS = 6 * 60 * 60 * 1000L
+    }
+}
+
+object UpdateNotes {
+    /** A commit message body to a list of changes: "- Fixed x" lines, or wrapped sentences joined up. */
+    fun changes(body: String): List<String> {
+        val items = mutableListOf<StringBuilder>()
+        for (raw in body.lines()) {
+            val line = raw.trim()
+            when {
+                line.isEmpty() -> items += StringBuilder()
+                line.startsWith("- ") || line.startsWith("* ") -> items += StringBuilder(line.drop(2))
+                items.isEmpty() -> items += StringBuilder(line)
+                else -> items.last().let { if (it.isEmpty()) it.append(line) else it.append(' ').append(line) }
+            }
+        }
+        return items.map { it.toString().trim() }.filter { it.isNotEmpty() }
     }
 }

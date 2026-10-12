@@ -43,6 +43,21 @@ jobs:
           name: vivid-pulse-apk
           path: dist/*.apk
 
+      # The same app numbered build 1, so the emulator test can watch the in-app updater find
+      # the newest build on the release page, download it and open the installer.
+      - name: Build an old-numbered copy for the updater test
+        env:
+          VERSION_CODE: 1
+        run: |
+          ./gradlew --no-daemon :pulse:assembleRelease
+          mkdir -p dist-old
+          cp pulse/build/outputs/apk/release/pulse-release.apk dist-old/VividPulse-old.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vivid-pulse-old-apk
+          path: dist-old/*.apk
+
   emulator-test:
     needs: build
     runs-on: ubuntu-latest
@@ -57,6 +72,11 @@ jobs:
           name: vivid-pulse-apk
           path: dist
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: vivid-pulse-old-apk
+          path: dist-old
+
       - name: What the game stores answer (for checking the app's parsers)
         continue-on-error: true
         run: |
@@ -68,6 +88,9 @@ jobs:
           probe "https://store.steampowered.com/api/featuredcategories?cc=GB&l=english" 1200
           probe "https://www.valvesoftware.com/about/stats"
           probe "https://store-site-backend-static-ipv4.ak.epicgames.com/freeGamesPromotions?locale=en-US&country=GB&allowCountries=GB" 1200
+          probe "https://store.steampowered.com/api/storesearch/?term=elden%20ring&l=english&cc=GB" 900
+          probe "https://speed.cloudflare.com/meta" 600
+          probe "https://speed.cloudflare.com/cdn-cgi/trace" 400
 
       - name: Enable KVM
         run: |
@@ -84,7 +107,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -camera-back none
-          script: bash ci/pulse-smoke-test.sh "$(ls dist/*.apk | head -1)" screenshots
+          script: bash ci/pulse-smoke-test.sh "$(ls dist/*.apk | head -1)" screenshots "$(ls dist-old/*.apk | head -1)"
 
       - name: Pack screenshots
         if: always()
@@ -128,11 +151,13 @@ jobs:
       - name: Publish pre-release with the APK
         run: |
           cp dist/*.apk VividPulse.apk
+          # The commit message without its title and sign-off lines: the app's "What's new" list.
+          CHANGES=$(printf '%s\n' "$NOTES" | sed '1d' | grep -v -E '^(Co-Authored-By|Claude-Session):' || true)
           # Read by the app's updater: build number plus a checksum it verifies after download.
           jq -n --argjson code ${{ github.run_number }} --arg name "1.0.${{ github.run_number }}" \
             --arg sha "$(sha256sum VividPulse.apk | cut -d' ' -f1)" --argjson size "$(stat -c %s VividPulse.apk)" \
-            --arg notes "${NOTES%%$'\n'*}" --arg commit "${GITHUB_SHA::7}" \
-            '{versionCode: $code, versionName: $name, apk: "VividPulse.apk", sha256: $sha, size: $size, notes: $notes, commit: $commit}' > version.json
+            --arg notes "${NOTES%%$'\n'*}" --arg changes "$CHANGES" --arg commit "${GITHUB_SHA::7}" \
+            '{versionCode: $code, versionName: $name, apk: "VividPulse.apk", sha256: $sha, size: $size, notes: $notes, changes: $changes, commit: $commit}' > version.json
           cat version.json
           files="VividPulse.apk version.json"
           if [ -f shots/screenshots.zip ]; then cp shots/screenshots.zip screenshots.zip; files="$files screenshots.zip"; fi

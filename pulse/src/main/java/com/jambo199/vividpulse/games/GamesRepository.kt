@@ -121,6 +121,13 @@ class GamesRepository(context: Context) {
         Steam.parseDetails(Http.get(Steam.detailsUrl(appId, country)), appId)
     }
 
+    /** Any game on the Steam store by name. */
+    suspend fun search(term: String): List<Game> = withContext(Dispatchers.IO) {
+        Steam.parseSearch(Http.get(Steam.searchUrl(term.trim(), country))).also { list ->
+            list.forEach { known.putIfAbsent(it.appId, it) }
+        }
+    }
+
     /** People on Steam right now, and how many of them are playing. */
     suspend fun steamOnline(): Pair<Long, Long>? = withContext(Dispatchers.IO) {
         runCatching { Steam.parseOnline(Http.get("https://www.valvesoftware.com/about/stats")) }.getOrNull()

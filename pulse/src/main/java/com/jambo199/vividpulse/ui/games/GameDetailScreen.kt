@@ -32,6 +32,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.People
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -57,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.jambo199.vividpulse.Graph
+import com.jambo199.vividpulse.games.Game
 import com.jambo199.vividpulse.games.GameDetail
 import com.jambo199.vividpulse.games.Steam
 import com.jambo199.vividpulse.ui.components.AnimatedNumber
@@ -100,6 +107,8 @@ fun GameDetailScreen(appId: Int, back: () -> Unit) {
         }
     }
     val d = detail?.getOrNull()
+    val watchList by Graph.watching.games.collectAsStateWithLifecycle()
+    val watched = watchList.any { it.appId == appId }
     val name = d?.name ?: known?.name ?: ""
     val image = known?.imageUrl ?: d?.imageUrl ?: Steam.headerFallback(appId)
     fun openUrl(url: String) = runCatching {
@@ -242,6 +251,26 @@ fun GameDetailScreen(appId: Int, back: () -> Unit) {
             item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars)) }
         }
         RoundButton(Icons.AutoMirrored.Rounded.ArrowBack, "Back", back, Modifier.statusBarsPadding().padding(12.dp))
+        Row(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RoundButton(Icons.Rounded.Share, "Share", {
+                val count = players.lastOrNull()?.let { " – ${Format.grouped(it.toLong())} playing right now on Steam" }.orEmpty()
+                val send = Intent(Intent.ACTION_SEND).setType("text/plain")
+                    .putExtra(Intent.EXTRA_TEXT, "$name$count\nhttps://store.steampowered.com/app/$appId")
+                runCatching { context.startActivity(Intent.createChooser(send, name).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            })
+            val starScale by animateFloatAsState(if (watched) 1.15f else 1f, spring(dampingRatio = 0.4f, stiffness = 500f), label = "star")
+            RoundButton(
+                if (watched) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                if (watched) "Stop watching" else "Watch this game",
+                {
+                    if (name.isNotBlank()) Graph.watching.toggle(Game(appId, name, d?.imageUrl ?: image, rank = 0))
+                },
+                Modifier.graphicsLayer {
+                    scaleX = starScale
+                    scaleY = starScale
+                },
+            )
+        }
     }
 }
 

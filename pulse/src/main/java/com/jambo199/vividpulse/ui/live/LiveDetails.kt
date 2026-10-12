@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BatteryStd
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.DeveloperBoard
 import androidx.compose.material.icons.rounded.Memory
@@ -26,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import android.os.SystemClock
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,6 +42,7 @@ import com.jambo199.vividpulse.system.Connection
 import com.jambo199.vividpulse.system.LiveState
 import com.jambo199.vividpulse.system.MemInfo
 import com.jambo199.vividpulse.system.NetworkReader
+import com.jambo199.vividpulse.system.PowerSession
 import com.jambo199.vividpulse.ui.Routes
 import com.jambo199.vividpulse.ui.components.AnimatedNumber
 import com.jambo199.vividpulse.ui.components.BarMeter
@@ -345,8 +348,11 @@ fun BatteryScreen(back: () -> Unit) {
                 )
             }
         }
+        live?.session?.let { s ->
+            item { SessionCard(s, Modifier.entrance(3)) }
+        }
         item {
-            GlassCard(Modifier.fillMaxWidth().entrance(3)) {
+            GlassCard(Modifier.fillMaxWidth().entrance(4)) {
                 Text("Details", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(4.dp))
                 InfoRow("Current", b.currentMa?.let { "${it.roundToInt()} mA" } ?: "Not shared")
@@ -361,6 +367,48 @@ fun BatteryScreen(back: () -> Unit) {
                 }
                 b.chargeCounterMah?.let { InfoRow("Charge left", "${Format.grouped(it.toLong())} mAh") }
             }
+        }
+    }
+}
+
+/** How this charge (or this stretch on battery) is going. */
+@Composable
+private fun SessionCard(s: PowerSession, modifier: Modifier) {
+    val now by produceState(SystemClock.elapsedRealtime()) {
+        while (true) {
+            delay(1000)
+            value = SystemClock.elapsedRealtime()
+        }
+    }
+    val accent = if (s.charging) Accents.charging else Accents.battery
+    val change = s.levelChange.roundToInt()
+    GlassCard(modifier.fillMaxWidth(), accent = accent) {
+        CardTitle(
+            if (s.charging) Icons.Rounded.Bolt else Icons.Rounded.BatteryStd,
+            if (s.charging) "This charge" else "Since unplugged",
+            accent,
+            trailing = if (s.seenStart) null else "since the app opened",
+        )
+        Spacer(Modifier.height(10.dp))
+        Row {
+            Stat("Time", Format.duration(now - s.startedAt), Modifier.weight(1f))
+            Stat(
+                if (s.charging) "Gained" else "Used",
+                "${if (s.charging) "+" else "−"}${kotlin.math.abs(change)}%",
+                Modifier.weight(1f),
+                color = accent.start,
+            )
+            Stat(
+                if (s.charging) "Speed" else "Drain",
+                s.percentPerHour(now)?.let { "${it.roundToInt()}%/h" } ?: "—",
+                Modifier.weight(1f),
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        Row {
+            Stat("Peak power", if (s.peakWatts > 0) Format.watts(s.peakWatts) else "—", Modifier.weight(1f))
+            Stat(if (s.charging) "Energy in" else "Energy used", String.format(java.util.Locale.US, "%.1f Wh", s.energyWh), Modifier.weight(1f))
+            Spacer(Modifier.weight(1f))
         }
     }
 }

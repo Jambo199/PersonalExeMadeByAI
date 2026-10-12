@@ -1,6 +1,26 @@
 package com.jambo199.vividpulse.ui.games
 
 import android.content.Intent
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.border
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.input.ImeAction
+import com.jambo199.vividpulse.ui.components.RoundButton
 import android.net.Uri
 import android.text.format.DateUtils
 import androidx.compose.animation.core.animateFloatAsState
@@ -78,6 +98,15 @@ fun GamesScreen(open: (String) -> Unit) {
     val chartState = tab.chart?.let { vm.chart(it).collectAsStateWithLifecycle().value }
     val epicState by vm.epic.collectAsStateWithLifecycle()
     val refreshing = chartState?.loading ?: epicState.loading
+    var searching by rememberSaveable { mutableStateOf(false) }
+    val query by vm.query.collectAsStateWithLifecycle()
+    val results by vm.results.collectAsStateWithLifecycle()
+    val watching by vm.watching.collectAsStateWithLifecycle()
+    val watchPlayers by vm.watchPlayers.collectAsStateWithLifecycle()
+    BackHandler(enabled = searching) {
+        searching = false
+        vm.search("")
+    }
 
     Box(Modifier.fillMaxSize()) {
         AmbientGlow(listOf(Accents.games, Accents.upload, Accents.download), Modifier.fillMaxWidth().height(380.dp))
@@ -92,7 +121,8 @@ fun GamesScreen(open: (String) -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
-                    Column(Modifier.padding(start = 4.dp).entrance(0)) {
+                    Row(Modifier.fillMaxWidth().entrance(0), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f).padding(start = 4.dp)) {
                         Text("Games", style = MaterialTheme.typography.headlineLarge)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             val o = online
@@ -109,6 +139,32 @@ fun GamesScreen(open: (String) -> Unit) {
                             }
                         }
                     }
+                    RoundButton(
+                        if (searching) Icons.Rounded.Close else Icons.Rounded.Search,
+                        if (searching) "Close search" else "Search games",
+                        {
+                            searching = !searching
+                            if (!searching) vm.search("")
+                        },
+                    )
+                    }
+                }
+                if (searching) {
+                    item { SearchField(query, vm::search) }
+                    val r = results
+                    val found = r.items
+                    when {
+                        query.isBlank() -> item { Hint("Type a game's name to see its live player count, price and page.") }
+                        found != null && found.isEmpty() -> item { Hint("No games called \"$query\" on Steam") }
+                        found != null -> itemsIndexed(found, key = { _, g -> "search-${g.appId}" }) { i, g ->
+                            GameRow(g, GamesTab.TOP_SELLERS, false, Modifier.entrance(i), showRank = false) { open(Routes.game(g.appId)) }
+                        }
+                        r.error != null -> item { ErrorCard(r.error) { vm.search(query) } }
+                        else -> items(4) { ShimmerBox(Modifier.fillMaxWidth().height(80.dp)) }
+                    }
+                } else {
+                if (watching.isNotEmpty()) {
+                    item { YourGames(watching, watchPlayers, Modifier.entrance(1)) { open(Routes.game(it)) } }
                 }
                 item { TabPicker(tab, Modifier.entrance(1)) { vm.select(it) } }
                 item {
@@ -151,6 +207,7 @@ fun GamesScreen(open: (String) -> Unit) {
                         epicState.error != null -> item { ErrorCard(epicState.error ?: "") { vm.refresh() } }
                         else -> items(3) { ShimmerBox(Modifier.fillMaxWidth().height(260.dp)) }
                     }
+                }
                 }
                 item {
                     Text(
@@ -221,15 +278,17 @@ private fun HeroGame(g: Game, tab: GamesTab, history: Boolean, modifier: Modifie
 }
 
 @Composable
-private fun GameRow(g: Game, tab: GamesTab, history: Boolean, modifier: Modifier, onClick: () -> Unit) {
+private fun GameRow(g: Game, tab: GamesTab, history: Boolean, modifier: Modifier, showRank: Boolean = true, onClick: () -> Unit) {
     GlassCard(modifier.fillMaxWidth(), onClick = onClick, padding = 10.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "${g.rank}",
-                style = MaterialTheme.typography.titleLarge.merge(Numbers),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.width(34.dp).padding(start = 4.dp),
-            )
+            if (showRank) {
+                Text(
+                    "${g.rank}",
+                    style = MaterialTheme.typography.titleLarge.merge(Numbers),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.width(34.dp).padding(start = 4.dp),
+                )
+            }
             GameImage(g.imageUrl, g.appId, Modifier.width(118.dp).aspectRatio(460f / 215f).clip(RoundedCornerShape(12.dp)))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -277,13 +336,14 @@ private fun subline(g: Game, tab: GamesTab): String = when (tab) {
 }
 
 @Composable
-fun GameImage(url: String, appId: Int, modifier: Modifier) {
+fun GameImage(url: String, appId: Int, modifier: Modifier, shared: Boolean = true) {
     val context = LocalContext.current
     AsyncImage(
         model = ImageRequest.Builder(context).data(url).crossfade(250).build(),
         contentDescription = null,
         contentScale = ContentScale.Crop,
-        modifier = modifier.sharedPicture("game-$appId").background(LocalPulseColors.current.track),
+        // Only one picture per game on screen may fly to its page.
+        modifier = (if (shared) modifier.sharedPicture("game-$appId") else modifier).background(LocalPulseColors.current.track),
     )
 }
 
@@ -330,6 +390,78 @@ private fun EpicCard(g: EpicGame, modifier: Modifier) {
             if (g.description.isNotBlank()) {
                 Spacer(Modifier.height(6.dp))
                 Text(g.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+/** The search box: a glowing pill that takes the keyboard straight away. */
+@Composable
+private fun SearchField(query: String, onChange: (String) -> Unit) {
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    val colors = LocalPulseColors.current
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(CircleShape)
+            .background(colors.glass)
+            .border(1.dp, Brush.horizontalGradient(listOf(Accents.games.start, Accents.games.end)), CircleShape)
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Rounded.Search, contentDescription = null, tint = Accents.games.start)
+        Spacer(Modifier.width(10.dp))
+        Box(Modifier.weight(1f)) {
+            if (query.isEmpty()) {
+                Text("Search Steam", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            BasicTextField(
+                value = query,
+                onValueChange = onChange,
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                cursorBrush = SolidColor(Accents.games.start),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                modifier = Modifier.fillMaxWidth().focusRequester(focus),
+            )
+        }
+    }
+}
+
+@Composable
+private fun Hint(text: String) {
+    Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp))
+}
+
+/** Starred games with their live player counts, in a row you can swipe. */
+@Composable
+private fun YourGames(games: List<Game>, players: Map<Int, Long>, modifier: Modifier, onOpen: (Int) -> Unit) {
+    Column(modifier) {
+        Text("YOUR GAMES", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 6.dp, bottom = 8.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(games, key = { it.appId }) { g ->
+                Column(
+                    Modifier
+                        .width(168.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(LocalPulseColors.current.glass)
+                        .bouncyClick { onOpen(g.appId) },
+                ) {
+                    GameImage(g.imageUrl, g.appId, Modifier.fillMaxWidth().aspectRatio(460f / 215f), shared = false)
+                    Column(Modifier.padding(10.dp)) {
+                        Text(g.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            LiveDot(Accents.battery.start)
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                players[g.appId]?.let { "${Format.compact(it)} playing" } ?: "—",
+                                style = MaterialTheme.typography.bodySmall.merge(Numbers),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
