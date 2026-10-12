@@ -194,6 +194,13 @@ fun CamerasScreen(back: () -> Unit) {
         if (list == null) {
             items(2) { ShimmerBox(Modifier.fillMaxWidth().height(200.dp)) }
         } else {
+            if (list.isEmpty()) {
+                item {
+                    GlassCard(Modifier.fillMaxWidth(), accent = Accents.upload) {
+                        Text("No cameras are shared with apps on this device.", style = MaterialTheme.typography.titleMedium)
+                    }
+                }
+            }
             list.forEachIndexed { i, cam ->
                 item {
                     CameraCard(cam, Modifier.then(if (i == 0) Modifier.sharedCard("card-cameras") else Modifier).entrance(i))

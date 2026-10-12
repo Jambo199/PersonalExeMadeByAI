@@ -75,7 +75,7 @@ class CpuReader {
         }
     }
 
-    val maxKHz: Long get() = cores.maxOfOrNull { it.maxKHz } ?: 0L
+    val maxKHz: Long get() = cores.maxOfOrNull { it.maxKHz }?.takeIf { it >= MIN_REAL_KHZ } ?: 0L
 
     /** True when at least one core's clock can be read. */
     val clocksReadable: Boolean by lazy { cores.any { curFreq(it.index) != null } }
@@ -95,7 +95,12 @@ class CpuReader {
         (
             SysFs.readLong("/sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq", remember = false)
                 ?: SysFs.readLong("/sys/devices/system/cpu/cpu$i/cpufreq/cpuinfo_cur_freq", remember = false)
-            )?.takeIf { it > 0 && cores.getOrNull(i)?.maxKHz?.let { max -> max > 0 } != false }
+            )?.takeIf { it >= MIN_REAL_KHZ && (cores.getOrNull(i)?.maxKHz ?: MIN_REAL_KHZ) >= MIN_REAL_KHZ }
+
+    private companion object {
+        /** Below 10 MHz a "clock speed" is a placeholder (emulators, hidden values), not a reading. */
+        const val MIN_REAL_KHZ = 10_000L
+    }
 
     /** Real usage from /proc/stat, on the rare phones that still allow it. */
     private fun readStatUsage(): Pair<Float, Map<String, Float>>? {

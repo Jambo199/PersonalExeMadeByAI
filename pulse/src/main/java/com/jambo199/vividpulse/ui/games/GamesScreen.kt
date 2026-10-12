@@ -347,7 +347,10 @@ private fun ago(ms: Long): String =
     DateUtils.getRelativeTimeSpanString(ms, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
         .replace("0 minutes ago", "just now").lowercase(Locale.getDefault())
 
-private fun endsIn(ms: Long): String =
-    DateUtils.getRelativeTimeSpanString(ms, System.currentTimeMillis(), DateUtils.HOUR_IN_MILLIS).toString().lowercase(Locale.getDefault())
+private fun endsIn(ms: Long): String {
+    // "In 3 days" reads as "in 3 days"; a date like "Oct 23, 2026" keeps its capitals.
+    val text = DateUtils.getRelativeTimeSpanString(ms, System.currentTimeMillis(), DateUtils.HOUR_IN_MILLIS).toString()
+    return if (text.startsWith("In ")) text.replaceFirstChar { it.lowercase() } else text
+}
 
 private fun day(ms: Long): String = SimpleDateFormat("EEE d MMM, HH:mm", Locale.getDefault()).format(Date(ms))
