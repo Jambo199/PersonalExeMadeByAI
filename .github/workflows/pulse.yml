@@ -1,0 +1,159 @@
+name: Android app (Vivid Pulse)
+
+on:
+  push:
+    branches: [ccr-862b8099-9n782j, main, master]
+    paths: ['pulse/**', '.github/workflows/pulse.yml', 'ci/pulse-*', 'ci/ui.py', 'gradle/**', 'settings.gradle.kts', 'build.gradle.kts', 'gradle.properties']
+  workflow_dispatch:
+
+concurrency:
+  group: pulse-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests and release APK
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :pulse:testReleaseUnitTest :pulse:assembleRelease --stacktrace
+
+      - name: Collect APK
+        run: |
+          mkdir -p dist
+          cp pulse/build/outputs/apk/release/pulse-release.apk dist/VividPulse-1.0.${{ github.run_number }}.apk
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vivid-pulse-apk
+          path: dist/*.apk
+
+  emulator-test:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: vivid-pulse-apk
+          path: dist
+
+      - name: What the game stores answer (for checking the app's parsers)
+        continue-on-error: true
+        run: |
+          probe() { echo "--- $1"; curl -sS -m 20 -A "VividPulse-CI" "$1" | head -c "${2:-700}"; echo; }
+          probe "https://api.steampowered.com/ISteamChartsService/GetMostPlayedGames/v1/"
+          probe "https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=730"
+          probe "https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json=%7B%22ids%22%3A%5B%7B%22appid%22%3A730%7D%5D%2C%22context%22%3A%7B%22language%22%3A%22english%22%2C%22country_code%22%3A%22GB%22%2C%22steam_realm%22%3A1%7D%2C%22data_request%22%3A%7B%22include_assets%22%3Atrue%2C%22include_basic_info%22%3Atrue%7D%7D" 1500
+          probe "https://api.steampowered.com/IStoreTopSellersService/GetWeeklyTopSellers/v1/?input_json=%7B%22country_code%22%3A%22GB%22%2C%22context%22%3A%7B%22language%22%3A%22english%22%2C%22country_code%22%3A%22GB%22%2C%22steam_realm%22%3A1%7D%2C%22data_request%22%3A%7B%22include_assets%22%3Atrue%2C%22include_basic_info%22%3Atrue%7D%2C%22page_start%22%3A0%2C%22page_count%22%3A3%7D" 1500
+          probe "https://store.steampowered.com/api/featuredcategories?cc=GB&l=english" 1200
+          probe "https://www.valvesoftware.com/about/stats"
+          probe "https://store-site-backend-static-ipv4.ak.epicgames.com/freeGamesPromotions?locale=en-US&country=GB&allowCountries=GB" 1200
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run app on an Android 14 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -camera-back none
+          script: bash ci/pulse-smoke-test.sh "$(ls dist/*.apk | head -1)" screenshots
+
+      - name: Pack screenshots
+        if: always()
+        run: |
+          mkdir -p screenshots
+          cd screenshots && zip -q -r ../screenshots.zip . && cd .. && ls -la screenshots
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vivid-pulse-screenshots
+          path: screenshots.zip
+
+      - name: Screenshot previews (base64, for reviewing from the log)
+        if: always()
+        run: bash ci/pulse-thumbnails.sh screenshots
+
+  publish:
+    needs: [build, emulator-test]
+    if: always() && needs.build.result == 'success' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: vivid-pulse-latest
+      NOTES: ${{ github.event.head_commit.message }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: vivid-pulse-apk
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: vivid-pulse-screenshots
+          path: shots
+
+      - name: Publish pre-release with the APK
+        run: |
+          cp dist/*.apk VividPulse.apk
+          # Read by the app's updater: build number plus a checksum it verifies after download.
+          jq -n --argjson code ${{ github.run_number }} --arg name "1.0.${{ github.run_number }}" \
+            --arg sha "$(sha256sum VividPulse.apk | cut -d' ' -f1)" --argjson size "$(stat -c %s VividPulse.apk)" \
+            --arg notes "${NOTES%%$'\n'*}" --arg commit "${GITHUB_SHA::7}" \
+            '{versionCode: $code, versionName: $name, apk: "VividPulse.apk", sha256: $sha, size: $size, notes: $notes, commit: $commit}' > version.json
+          cat version.json
+          files="VividPulse.apk version.json"
+          if [ -f shots/screenshots.zip ]; then cp shots/screenshots.zip screenshots.zip; files="$files screenshots.zip"; fi
+          cat > notes.md <<NOTES
+          **Vivid Pulse for Android – build ${{ github.run_number }}** (\`${GITHUB_SHA::7}\`, emulator test: ${{ needs.emulator-test.result }})
+
+          Your phone's vitals live – CPU, RAM, GPU, battery, heat, network and storage – plus full specs, the top 20 games on Steam, Steam deals, Epic's free games, an internet speed test and screen/touch tests.
+
+          ### Install on your phone
+          1. On your phone, open this page and tap **VividPulse.apk** to download it.
+          2. Open the downloaded file. If asked, allow your browser or file manager to *install unknown apps*.
+          3. Tap **Install**, then open **Vivid Pulse**.
+
+          Already have Vivid Pulse? It checks this page when it opens and offers the update itself.
+
+          \`screenshots.zip\` has previews from the automated emulator test.
+          NOTES
+          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
+          sleep 3
+          if ! gh release create "$TAG" $files --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --prerelease --title "Vivid Pulse for Android (build ${{ github.run_number }})" --notes-file notes.md; then
+            echo "::warning::Couldn't publish the release. The APK is attached to this run as the vivid-pulse-apk artifact."
+            exit 1
+          fi

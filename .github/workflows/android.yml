@@ -3,7 +3,7 @@ name: Android app (Vivid Music)
 on:
   push:
     branches: [ccr-862b8099-9n782j, main, master]
-    paths-ignore: ['README.md', 'LICENSE', '**/*.md']
+    paths-ignore: ['README.md', 'LICENSE', '**/*.md', 'pulse/**', '.github/workflows/pulse.yml', 'ci/pulse-*']
   workflow_dispatch:
 
 concurrency:
@@ -31,7 +31,7 @@ jobs:
           VERSION_CODE: ${{ github.run_number }}
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon testReleaseUnitTest assembleRelease --stacktrace
+          ./gradlew --no-daemon :app:testReleaseUnitTest :app:assembleRelease --stacktrace
 
       - name: Collect APK
         run: |
@@ -50,7 +50,7 @@ jobs:
         env:
           VERSION_CODE: 1
         run: |
-          ./gradlew --no-daemon assembleRelease
+          ./gradlew --no-daemon :app:assembleRelease
           mkdir -p dist-old
           cp app/build/outputs/apk/release/app-release.apk dist-old/VividMusic-old.apk
 

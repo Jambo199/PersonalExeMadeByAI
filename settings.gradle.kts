@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "VividMusic"
 include(":app")
+include(":pulse")
