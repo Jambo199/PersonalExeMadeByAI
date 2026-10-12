@@ -1,6 +1,12 @@
 package com.jambo199.vividpulse.ui.components
 
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -168,13 +174,10 @@ fun Pill(text: String, accent: Accent, modifier: Modifier = Modifier, filled: Bo
 /** A pulsing dot for things that are live. */
 @Composable
 fun LiveDot(color: Color, modifier: Modifier = Modifier) {
-    val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "live")
-    val pulse by transition.animateFloat(
-        0f, 1f,
-        androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(1400), androidx.compose.animation.core.RepeatMode.Restart),
-        label = "pulse",
+    val pulse by rememberInfiniteTransition(label = "live").animateFloat(
+        0f, 1f, infiniteRepeatable(tween(1400), RepeatMode.Restart), label = "pulse",
     )
-    androidx.compose.foundation.Canvas(modifier.size(14.dp)) {
+    Canvas(modifier.size(14.dp)) {
         drawCircle(color.copy(alpha = (1f - pulse) * 0.5f), radius = size.minDimension / 2 * (0.4f + pulse * 0.6f))
         drawCircle(color, radius = size.minDimension / 2 * 0.38f)
     }
