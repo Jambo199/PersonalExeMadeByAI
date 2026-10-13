@@ -1,57 +1,7 @@
-# Vivid Pulse (Android) – new
-
-A second app in this repo: your phone's vitals, live, in a dark neon look with smooth animations
-everywhere. Built with the vivo X200 Ultra in mind, works on any Android 8+ phone.
-
-**Install:** on your phone open
-**https://github.com/Jambo199/PersonalExeMadeByAI/releases/tag/vivid-pulse-latest** and tap
-**VividPulse.apk** (same steps as Vivid Music below). After that it updates itself: when a new
-build is out, a card slides up above the tab bar – tap **Update**, watch it download, confirm the
-install – and the first time the new version opens it shows **what's new**. It checks when it
-opens and every few hours while it's open (Settings › Updates).
-
-- **Live** – CPU activity with a gauge, a smooth-scrolling chart and a bar per core; RAM in use
-  (and vivo's extended RAM+); GPU load and clock where the phone allows; battery level as a
-  sloshing liquid tank, charging/discharging watts, temperature; how close the phone is to
-  slowing down from heat; network speed up and down; storage used; how long the phone has been
-  on and how much of that it slept. Tap any card and it grows
-  into its own page with longer history:
-  - **Processor** – each cluster (e.g. 2 × Oryon prime cores at 4.32 GHz, 6 performance cores)
-    with live clock speeds per core, GPU name, OpenGL / Vulkan versions
-  - **RAM** – used, cached and free, extended RAM, Android's low-memory line
-  - **Battery** – live charging power chart, temperature chart, current, voltage, health, charge
-    cycles, design capacity and an estimate of what it holds now, time to full, and **this
-    charge** (time, % gained, % per hour, peak watts, energy) or how fast it's draining since unplugged
-  - **Network** – live speeds, Wi-Fi standard (Wi-Fi 7…), band and channel, signal, link speed
-  - **Heat** – Android's throttling forecast as a gauge and chart, plus tips for gaming sessions
-- **Device** – everything about the phone: name, Android and OriginOS versions, security update,
-  kernel, uptime and deep sleep, chip (e.g. Snapdragon 8 Elite) and its cores, display (resolution,
-  refresh rates, HDR formats, size), cameras (megapixels, 35 mm-equivalent lens,
-  aperture, stabilisation, 8K / 10-bit / RAW), every sensor with live readings, and features such
-  as Wi-Fi 7, NFC, the infrared remote and ultra-wideband. Long-press a row to copy it; share the
-  whole spec sheet.
-- **Games** – Steam's **top 20 most played** right now with live player counts, today's peak and
-  how each moved since last week; this week's **top sellers**; **deals**; and the games **free on
-  Epic** now and next. **Search** any game on Steam. Tap a game for its page: live players with a
-  chart, price and discount, genres, Metacritic, screenshots, share, and buttons to open it in
-  Steam or see its player history. **Star** a game to keep its live player count in *Your games*
-  at the top of the page.
-- **Tools** – internet **speed test** (response time, jitter, download and upload on a springy
-  speedometer, which Cloudflare server and provider, shareable, with your earlier results), **smoothness** meter (frames per second, late frames,
-  refresh rate), **dead pixel** colours at full brightness, multi-finger **touch test**, sensors and a
-  **vibration** check.
-- Long-press the app icon for shortcuts to the speed test, Steam charts and battery.
-- Settings: dark / light theme, how often live readings update, °C / °F, keep the screen on,
-  which country's store prices to show, updates.
-
-Android doesn't let apps read true CPU usage any more, so CPU activity is worked out from how fast
-each core is clocked (cores speed up as soon as there's work). GPU load and some temperatures are
-only shown where the phone lets apps read them.
-
-Code: `pulse/` (`system/` readers, `games/` Steam & Epic, `tools/` speed test, `ui/` screens and
-the animated gauges and charts in `ui/components/`). CI: `.github/workflows/pulse.yml`.
-
 # Vivid Music (Android)
+
+> **Looking for Vivid Pulse?** It has its own repo now:
+> [Jambo199/VividPulse](https://github.com/Jambo199/VividPulse).
 
 A music player for Android phones (built and tested with vivo / Funtouch OS / OriginOS in mind).
 It plays the music stored on your phone or SD card, shows album art everywhere, and lets you browse

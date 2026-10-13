@@ -3,7 +3,7 @@ name: Android app (Vivid Music)
 on:
   push:
     branches: [ccr-862b8099-9n782j, main, master]
-    paths-ignore: ['README.md', 'LICENSE', '**/*.md', 'pulse/**', '.github/workflows/pulse.yml', 'ci/pulse-*']
+    paths-ignore: ['README.md', 'LICENSE', '**/*.md', '.github/workflows/pulse-moved.yml']
   workflow_dispatch:
 
 concurrency:
