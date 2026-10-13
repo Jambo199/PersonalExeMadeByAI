@@ -1,0 +1,38 @@
+name: Vivid Pulse has moved
+
+# Vivid Pulse now lives in Jambo199/VividPulse. Phones with a build from before the move check
+# this repo's vivid-pulse-latest release for updates, so this copies the new repo's latest build
+# here: they update to it, and from then on update from the new repo.
+on:
+  push:
+    branches: [ccr-862b8099-9n782j, main, master]
+    paths: ['.github/workflows/pulse-moved.yml']
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      FROM: https://github.com/Jambo199/VividPulse/releases/download/vivid-pulse-latest
+      TAG: vivid-pulse-latest
+    steps:
+      - name: Copy the newest build from the new repo
+        run: |
+          curl -fsSL -o VividPulse.apk "$FROM/VividPulse.apk"
+          curl -fsSL -o version.json "$FROM/version.json"
+          cat version.json
+          test "$(sha256sum VividPulse.apk | cut -d' ' -f1)" = "$(jq -r .sha256 version.json)"
+          cat > notes.md <<NOTES
+          **Vivid Pulse has moved to [Jambo199/VividPulse](https://github.com/Jambo199/VividPulse).**
+
+          New builds are published at https://github.com/Jambo199/VividPulse/releases/tag/vivid-pulse-latest.
+          This copy of build $(jq -r .versionName version.json) is here so the app you already have can
+          update itself to it; after that it updates from the new repo.
+          NOTES
+          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
+          sleep 3
+          gh release create "$TAG" VividPulse.apk version.json --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --prerelease --title "Vivid Pulse has moved" --notes-file notes.md
