@@ -128,7 +128,7 @@
         </receiver>
 
         <receiver
-            android:name="androidx.media3.session.MediaButtonReceiver"
+            android:name=".playback.VividMediaButtonReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />

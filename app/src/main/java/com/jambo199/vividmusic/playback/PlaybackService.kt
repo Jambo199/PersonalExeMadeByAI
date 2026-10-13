@@ -7,6 +7,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
+import android.util.Log
 import android.view.KeyEvent
 import androidx.annotation.OptIn
 import androidx.core.app.NotificationManagerCompat
@@ -301,12 +302,22 @@ class PlaybackService : MediaLibraryService() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = session?.player
-        if (player == null || !player.playWhenReady || player.mediaItemCount == 0 ||
-            AppGraph.settings.current.stopOnTaskRemoved
-        ) {
+        // While playing, or for a while after pausing (the player stays in the foreground then),
+        // it stays: music carries on, and your earbuds' play button still reaches it.
+        val keep = player != null && player.mediaItemCount > 0 && isPlaybackOngoing() &&
+            !AppGraph.settings.current.stopOnTaskRemoved
+        if (!keep) {
             saveStateNow(sync = true)
-            player?.pause()
-            stopSelf()
+            pauseAllPlayersAndStopSelf()
+        }
+    }
+
+    /** Makes this the app earbud buttons go to, when it's opened and nothing else is playing. */
+    private fun claimHeadsetButtons() {
+        if (!AppGraph.settings.current.claimHeadsetButtons) return
+        if (exo.isPlaying || exo.mediaItemCount == 0) return
+        scope.launch(Dispatchers.IO) {
+            if (HeadsetButtons.claim(this@PlaybackService)) Log.i(HeadsetButtons.TAG, "Earbud buttons now come to Vivid Music")
         }
     }
 
@@ -784,6 +795,25 @@ class PlaybackService : MediaLibraryService() {
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(commands)
                 .build()
+        }
+
+        override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
+            // The app's own screens connecting means it has just been opened.
+            if (controller.packageName == packageName && !session.isMediaNotificationController(controller)) {
+                claimHeadsetButtons()
+            }
+        }
+
+        override fun onMediaButtonEvent(
+            session: MediaSession,
+            controllerInfo: MediaSession.ControllerInfo,
+            intent: Intent,
+        ): Boolean {
+            @Suppress("DEPRECATION")
+            val key = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+            if (key?.action == KeyEvent.ACTION_DOWN) Log.i(HeadsetButtons.TAG, "Button ${KeyEvent.keyCodeToString(key.keyCode)} from ${controllerInfo.packageName}")
+            // Media3 does the rest: play/pause, a double tap of play/pause skips, and so on.
+            return false
         }
 
         override fun onCustomCommand(

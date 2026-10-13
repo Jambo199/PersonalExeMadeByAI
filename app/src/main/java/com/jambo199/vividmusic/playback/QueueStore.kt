@@ -52,6 +52,9 @@ class QueueStore(context: Context) {
         stateFile.writeTextAtomically(o.toString())
     }
 
+    /** Whether there's a queue to pick up again, without reading it. */
+    fun hasSaved(): Boolean = queueFile.length() > 2
+
     @Synchronized
     fun load(): Saved? = try {
         if (!queueFile.exists()) {

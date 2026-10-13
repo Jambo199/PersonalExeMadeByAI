@@ -125,6 +125,8 @@ data class Settings(
     /** Carry on audiobooks, mixes and other long tracks where they were left. */
     val rememberPositions: Boolean = true,
     val stopOnTaskRemoved: Boolean = false,
+    /** Earbud and headset buttons play Vivid Music when it's open, even if another app played last. */
+    val claimHeadsetButtons: Boolean = true,
     val keepScreenOn: Boolean = false,
     val rememberSpeed: Boolean = true,
     val playbackSpeed: Float = 1f,
@@ -269,6 +271,7 @@ class SettingsStore(context: Context) {
             spreadArtists = prefs.getBoolean("spreadArtists", d.spreadArtists),
             rememberPositions = prefs.getBoolean("rememberPositions", d.rememberPositions),
             stopOnTaskRemoved = prefs.getBoolean("stopOnTaskRemoved", d.stopOnTaskRemoved),
+            claimHeadsetButtons = prefs.getBoolean("claimHeadsetButtons", d.claimHeadsetButtons),
             keepScreenOn = prefs.getBoolean("keepScreenOn", d.keepScreenOn),
             rememberSpeed = prefs.getBoolean("rememberSpeed", d.rememberSpeed),
             playbackSpeed = prefs.getFloat("playbackSpeed", d.playbackSpeed),
@@ -342,6 +345,7 @@ class SettingsStore(context: Context) {
             .putBoolean("spreadArtists", s.spreadArtists)
             .putBoolean("rememberPositions", s.rememberPositions)
             .putBoolean("stopOnTaskRemoved", s.stopOnTaskRemoved)
+            .putBoolean("claimHeadsetButtons", s.claimHeadsetButtons)
             .putBoolean("keepScreenOn", s.keepScreenOn)
             .putBoolean("rememberSpeed", s.rememberSpeed)
             .putFloat("playbackSpeed", s.playbackSpeed)

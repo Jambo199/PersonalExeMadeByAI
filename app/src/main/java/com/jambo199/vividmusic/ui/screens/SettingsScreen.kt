@@ -520,6 +520,26 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 }
             }
 
+            item { SectionHeader("Earbud & headset buttons") }
+            item {
+                SwitchRow(
+                    null,
+                    "Answer buttons while the app is open",
+                    "Double-tap your earbuds to play Vivid Music when it's open, even if another app (like Spotify) played last",
+                    settings.claimHeadsetButtons,
+                ) { v ->
+                    viewModel.updateSettings { it.copy(claimHeadsetButtons = v) }
+                }
+            }
+            item {
+                Text(
+                    "After you pause, Vivid Music stays ready for your earbuds' play button for 10 minutes, and picks up where you left off after that too. Android gives the buttons to whichever app played sound last, so playing something in another app hands them to that app until you play here again.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
+
             item { SectionHeader("Background playback (vivo)") }
             item {
                 val ignoring = remember { isIgnoringBatteryOptimizations(context) }

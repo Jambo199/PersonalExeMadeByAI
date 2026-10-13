@@ -459,6 +459,37 @@ shortcut home; shot 22b-landscape-home 3
 adb shell settings put system user_rotation 0
 adb shell cmd uimode night no
 
+echo "== Earbud buttons (sent the way Bluetooth earbuds send them)"
+playstate() { # 3 = playing, 2 = paused, none = no session
+  adb shell dumpsys media_session | grep -A40 "package=$PKG" | grep -m1 -oE "state=PlaybackState \{state=[A-Z_]*\(?[0-9]+" | grep -oE "[0-9]+$" || echo none
+}
+buttons_go_to() { adb shell dumpsys media_session | grep -iE "media button session|mediabuttonreceiver" | head -3 | sed 's/^ */   /'; }
+shortcut player; sleep 2
+adb shell cmd media_session dispatch play; sleep 3
+adb shell cmd media_session dispatch pause; sleep 2
+echo "-- paused: state $(playstate)"
+buttons_go_to
+adb shell input keyevent KEYCODE_HOME; sleep 3
+adb shell cmd media_session dispatch play; sleep 4
+echo "-- play from the background: state $(playstate) (3 = playing)"
+adb shell cmd media_session dispatch pause; sleep 2
+echo "-- player closed (as Android or vivo does a while after pausing):"
+adb shell am stopservice -n "$PKG/.playback.PlaybackService" 2>&1 | tail -1
+sleep 3
+echo "   state $(playstate)"
+buttons_go_to
+adb shell cmd media_session dispatch play; sleep 6
+echo "-- play with the player closed: state $(playstate) (3 = playing)"
+grep_log() { adb logcat -d | grep -E "HeadsetButtons|MediaButtonReceiver" | tail -8; }
+grep_log
+shade_shot 23a-resumed-by-earbuds
+adb shell input keyevent KEYCODE_BACK
+adb shell cmd media_session dispatch pause; sleep 1
+echo "-- opening the app claims the buttons:"
+launch; sleep 3
+adb logcat -d | grep -E "HeadsetButtons" | tail -2
+buttons_go_to
+
 echo "== Restart keeps the queue"
 adb shell am force-stop $PKG
 launch
