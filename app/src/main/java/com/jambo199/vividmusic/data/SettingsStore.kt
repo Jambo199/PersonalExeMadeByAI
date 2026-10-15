@@ -159,6 +159,14 @@ data class Settings(
     val alarmGentle: Boolean = true,
     /** Most recent first. */
     val searchHistory: List<String> = emptyList(),
+    /** Auto-tag: look songs up online (or just read their file and folder names). */
+    val tagOnline: Boolean = true,
+    /** Auto-tag uses the best online match only when it fits at least this well (0–100). */
+    val tagMinMatch: Int = 85,
+    /** Auto-tag only fills in missing tags, rather than replacing them all. */
+    val tagFillOnly: Boolean = true,
+    /** Auto-tag adds album covers to songs without one (or replaces them, with [tagFillOnly] off). */
+    val tagCovers: Boolean = true,
     val eq: EqSettings = EqSettings(),
     val eqPresets: List<EqPreset> = emptyList(),
 )
@@ -293,6 +301,10 @@ class SettingsStore(context: Context) {
             alarmMusic = enumOr(prefs.getString("alarmMusic", null), d.alarmMusic),
             alarmGentle = prefs.getBoolean("alarmGentle", d.alarmGentle),
             searchHistory = readList("searchHistory"),
+            tagOnline = prefs.getBoolean("tagOnline", d.tagOnline),
+            tagMinMatch = prefs.getInt("tagMinMatch", d.tagMinMatch),
+            tagFillOnly = prefs.getBoolean("tagFillOnly", d.tagFillOnly),
+            tagCovers = prefs.getBoolean("tagCovers", d.tagCovers),
             eq = EqSettings(
                 enabled = prefs.getBoolean("eq.enabled", false),
                 preset = prefs.getInt("eq.preset", -1),
@@ -366,6 +378,10 @@ class SettingsStore(context: Context) {
             .putString("alarmMusic", s.alarmMusic.name)
             .putBoolean("alarmGentle", s.alarmGentle)
             .putString("searchHistory", JSONArray(s.searchHistory).toString())
+            .putBoolean("tagOnline", s.tagOnline)
+            .putInt("tagMinMatch", s.tagMinMatch)
+            .putBoolean("tagFillOnly", s.tagFillOnly)
+            .putBoolean("tagCovers", s.tagCovers)
             .putBoolean("eq.enabled", s.eq.enabled)
             .putInt("eq.preset", s.eq.preset)
             .putString("eq.bands", s.eq.bandLevels.joinToString(","))

@@ -240,6 +240,51 @@ if [ -n "$online_song" ]; then
   adb logcat -d | grep -E "OnlineLyrics" | grep -vE "OnlineLyrics:[[:space:]]+at " | tail -8
 fi
 
+untagged="$MEDIA/Download/Untagged/Rick Astley - Never Gonna Give You Up.mp3"
+if [ -f "$untagged" ]; then
+  echo "== Tags from the online catalogues (an untagged download)"
+  tags_of() { # what Android's media index says about a file
+    adb shell content query --uri content://media/external/audio/media --projection title:artist:album:year \
+      --where "\"_display_name='$1'\"" 2>&1 | head -2
+  }
+  echo "   before: $(tags_of 'Rick Astley - Never Gonna Give You Up.mp3')"
+  shortcut songs; sleep 2
+  for _ in 1 2 3 4; do
+    tap "More options for Rick Astley" && break
+    adb shell input swipe 540 1800 540 700 300; sleep 1
+  done
+  if tap "Edit tags"; then
+    shot 16e-edit-tags 2
+    tap "Search online" && shot 16f-tag-matches 12
+    if tap "Use the best match"; then
+      shot 16g-tags-filled 4
+      tap "Save" && sleep 3
+      shot 16h-allow-changing 1
+      tap "Allow" && sleep 6
+      after=$(tags_of 'Rick Astley - Never Gonna Give You Up.mp3')
+      echo "   after: $after"
+      echo "$after" | grep -q "artist=Rick Astley" && echo "   ✅ tags found online and saved into the file" || echo "   ⚠️ the file's tags didn't change"
+    fi
+    adb logcat -d | grep -E "TagLookup|TagEditor" | grep -vE ":[[:space:]]+at " | tail -8
+  fi
+  echo "-- Auto-tag two songs only named \"Track 2\" and \"Track 10\" (nothing sure enough: they're left alone)"
+  shortcut songs; sleep 2
+  for _ in 1 2 3 4; do
+    longtap "Track 10" && break
+    adb shell input swipe 540 1800 540 700 300; sleep 1
+  done
+  tap "Track 2" "exact"
+  if tap "More actions" && tap "Auto-tag 2 songs"; then
+    shot 16i-auto-tag-options 2
+    tap "Start" && sleep 2
+    tap "Allow"
+    sleep 15
+    shot 16j-auto-tag-done 1
+    tap "Done"
+  fi
+  adb shell input keyevent KEYCODE_BACK
+fi
+
 echo "== NCS"
 text_after() { # prints the first visible text after the label $1 (e.g. the first song under a heading)
   dump > /dev/null && python3 - "$1" <<'PY'

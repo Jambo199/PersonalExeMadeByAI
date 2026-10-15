@@ -7,6 +7,7 @@ import coil.memory.MemoryCache
 import com.jambo199.vividmusic.data.ArtworkLoader
 import com.jambo199.vividmusic.data.FunCounters
 import com.jambo199.vividmusic.data.LibraryRepository
+import com.jambo199.vividmusic.data.TagLookup
 import com.jambo199.vividmusic.data.LyricsRepository
 import com.jambo199.vividmusic.data.PositionStore
 import com.jambo199.vividmusic.data.SettingsStore
@@ -42,6 +43,7 @@ object AppGraph {
     val online by lazy { OnlineStore(app, scope) }
     val positions by lazy { PositionStore(app, scope) }
     val counters by lazy { FunCounters(app) }
+    val tags by lazy { TagLookup() }
 
     fun init(application: Application) {
         app = application

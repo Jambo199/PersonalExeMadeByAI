@@ -17,6 +17,7 @@ import com.jambo199.vividmusic.data.Achievement
 import com.jambo199.vividmusic.data.Achievements
 import com.jambo199.vividmusic.data.Album
 import com.jambo199.vividmusic.data.Artist
+import com.jambo199.vividmusic.data.AutoTagger
 import com.jambo199.vividmusic.data.Backup
 import com.jambo199.vividmusic.data.FolderNode
 import com.jambo199.vividmusic.data.Genre
@@ -36,6 +37,7 @@ import com.jambo199.vividmusic.data.Song
 import com.jambo199.vividmusic.data.SongSource
 import com.jambo199.vividmusic.data.TagEditor
 import com.jambo199.vividmusic.data.TagEdits
+import com.jambo199.vividmusic.data.TagMatch
 import com.jambo199.vividmusic.data.UserData
 import com.jambo199.vividmusic.data.VoiceCommand
 import com.jambo199.vividmusic.data.albumComparator
@@ -54,6 +56,8 @@ import com.jambo199.vividmusic.playback.SleepTimer
 import com.jambo199.vividmusic.update.UpdateState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -69,6 +73,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -823,47 +828,144 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     // region tag editor
 
-    private var pendingTagEdit: Pair<Song, TagEdits>? = null
+    private class PendingTagEdit(val song: Song, val edits: TagEdits, val cover: TagMatch?)
+
+    private var pendingTagEdit: PendingTagEdit? = null
 
     /**
-     * Saves [edits] into [song]'s file. On Android 11+ the system first asks for permission to
-     * change the file ([onPermission] gets the dialog to show; then call [onTagPermission]).
+     * Saves [edits] into [song]'s file, with [cover]'s picture as its cover when given. On
+     * Android 11+ the system first asks for permission to change the file ([onPermission] gets
+     * the dialog to show; then call [onTagPermission]).
      */
-    fun editTags(song: Song, edits: TagEdits, onPermission: (IntentSender) -> Unit) {
+    fun editTags(song: Song, edits: TagEdits, cover: TagMatch? = null, onPermission: (IntentSender) -> Unit) {
         if (playback.value.song?.key == song.key) {
             toast("Play something else first – the song that's playing can't be changed")
             return
         }
         val context = getApplication<Application>()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && song.source == SongSource.MEDIA_STORE) {
-            pendingTagEdit = song to edits
+            pendingTagEdit = PendingTagEdit(song, edits, cover)
             onPermission(MediaStore.createWriteRequest(context.contentResolver, listOf(song.uri)).intentSender)
             return
         }
-        writeTags(song, edits, onPermission)
+        writeTags(song, edits, cover, onPermission)
     }
 
     fun onTagPermission(granted: Boolean, onPermission: (IntentSender) -> Unit) {
-        val (song, edits) = pendingTagEdit ?: return
+        pendingAutoTag?.let { songs ->
+            pendingAutoTag = null
+            if (granted) runAutoTag(songs) else toast("Tags not changed")
+            return
+        }
+        val pending = pendingTagEdit ?: return
         pendingTagEdit = null
-        if (granted) writeTags(song, edits, onPermission) else toast("Tags not changed")
+        if (granted) writeTags(pending.song, pending.edits, pending.cover, onPermission) else toast("Tags not changed")
     }
 
-    private fun writeTags(song: Song, edits: TagEdits, onPermission: (IntentSender) -> Unit) {
+    private fun writeTags(song: Song, edits: TagEdits, cover: TagMatch?, onPermission: (IntentSender) -> Unit) {
         val context = getApplication<Application>()
         viewModelScope.launch {
-            when (val result = withContext(Dispatchers.IO) { TagEditor.write(context, song, edits) }) {
+            val art = cover?.let { AppGraph.tags.artwork(it) }
+            if (cover != null && art == null) toast("Couldn't get that cover; saving the tags without it")
+            when (val result = withContext(Dispatchers.IO) { TagEditor.write(context, song, edits, art) }) {
                 TagEditor.Result.Done -> {
                     toast("Tags saved")
+                    if (art != null) AppGraph.artwork.clearMisses()
                     if (song.source == SongSource.FOLDER) AppGraph.library.refreshAll()
                 }
                 is TagEditor.Result.NeedsPermission -> {
-                    pendingTagEdit = song to edits
+                    pendingTagEdit = PendingTagEdit(song, edits, cover)
                     onPermission(result.intentSender)
                 }
                 is TagEditor.Result.Failed -> toast(result.message)
             }
         }
+    }
+
+    /** How an auto-tag run is going; null when there isn't one. */
+    data class AutoTagRun(
+        val total: Int,
+        val done: Int = 0,
+        val current: String? = null,
+        val tagged: Int = 0,
+        val alreadyRight: Int = 0,
+        /** Songs with no match sure enough to use. */
+        val notSure: List<String> = emptyList(),
+        /** Songs that couldn't be changed, with why. */
+        val failed: List<String> = emptyList(),
+        val finished: Boolean = false,
+        val cancelled: Boolean = false,
+    )
+
+    private val _autoTag = MutableStateFlow<AutoTagRun?>(null)
+    val autoTag: StateFlow<AutoTagRun?> = _autoTag.asStateFlow()
+    private var autoTagJob: Job? = null
+    private var pendingAutoTag: List<Song>? = null
+
+    /**
+     * Tags [songs] by themselves, the way the auto-tag settings say (Automatag-style). On
+     * Android 11+ the system asks once for permission to change all the files ([onPermission]).
+     */
+    fun autoTag(songs: List<Song>, onPermission: (IntentSender) -> Unit) {
+        if (autoTagJob?.isActive == true) {
+            toast("Already auto-tagging")
+            return
+        }
+        val playing = playback.value.song?.key
+        val list = songs.filter { TagEditor.canEdit(it) && it.key != playing }
+        if (list.isEmpty()) {
+            toast(if (songs.any { it.key == playing }) "Play something else first – the song that's playing can't be changed" else "These songs can't be tagged")
+            return
+        }
+        val inStore = list.filter { it.source == SongSource.MEDIA_STORE }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && inStore.isNotEmpty()) {
+            pendingAutoTag = list
+            val context = getApplication<Application>()
+            onPermission(MediaStore.createWriteRequest(context.contentResolver, inStore.map { it.uri }).intentSender)
+            return
+        }
+        runAutoTag(list)
+    }
+
+    private fun runAutoTag(songs: List<Song>) {
+        val context = getApplication<Application>()
+        val settings = AppGraph.settings.current
+        _autoTag.value = AutoTagRun(total = songs.size)
+        autoTagJob = viewModelScope.launch {
+            var folderSongs = false
+            try {
+                for (song in songs) {
+                    _autoTag.update { it?.copy(current = song.title) }
+                    val outcome = withContext(Dispatchers.IO) { AutoTagger.tag(context, song, settings, AppGraph.tags, AppGraph.artwork) }
+                    if (outcome is AutoTagger.Outcome.Tagged && song.source == SongSource.FOLDER) folderSongs = true
+                    _autoTag.update { run ->
+                        run ?: return@update null
+                        when (outcome) {
+                            is AutoTagger.Outcome.Tagged -> run.copy(tagged = run.tagged + 1)
+                            AutoTagger.Outcome.AlreadyRight -> run.copy(alreadyRight = run.alreadyRight + 1)
+                            AutoTagger.Outcome.NotSure -> run.copy(notSure = run.notSure + song.title)
+                            is AutoTagger.Outcome.Failed -> run.copy(failed = run.failed + "${song.title}: ${outcome.why}")
+                        }.copy(done = run.done + 1)
+                    }
+                }
+            } finally {
+                withContext(NonCancellable) {
+                    _autoTag.update { it?.copy(current = null, finished = true) }
+                    AppGraph.artwork.clearMisses()
+                    if (folderSongs) AppGraph.library.refreshAll()
+                }
+            }
+        }
+    }
+
+    /** Stops after the song being tagged now (a file is never left half-changed). */
+    fun cancelAutoTag() {
+        _autoTag.update { it?.copy(cancelled = true) }
+        autoTagJob?.cancel()
+    }
+
+    fun closeAutoTag() {
+        if (autoTagJob?.isActive != true) _autoTag.value = null
     }
 
     // endregion

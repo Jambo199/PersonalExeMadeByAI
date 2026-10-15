@@ -84,6 +84,16 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      # What the tag finder's catalogues answer, for checking its parsers against the real thing.
+      - name: What the music catalogues answer
+        continue-on-error: true
+        run: |
+          UA="VividMusic CI (https://github.com/Jambo199/PersonalExeMadeByAI)"
+          probe() { echo "--- $1"; curl -sS -m 20 -A "$UA" "$1" | head -c "${2:-1500}"; echo; }
+          probe "https://itunes.apple.com/search?term=rick+astley+never+gonna+give+you+up&media=music&entity=song&limit=2&country=GB"
+          probe "https://api.deezer.com/search?q=artist:%22Rick%20Astley%22%20track:%22Never%20Gonna%20Give%20You%20Up%22&limit=2"
+          probe "https://musicbrainz.org/ws/2/recording?query=recording:%22Never%20Gonna%20Give%20You%20Up%22%20AND%20artist:%22Rick%20Astley%22&fmt=json&limit=2" 2500
+
       - name: Make test music
         run: bash ci/make-test-audio.sh testmedia
 

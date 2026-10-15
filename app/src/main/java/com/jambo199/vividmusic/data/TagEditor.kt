@@ -3,6 +3,7 @@ package com.jambo199.vividmusic.data
 import android.app.RecoverableSecurityException
 import android.content.Context
 import android.content.IntentSender
+import android.graphics.BitmapFactory
 import android.media.MediaScannerConnection
 import android.os.Build
 import android.util.Log
@@ -11,6 +12,8 @@ import org.jaudiotagger.audio.exceptions.CannotReadException
 import org.jaudiotagger.tag.FieldKey
 import org.jaudiotagger.tag.Tag
 import org.jaudiotagger.tag.TagOptionSingleton
+import org.jaudiotagger.tag.images.AndroidArtwork
+import org.jaudiotagger.tag.reference.PictureTypes
 import java.io.File
 
 /** The tags the editor can change. Blank fields are removed from the file. */
@@ -23,13 +26,32 @@ data class TagEdits(
     val year: String,
     val track: String,
 ) {
+    /**
+     * These tags with [m]'s filled in: all of them, or with [fillOnly] just the missing ones. A
+     * title that's only the file's name ([fileBase]) and placeholders like "<unknown>" count as missing.
+     */
+    fun with(m: TagMatch, fillOnly: Boolean, fileBase: String = ""): TagEdits {
+        fun missing(old: String) = !TagText.known(old)
+        fun pick(old: String, new: String, isMissing: Boolean = missing(old)) =
+            if (new.isBlank() || (fillOnly && !isMissing)) old else new.trim()
+        return TagEdits(
+            title = pick(title, m.title, missing(title) || title.equals(fileBase, ignoreCase = true)),
+            artist = pick(artist, m.artist),
+            album = pick(album, m.album),
+            albumArtist = pick(albumArtist, m.albumArtist),
+            genre = pick(genre, m.genre),
+            year = pick(year, m.year),
+            track = pick(track, m.track),
+        )
+    }
+
     companion object {
         fun of(song: Song) = TagEdits(
             title = song.title,
-            artist = song.artist,
-            album = song.album,
-            albumArtist = song.albumArtist,
-            genre = song.genre,
+            artist = song.artist.takeIf(TagText::known).orEmpty(),
+            album = song.album.takeIf(TagText::known).orEmpty(),
+            albumArtist = song.albumArtist.takeIf(TagText::known).orEmpty(),
+            genre = song.genre.takeIf(TagText::known).orEmpty(),
             year = song.year.takeIf { it > 0 }?.toString().orEmpty(),
             track = song.track.takeIf { it > 0 }?.toString().orEmpty(),
         )
@@ -59,7 +81,8 @@ object TagEditor {
         TagOptionSingleton.getInstance().isAndroid = true
     }
 
-    fun write(context: Context, song: Song, edits: TagEdits): Result {
+    /** Writes [edits] (and [artwork], a JPEG or PNG, as the cover when given) into the song's file. */
+    fun write(context: Context, song: Song, edits: TagEdits, artwork: ByteArray? = null): Result {
         val ext = song.fileName.substringAfterLast('.', "").lowercase()
         val dir = File(context.cacheDir, "tag_edit").apply { mkdirs() }
         val temp = File(dir, "edit.$ext")
@@ -75,6 +98,13 @@ object TagEditor {
             tag.put(FieldKey.GENRE, edits.genre)
             tag.put(FieldKey.YEAR, edits.year.filter(Char::isDigit))
             tag.put(FieldKey.TRACK, edits.track.filter(Char::isDigit))
+            if (artwork != null) {
+                try {
+                    tag.deleteArtworkField()
+                } catch (_: Exception) {
+                }
+                tag.setField(CoverArt(artwork))
+            }
             audio.commit()
             context.contentResolver.openOutputStream(song.uri, "wt")?.use { out -> temp.inputStream().use { it.copyTo(out) } }
                 ?: return Result.Failed("Couldn't write the file")
@@ -96,6 +126,27 @@ object TagEditor {
             Result.Failed("Couldn't save the tags (${e.javaClass.simpleName})")
         } finally {
             temp.delete()
+        }
+    }
+
+    /**
+     * A cover for jaudiotagger. Its Android picture class can't measure an image, which FLAC and
+     * Ogg covers need, so this one measures it with Android's own decoder.
+     */
+    private class CoverArt(bytes: ByteArray) : AndroidArtwork() {
+        init {
+            binaryData = bytes
+            mimeType = if (bytes.size > 1 && bytes[0] == 0x89.toByte() && bytes[1] == 'P'.code.toByte()) "image/png" else "image/jpeg"
+            pictureType = PictureTypes.DEFAULT_ID
+            description = ""
+        }
+
+        override fun setImageFromData(): Boolean {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(binaryData, 0, binaryData.size, bounds)
+            width = bounds.outWidth
+            height = bounds.outHeight
+            return bounds.outWidth > 0
         }
     }
 

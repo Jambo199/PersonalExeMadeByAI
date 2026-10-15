@@ -56,6 +56,10 @@ if [ -n "$row" ]; then
     -metadata title="$track" -metadata artist="$artist" -metadata album="$album" \
     "$OUT/Music/Online/$track.mp3"
   echo "LRCLIB test song: $track / $artist / $album / ${dur}s"
+  # The same song with no tags at all, named the way downloads often are: for finding its tags online.
+  mkdir -p "$OUT/Download/Untagged"
+  ff -f lavfi -i "sine=frequency=330:duration=$dur" -ac 1 -c:a libmp3lame -b:a 32k -map_metadata -1 \
+    "$OUT/Download/Untagged/Rick Astley - Never Gonna Give You Up.mp3"
 else
   echo "LRCLIB unreachable; skipping the online lyrics song"
 fi

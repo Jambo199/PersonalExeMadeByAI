@@ -36,6 +36,44 @@ object Http {
         throw IOException("Too many redirects")
     }
 
+    /** GET returning the bytes (a picture); follows redirects. Throws IOException on failure or when it's over [maxBytes]. */
+    fun getBytes(url: String, maxBytes: Int = 8_000_000): ByteArray {
+        var target = url
+        repeat(MAX_REDIRECTS) {
+            val conn = URL(target).openConnection() as HttpURLConnection
+            try {
+                conn.instanceFollowRedirects = false
+                conn.connectTimeout = 10_000
+                conn.readTimeout = 20_000
+                conn.setRequestProperty("User-Agent", USER_AGENT)
+                when (val code = conn.responseCode) {
+                    in 200..299 -> {
+                        if (conn.contentLengthLong > maxBytes) throw IOException("Too big (${conn.contentLengthLong} bytes)")
+                        conn.inputStream.use { input ->
+                            val out = java.io.ByteArrayOutputStream()
+                            val buffer = ByteArray(64 * 1024)
+                            while (true) {
+                                val n = input.read(buffer)
+                                if (n < 0) break
+                                out.write(buffer, 0, n)
+                                if (out.size() > maxBytes) throw IOException("Too big")
+                            }
+                            return out.toByteArray()
+                        }
+                    }
+                    301, 302, 303, 307, 308 -> {
+                        val location = conn.getHeaderField("Location") ?: throw IOException("Redirect without a location")
+                        target = URL(URL(target), location).toString()
+                    }
+                    else -> throw IOException("HTTP $code")
+                }
+            } finally {
+                conn.disconnect()
+            }
+        }
+        throw IOException("Too many redirects")
+    }
+
     fun encode(text: String): String = URLEncoder.encode(text, "UTF-8")
 
     /** Encodes each part of a path, keeping the slashes. */
