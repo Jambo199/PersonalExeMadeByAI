@@ -264,6 +264,7 @@ if [ -f "$untagged" ]; then
       after=$(tags_of 'Rick Astley - Never Gonna Give You Up.mp3')
       echo "   after: $after"
       echo "$after" | grep -q "artist=Rick Astley" && echo "   ✅ tags found online and saved into the file" || echo "   ⚠️ the file's tags didn't change"
+      echo "$after" | grep -qE "year=(19|20)[0-9][0-9]" && echo "   ✅ with its year" || echo "   ⚠️ no year in Android's index"
     fi
     adb logcat -d | grep -E "TagLookup|TagEditor" | grep -vE ":[[:space:]]+at " | tail -8
   fi

@@ -8,11 +8,14 @@ import android.media.MediaScannerConnection
 import android.os.Build
 import android.util.Log
 import org.jaudiotagger.audio.AudioFileIO
+import org.jaudiotagger.audio.mp3.MP3File
 import org.jaudiotagger.audio.exceptions.CannotReadException
 import org.jaudiotagger.tag.FieldKey
 import org.jaudiotagger.tag.Tag
 import org.jaudiotagger.tag.TagOptionSingleton
+import org.jaudiotagger.tag.id3.ID3v23Tag
 import org.jaudiotagger.tag.images.AndroidArtwork
+import org.jaudiotagger.tag.reference.ID3V2Version
 import org.jaudiotagger.tag.reference.PictureTypes
 import java.io.File
 
@@ -79,6 +82,8 @@ object TagEditor {
     init {
         // Use Android's image classes instead of the desktop ones.
         TagOptionSingleton.getInstance().isAndroid = true
+        // New MP3 tags as ID3v2.3: Android (and most players) read the year from it.
+        TagOptionSingleton.getInstance().setID3V2Version(ID3V2Version.ID3_V23)
     }
 
     /** Writes [edits] (and [artwork], a JPEG or PNG, as the cover when given) into the song's file. */
@@ -90,6 +95,11 @@ object TagEditor {
             context.contentResolver.openInputStream(song.uri)?.use { input -> temp.outputStream().use { input.copyTo(it) } }
                 ?: return Result.Failed("Couldn't open the file")
             val audio = AudioFileIO.read(temp)
+            // Android reads an MP3's year from ID3v2.3's year frame, not ID3v2.4's date, so MP3 tags
+            // are saved as v2.3, as most taggers do.
+            if (audio is MP3File && audio.hasID3v2Tag() && audio.getID3v2Tag() !is ID3v23Tag) {
+                audio.tag = ID3v23Tag(audio.getID3v2Tag())
+            }
             val tag = audio.tagOrCreateAndSetDefault
             tag.put(FieldKey.TITLE, edits.title)
             tag.put(FieldKey.ARTIST, edits.artist)

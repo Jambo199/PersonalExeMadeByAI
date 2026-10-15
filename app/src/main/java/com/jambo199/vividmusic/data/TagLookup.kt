@@ -293,15 +293,10 @@ class TagLookup {
         return Parse.iTunes(body)
     }
 
+    // A plain search: Deezer's artist:"…" track:"…" one finds nothing even for well-known songs.
     private fun deezer(q: TagQuery): List<TagMatch> {
-        val title = searchTitle(q.title)
-        val query = if (TagText.known(q.artist)) "artist:\"${q.artist.replace("\"", "")}\" track:\"${title.replace("\"", "")}\"" else title
-        var results = Parse.deezer(throttled(DEEZER) { Http.get("$DEEZER_API/search?q=${Http.encode(query)}&limit=10") })
-        // The strict search finds nothing when a name is spelt a bit differently; try a plain one.
-        if (results.isEmpty() && TagText.known(q.artist)) {
-            results = Parse.deezer(throttled(DEEZER) { Http.get("$DEEZER_API/search?q=${Http.encode("${q.artist} $title")}&limit=10") })
-        }
-        return results
+        val query = listOf(q.artist.takeIf(TagText::known).orEmpty(), searchTitle(q.title)).filter { it.isNotBlank() }.joinToString(" ")
+        return Parse.deezer(throttled(DEEZER) { Http.get("$DEEZER_API/search?q=${Http.encode(query)}&limit=15") })
     }
 
     private fun musicBrainz(q: TagQuery): List<TagMatch> {
